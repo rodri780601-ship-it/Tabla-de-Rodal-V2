@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tabla de Rodal · Bosque Nativo</title>
+  <meta name="description" content="Construye la tabla de rodal inicial y residual a partir del inventario de parcelas, y evalúa tipo forestal, estado de desarrollo, categoría de bosque y cumplimiento de las Bases Técnicas 2026.">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <header class="top">
+    <div class="brand">
+      <svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 3 7 16h5l-6 9h8v4h4v-4h8l-6-9h5z" fill="currentColor"/></svg>
+      <div>
+        <h1>Tabla de Rodal · Bosque Nativo</h1>
+        <p class="sub">Inventario de parcelas → tabla de rodal inicial y residual, tipo forestal, estado de desarrollo y Bases Técnicas 2026</p>
+      </div>
+    </div>
+    <div class="top-actions">
+      <button class="btn ghost" id="btnGuardarProyecto" disabled title="Guarda datos y configuración en un archivo .json">Guardar proyecto</button>
+      <label class="btn ghost" title="Abre un proyecto guardado (.json)">Abrir proyecto<input type="file" id="inpProyecto" accept=".json" hidden></label>
+      <button class="btn primary" id="btnExportar" disabled>Exportar Excel</button>
+    </div>
+  </header>
+
+  <nav class="tabs" role="tablist" id="tabs">
+    <button role="tab" data-tab="datos" class="active">1 · Inventario</button>
+    <button role="tab" data-tab="especies" disabled>2 · Especies y volumen</button>
+    <button role="tab" data-tab="rodales" disabled>3 · Rodales</button>
+    <button role="tab" data-tab="tabla" disabled>4 · Tabla de rodal</button>
+    <button role="tab" data-tab="estadisticos" disabled>5 · Estadísticos</button>
+    <button role="tab" data-tab="cumplimiento" disabled>6 · Cumplimiento</button>
+    <button role="tab" data-tab="fuentes">Fuentes</button>
+  </nav>
+
+  <main>
+    <!-- ============ 1. INVENTARIO ============ -->
+    <section class="panel active" id="tab-datos">
+      <div class="grid2">
+        <div class="card">
+          <h2>Cargar inventario de parcelas</h2>
+          <p class="muted">Archivo Excel (.xlsx) o CSV con una fila por árbol. Columnas mínimas: <b>Rodal</b>, <b>Parcela</b>, <b>Especie</b> y <b>Dap</b> (cm), como la hoja 2 de la plantilla. Columnas opcionales: <b>Altura</b> (m), <b>Extraer</b> (S/N: árbol marcado para corta) y <b>Superficie</b> de la parcela (m²).</p>
+          <div class="drop" id="drop">
+            <input type="file" id="inpArchivo" accept=".xlsx,.csv,.txt">
+            <div class="drop-inner">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0-12-4 4m4-4 4 4M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <span>Arrastre el archivo aquí o <u>selecciónelo</u></span>
+            </div>
+          </div>
+          <div class="row-btns">
+            <button class="btn" id="btnPlantilla">Descargar plantilla</button>
+            <button class="btn ghost" id="btnEjemplo">Cargar datos de ejemplo</button>
+          </div>
+          <div id="msgArchivo"></div>
+        </div>
+        <div class="card">
+          <h2>Parámetros generales</h2>
+          <div class="form">
+            <label>Región del proyecto
+              <select id="cfgRegion"></select>
+              <small>Define las funciones de volumen preferidas y la categoría de conservación regional del listado MMA.</small>
+            </label>
+            <label>Superficie de la parcela (m²)
+              <input type="number" id="cfgArea" min="1" step="any" value="500">
+              <small>Factor de expansión = 10.000 / superficie. Puede ajustarse por rodal.</small>
+            </label>
+            <div class="two">
+              <label>Amplitud de clase (cm)
+                <input type="number" id="cfgAncho" min="1" step="any" value="5">
+              </label>
+              <label>Límite inferior 1.ª clase (cm)
+                <input type="number" id="cfgInicio" step="any" placeholder="automático">
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" id="cardMapeo" hidden>
+        <h2>Columnas detectadas</h2>
+        <p class="muted" id="txtHoja"></p>
+        <div class="mapeo" id="mapeo"></div>
+        <div class="row-btns"><button class="btn primary" id="btnProcesar">Procesar inventario</button></div>
+      </div>
+
+      <div class="card" id="cardResumenCarga" hidden>
+        <h2>Resumen del inventario</h2>
+        <div class="kpis" id="kpisCarga"></div>
+        <div id="avisosCarga"></div>
+      </div>
+    </section>
+
+    <!-- ============ 2. ESPECIES ============ -->
+    <section class="panel" id="tab-especies">
+      <div class="card">
+        <div class="card-head">
+          <h2>Especies del inventario</h2>
+          <label class="btn ghost small" title="Reemplaza el listado MMA incluido por otra versión oficial (.xlsx)">Actualizar listado MMA<input type="file" id="inpMMA" accept=".xlsx" hidden></label>
+        </div>
+        <p class="muted">Cada nombre del inventario se reconoce exclusivamente contra la nómina del <b>D.S. N° 68/2009</b>. La categoría de conservación proviene exclusivamente del listado del <b>Ministerio del Medio Ambiente</b> (<span id="txtFuenteMMA"></span>), aplicada a la región del proyecto. La función de volumen proviene exclusivamente del <b>Compendio de Funciones Dendrométricas del Bosque Nativo</b>.</p>
+        <div class="table-wrap"><table class="data" id="tblEspecies"></table></div>
+      </div>
+      <div class="card" id="cardFuncionDetalle" hidden></div>
+    </section>
+
+    <!-- ============ 3. RODALES ============ -->
+    <section class="panel" id="tab-rodales">
+      <div class="rodal-bar">
+        <label>Rodal <select id="selRodalCfg"></select></label>
+        <span class="muted" id="txtRodalesDetectados"></span>
+      </div>
+      <div id="rodalCfg"></div>
+    </section>
+
+    <!-- ============ 4. TABLA DE RODAL ============ -->
+    <section class="panel" id="tab-tabla">
+      <div class="rodal-bar">
+        <label>Rodal <select id="selRodalTabla"></select></label>
+        <label class="chk"><input type="checkbox" id="chkTodas"> Mostrar todas las especies (la plantilla usa 3 especies + Otras)</label>
+      </div>
+      <div id="tablaRodal"></div>
+    </section>
+
+    <!-- ============ 5. ESTADÍSTICOS ============ -->
+    <section class="panel" id="tab-estadisticos">
+      <div class="card">
+        <h2>Estadísticos del muestreo</h2>
+        <p class="muted">Por rodal, a partir de los valores por hectárea de cada parcela. Error de muestreo = t<sub>(0,975; n−1)</sub> · S / √n, expresado como porcentaje de la media.</p>
+        <div class="table-wrap" id="tblEstadisticos"></div>
+      </div>
+      <div class="card">
+        <h2>Valores por parcela</h2>
+        <div class="table-wrap" id="tblParcelas"></div>
+      </div>
+    </section>
+
+    <!-- ============ 6. CUMPLIMIENTO ============ -->
+    <section class="panel" id="tab-cumplimiento">
+      <div class="card">
+        <h2>Resumen por rodal</h2>
+        <div class="table-wrap" id="tblResumen"></div>
+      </div>
+      <div id="detalleCumplimiento"></div>
+    </section>
+
+    <!-- ============ FUENTES ============ -->
+    <section class="panel" id="tab-fuentes">
+      <div class="card prose">
+        <h2>Fuentes y criterios</h2>
+        <ul>
+          <li><b>Funciones de volumen:</b> exclusivamente el <i>Compendio de Funciones Dendrométricas del Bosque Nativo</i> (Drake, Emanuelli y Acuña, 2003). Se transcribieron las 208 funciones de volumen de árboles individuales y cada ecuación se contrastó con la tabla de volumen impresa en el compendio. Por defecto se elige, para cada especie, la función verificada de la misma especie y región que usa altura total; puede cambiarse en la pestaña 2.</li>
+          <li><b>Altura:</b> para cada especie y rodal se usa una altura promedio, que ingresa el usuario o que se calcula como la media de las alturas medidas cuando el inventario trae la columna Altura.</li>
+          <li><b>Especies nativas:</b> exclusivamente la nómina del D.S. N° 68 de 2009 del Ministerio de Agricultura. Los nombres no reconocidos se tratan como especies no nativas para evaluar la presencia accidental de exóticas.</li>
+          <li><b>Categorías de conservación:</b> exclusivamente el listado del Ministerio del Medio Ambiente, <i>Nómina de especies según estado de conservación</i> (20.º proceso RCE). Cuando la categoría es diferenciada por zona, se aplica la de la región del proyecto.</li>
+          <li><b>Tipo forestal y métodos de corta:</b> D.S. N° 259 de 1980, arts. 18 a 24 y 30 (vigentes para la corta de regeneración según las Bases, punto 3.3.2 a).</li>
+          <li><b>Estado de desarrollo, actividades y requisitos:</b> Bases Técnicas del Primer Llamado a Concursos 2026 (punto 2.5, Cuadro 2, y definiciones de los literales a, b y c), y Tabla de Valores del D.S. 82/2022 (Anexo 1).</li>
+          <li><b>Categoría de bosque:</b> Ley N° 20.283, art. 2° N° 4 (preservación), N° 5 (conservación y protección) y N° 6 (uso múltiple), y art. 19.</li>
+        </ul>
+        <h3>Criterios propios de la aplicación (revisables por el profesional)</h3>
+        <ul>
+          <li>Siempreverde: se considera que la asociación representa el estrato superior o intermedio cuando sus especies suman al menos el 50 % de los individuos.</li>
+          <li>Esclerófilo: además de las especies nombradas en el art. 19 k), se consideran de "distribución geográfica similar" otras especies de la zona mediterránea incluidas en el D.S. 68 (belloto del sur, frangel, patagua, huingán, guayacán, entre otras).</li>
+          <li>Roble-Hualo frente a Roble-Raulí-Coigüe: con presencia de hualo y roble+hualo ≥ 50 % se asigna Roble-Hualo; de lo contrario se evalúa Roble-Raulí-Coigüe.</li>
+          <li>Preservación: basta la presencia en el inventario de una especie en categoría CR, EN o VU, según la categoría regional vigente.</li>
+          <li>Para esclerófilo, las Bases indican que el DMC se calcula con el diámetro a la altura del tocón (0,3 m). La aplicación usa el diámetro de la columna Dap tal como viene; si corresponde, ingrese el DAT en esa columna.</li>
+          <li>Los volúmenes negativos que entregan algunas funciones para árboles pequeños se fijan en cero.</li>
+        </ul>
+        <p class="muted">Todos los resultados son una ayuda para el profesional y deben revisarse antes de presentar el plan de manejo.</p>
+      </div>
+    </section>
+  </main>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="lib/jszip.min.js"></script>
+  <script src="js/data-d68.js"></script>
+  <script src="js/data-mma.js"></script>
+  <script src="js/data-funciones.js"></script>
+  <script src="js/data-normativa.js"></script>
+  <script src="js/xlsxio.js"></script>
+  <script src="js/calculos.js"></script>
+  <script src="js/exportar.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

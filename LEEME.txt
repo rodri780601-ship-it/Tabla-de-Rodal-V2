@@ -1,0 +1,28 @@
+TABLA DE RODAL · BOSQUE NATIVO
+==============================
+
+Uso: descomprima la carpeta y abra index.html en un navegador moderno (Chrome, Edge o Firefox).
+No requiere instalación ni conexión a internet.
+
+Contenido
+- index.html ............ página principal
+- css/styles.css ........ estilos
+- js/app.js ............. interfaz
+- js/calculos.js ........ cálculos (tabla de rodal, tipo forestal, estado, categoría, Bases 2026)
+- js/exportar.js ........ exportación a Excel (todas las hojas)
+- js/xlsxio.js .......... lectura/escritura de .xlsx y .csv
+- js/data-funciones.js .. 208 funciones de volumen del Compendio de Funciones Dendrométricas del Bosque Nativo
+- js/data-d68.js ........ nómina de especies del D.S. N° 68/2009
+- js/data-mma.js ........ listado MMA de especies clasificadas (flora, 20° proceso RCE)
+- js/data-normativa.js .. reglas del D.S. 259, Ley 20.283 y Bases Técnicas 2026
+- lib/jszip.min.js ...... librería JSZip 3.10.1 (MIT)
+
+Flujo
+1. Inventario: cargue el Excel/CSV (Rodal, Parcela, Especie, Dap; opcional Altura, Extraer, Superficie).
+   Los rodales se detectan automáticamente.
+2. Especies y volumen: revise el reconocimiento según el D.S. 68, la categoría MMA y la función del compendio.
+3. Rodales: antecedentes (pendiente, suelos, agua, SNAP), alturas promedio por especie, actividad y extracción.
+4. Tabla de rodal: tabla inicial/residual (N residual editable) y tabla de volumen.
+5. Estadísticos: medias, varianza, CV y error de muestreo por rodal.
+6. Cumplimiento: Bases Técnicas 2026 y restricciones de los métodos de corta (D.S. 259).
+Exportar Excel genera todas las hojas. "Guardar proyecto" permite retomar el trabajo.

@@ -3,6 +3,8 @@
   'use strict';
   const ST = () => window.XLSXIO.ST;
   const col = (i) => window.XLSXIO.idxToCol(i);
+  const MUESTREO = { aleatorio: 'Aleatorio simple', sistematico: 'Sistemático', estratificado: 'Estratificado (cada rodal es un estrato)', conglomerados: 'Por conglomerados', dirigido: 'Dirigido o selectivo (no probabilístico)' };
+  const fa = (x) => Number(x).toLocaleString('es-CL', { maximumFractionDigits: 2 });
   const r2 = (x, d = 4) => (x == null || !isFinite(x)) ? null : Math.round(x * 10 ** d) / 10 ** d;
 
   function hojaTablaRodal(r, campo2, titulo2, nombreHoja, tituloHoja) {
@@ -18,7 +20,7 @@
     merges.push(`A1:${col(Math.min(nCols - 1, 14))}1`);
     rows[2] = [{ v: 'Rodal:', s: s.subtitle }, null, { v: r.id, s: s.subtitle }];
     merges.push('A3:B3', 'C3:D3');
-    rows[3] = [{ v: `Tipo forestal: ${r.tipo.nombre} · Estado de desarrollo: ${r.estado.estado || '—'} · Categoría (Ley 20.283): ${r.categoria.cat} · ${r.nP} parcela(s) de ${r.area} m²`, s: s.note }];
+    rows[3] = [{ v: `Tipo forestal: ${r.tipo.nombre} · Estado de desarrollo: ${r.estado.estado || '—'} · Categoría (Ley 20.283): ${r.categoria.cat} · ${r.nP} parcela(s) de ${fa(r.area)} m²`, s: s.note }];
     const h5 = [{ v: 'Especie', s: s.header }, { v: null, s: s.header }, { v: null, s: s.header }];
     const h6 = [{ v: 'Rango (cm)                 ≤  Ø  <', s: s.header }, { v: null, s: s.header }, { v: 'Mc', s: s.header }];
     const h7 = [{ v: null, s: s.header }, { v: null, s: s.header }, { v: null, s: s.header }];
@@ -61,12 +63,12 @@
   }
 
   function hojaResumen(S) {
-    const s = ST(); const rows = [[{ v: 'Resumen por rodal', s: s.title }], [{ v: `Región del proyecto: ${(window.NORMATIVA.REGIONES.find(x => x.id === S.config.region) || {}).nombre} · Archivo: ${S.archivo || ''} · Generado: ${new Date().toLocaleString('es-CL')}`, s: s.note }], []];
+    const s = ST(); const rows = [[{ v: 'Resumen por rodal', s: s.title }], [{ v: `Región del proyecto: ${(window.NORMATIVA.REGIONES.find(x => x.id === S.config.region) || {}).nombre} · Muestreo: ${MUESTREO[S.config.muestreo] || ''} · Parcela ${S.config.forma} de ${fa(S.config.area)} m² (${window.APP_descDims()}) · Archivo: ${S.archivo || ''} · Generado: ${new Date().toLocaleString('es-CL')}`, s: s.note }], []];
     const H = ['Rodal', 'Superficie (ha)', 'Parcelas', 'Sup. parcela (m²)', 'Tipo forestal (D.S. 259)', 'Estado de desarrollo (Bases 2.5)', 'Categoría (Ley 20.283)', 'Estructura', 'DMC inicial (cm)', 'DMC residual (cm)', 'Altura media (m)', 'N inicial (árb/ha)', 'N residual (árb/ha)', 'G inicial (m²/ha)', 'G residual (m²/ha)', 'G extraída (%)', 'V inicial (m³/ha)', 'V residual (m³/ha)', 'Actividad a postular', 'Resultado Bases 2026'];
     rows.push(H.map(h => ({ v: h, s: s.header })));
     S.rodales.forEach(id => {
       const r = S.resultados[id];
-      rows.push([{ v: id, s: s.text }, { v: r.cfg.superficie === '' ? null : Number(r.cfg.superficie), s: s.dec2 }, { v: r.nP, s: s.int }, { v: r.area, s: s.int }, { v: r.tipo.nombre, s: s.text }, { v: r.estado.estado || '—', s: s.text }, { v: r.categoria.cat, s: s.text }, { v: r.estructura === 'irregular' ? 'Irregular' : 'Regular', s: s.text },
+      rows.push([{ v: id, s: s.text }, { v: r.cfg.superficie === '' ? null : Number(r.cfg.superficie), s: s.dec2 }, { v: r.nP, s: s.int }, { v: r2(r.area, 2), s: s.dec2 }, { v: r.tipo.nombre, s: s.text }, { v: r.estado.estado || '—', s: s.text }, { v: r.categoria.cat, s: s.text }, { v: r.estructura === 'irregular' ? 'Irregular' : 'Regular', s: s.text },
         { v: r2(r.DMCini, 2), s: s.dec1 }, { v: r2(r.DMCres, 2), s: s.dec1 }, { v: r2(r.hProm, 2), s: s.dec1 }, { v: r2(r.tot.ini.n, 1), s: s.int }, { v: r2(r.tot.res.n, 1), s: s.int }, { v: r2(r.tot.ini.g), s: s.dec2 }, { v: r2(r.tot.res.g), s: s.dec2 },
         { v: r.tot.ini.g ? r2(r.tot.ext.g / r.tot.ini.g, 4) : 0, s: s.pct }, { v: r2(r.tot.ini.v, 2), s: s.dec1 }, { v: r2(r.tot.res.v, 2), s: s.dec1 },
         { v: r.bases.actividad ? r.bases.actividad.nombre : '—', s: s.wrap }, { v: r.bases.resultado, s: r.bases.clase === 'ok' ? s.ok : r.bases.clase === 'bad' ? s.bad : s.warn }]);
@@ -78,37 +80,44 @@
 
   function hojaInventario(S) {
     const s = ST(); const rows = [];
-    const H = ['Rodal', 'Parcela', 'Especie', 'Dap', 'Especie (D.S. 68/2009)', 'Nombre científico', 'Altura medida (m)', 'Altura promedio usada (m)', 'Clase (cm)', 'g (m²)', 'Función compendio N°', 'v (m³)', 'Fracción residual', 'Extraído', 'Categoría MMA'];
+    const H = ['Rodal', 'Parcela', 'Especie', 'Dap', 'Especie (D.S. 68/2009)', 'Nombre científico', 'Altura promedio usada (m)', 'Clase (cm)', 'g (m²)', 'Función compendio N°', 'v (m³)', 'Fracción residual', 'Extraído', 'Categoría MMA'];
     rows.push(H.map(h => ({ v: h, s: s.header })));
     S.rodales.forEach(id => {
       const r = S.resultados[id];
       r.arboles.forEach(a => {
         const info = S.especiesInfo[a.key] || {};
         rows.push([{ v: isNaN(Number(a.rodal)) ? a.rodal : Number(a.rodal) }, { v: isNaN(Number(a.parcela)) ? a.parcela : Number(a.parcela) }, { v: a.nombre }, { v: a.dap },
-          { v: info.nativa ? info.nombre : 'No figura en D.S. 68' }, { v: info.sci || '' }, { v: a.h > 0 ? a.h : null }, { v: r2(r.alt[a.key], 2) },
+          { v: info.nativa ? info.nombre : 'No figura en D.S. 68' }, { v: info.sci || '' }, { v: r2(r.alt[a.key], 2) },
           { v: `${r.CL.arr[a.cl].li}–${r.CL.arr[a.cl].ls}` }, { v: r2(a.g, 6) }, { v: a.fid || null }, { v: r2(a.v, 5) }, { v: r2(a.res, 4) }, { v: a.res < 1 ? (a.res === 0 ? 'Sí' : 'Parcial') : 'No' }, { v: a.cat.code }]);
       });
     });
-    return { name: 'Inventario', rows, cols: [7, 8, 18, 7, 22, 26, 10, 10, 10, 10, 10, 10, 10, 9, 10], freeze: [1, 0] };
+    return { name: 'Inventario', rows, cols: [7, 8, 18, 7, 22, 26, 10, 10, 10, 10, 10, 10, 9, 10], freeze: [1, 0] };
   }
 
   function hojaEstadisticos(S) {
     const s = ST(); const rows = [], merges = [];
-    rows[0] = ['Rodal', 'Parcelas (N°)', 't student (95%)', 'Media', null, 'Varianza', null, 'Coeficiente de Variación', null, 'Error de Muestreo', null, 'Volumen (m³/ha)', null].map(v => ({ v, s: s.header }));
-    rows[1] = [null, null, null, 'Densidad (arb/ha)', 'Área Basal (m2/ha)', 'Densidad (arb/ha)', 'Área Basal (m2/ha)', 'Densidad', 'Área Basal', 'Densidad', 'Área Basal', 'Media', 'Error de Muestreo'].map(v => ({ v, s: s.header }));
-    merges.push('A1:A2', 'B1:B2', 'C1:C2', 'D1:E1', 'F1:G1', 'H1:I1', 'J1:K1', 'L1:M1');
+    rows[0] = ['Rodal', 'Parcelas (N°)', 't student (95%)', 'Media', null, 'Varianza', null, 'Coeficiente de Variación', null, 'Error de Muestreo', null, 'Volumen (m³/ha)', null, 'Intensidad de muestreo'].map(v => ({ v, s: s.header }));
+    rows[1] = [null, null, null, 'Densidad (arb/ha)', 'Área Basal (m2/ha)', 'Densidad (arb/ha)', 'Área Basal (m2/ha)', 'Densidad', 'Área Basal', 'Densidad', 'Área Basal', 'Media', 'Error de Muestreo', null].map(v => ({ v, s: s.header }));
+    merges.push('A1:A2', 'B1:B2', 'C1:C2', 'D1:E1', 'F1:G1', 'H1:I1', 'J1:K1', 'L1:M1', 'N1:N2');
+    const pc = (x) => x == null ? null : r2(x / 100, 6);
     S.rodales.forEach(id => {
       const r = S.resultados[id]; const st = window.APP_recalcStats(r);
       rows.push([{ v: isNaN(Number(id)) ? id : Number(id), s: s.text }, { v: st.n, s: s.int }, { v: r2(st.t, 4), s: s.dec3 }, { v: r2(st.N.media, 2), s: s.dec1 }, { v: r2(st.G.media, 4), s: s.dec2 }, { v: r2(st.N.var, 2), s: s.dec1 }, { v: r2(st.G.var, 4), s: s.dec3 },
-        { v: st.N.cv == null ? null : r2(st.N.cv / 100, 4), s: s.pct }, { v: st.G.cv == null ? null : r2(st.G.cv / 100, 4), s: s.pct }, { v: st.N.ePct == null ? null : r2(st.N.ePct / 100, 4), s: s.pct }, { v: st.G.ePct == null ? null : r2(st.G.ePct / 100, 4), s: s.pct },
-        { v: st.V ? r2(st.V.media, 2) : null, s: s.dec1 }, { v: st.V && st.V.ePct != null ? r2(st.V.ePct / 100, 4) : null, s: s.pct }]);
+        { v: pc(st.N.cv), s: s.pct }, { v: pc(st.G.cv), s: s.pct }, { v: pc(st.N.ePct), s: s.pct }, { v: pc(st.G.ePct), s: s.pct },
+        { v: st.V ? r2(st.V.media, 2) : null, s: s.dec1 }, { v: st.V ? pc(st.V.ePct) : null, s: s.pct }, { v: pc(st.intensidad), s: s.pct }]);
     });
+    const est = window.APP_estratificado();
+    if (est) rows.push([{ v: 'Conjunto (estratificado)', s: s.label }, { v: est.n, s: s.totInt }, { v: r2(est.t, 4), s: s.totDec3 }, { v: r2(est.N.media, 2), s: s.totDec1 }, { v: r2(est.G.media, 4), s: s.totDec2 }, { v: r2(est.N.var, 4), s: s.totDec2 }, { v: r2(est.G.var, 6), s: s.totDec3 }, { v: null, s: s.label }, { v: null, s: s.label }, { v: pc(est.N.ePct), s: s.pct }, { v: pc(est.G.ePct), s: s.pct }, { v: est.V ? r2(est.V.media, 2) : null, s: s.totDec1 }, { v: est.V ? pc(est.V.ePct) : null, s: s.pct }, { v: pc(est.intensidad), s: s.pct }]);
     rows.push([]);
-    rows.push([{ v: 'Error de muestreo = t(0,975; n−1) × S / √n, como porcentaje de la media. Varianza calculada con los valores por hectárea de cada parcela (n − 1).', s: s.note }]);
+    rows.push([{ v: `Tipo de muestreo: ${MUESTREO[S.config.muestreo] || ''}. Parcela ${S.config.forma} de ${fa(S.config.area)} m² (${window.APP_descDims()}); factor de expansión ${fa(10000 / S.config.area)}.`, s: s.note }]);
+    rows.push([{ v: 'Error de muestreo = t(0,975; n−1) × S / √n, como porcentaje de la media. Varianza calculada con los valores por hectárea de cada parcela (n − 1). Intensidad de muestreo = superficie muestreada / superficie del rodal.', s: s.note }]);
+    if (S.config.muestreo === 'sistematico') rows.push([{ v: 'Muestreo sistemático: se aplican los estimadores del muestreo aleatorio simple.', s: s.note }]);
+    if (S.config.muestreo === 'dirigido') rows.push([{ v: 'Muestreo dirigido (no probabilístico): los estadísticos son sólo referenciales.', s: s.note }]);
+    if (est) rows.push([{ v: 'Conjunto estratificado: media ponderada por la superficie de cada rodal; en "Varianza" se informa la varianza de la media estratificada; t con Σ(nh − 1) grados de libertad.', s: s.note }]);
     rows.push([]);
     rows.push(['Rodal', 'Parcela', 'Árboles', 'N (árb/ha)', 'G (m²/ha)', 'V (m³/ha)'].map(v => ({ v, s: s.header })));
     S.rodales.forEach(id => S.resultados[id].parcelas.forEach(p => rows.push([{ v: id, s: s.text }, { v: p.parcela, s: s.text }, { v: p.arboles, s: s.int }, { v: r2(p.n, 2), s: s.dec1 }, { v: r2(p.g), s: s.dec2 }, { v: r2(p.v, 2), s: s.dec1 }])));
-    return { name: 'Estadísticos', rows, merges, cols: [9, 11, 11, 13, 13, 13, 13, 12, 12, 12, 12, 11, 12], freeze: [2, 1] };
+    return { name: 'Estadísticos', rows, merges, cols: [22, 11, 11, 13, 13, 13, 13, 12, 12, 12, 12, 11, 12, 12], freeze: [2, 1] };
   }
 
   function hojaEspecies(S) {
@@ -202,18 +211,18 @@
 
   async function plantilla() {
     const s = ST();
-    const inv = { name: 'Inventario', rows: [['Rodal', 'Parcela', 'Especie', 'Dap', 'Altura', 'Extraer', 'Superficie parcela (m2)'].map(v => ({ v, s: s.header })), [1, 1, 'Roble', 23.5, 18.2, 'N', 500], [1, 1, 'Raulí', 17.0, null, 'S', 500], [1, 2, 'Coigüe', 31.2, 22.0, 'N', 500]], cols: [8, 8, 22, 8, 8, 8, 14], freeze: [1, 0] };
+    const inv = { name: 'Inventario', rows: [['Rodal', 'Parcela', 'Especie', 'Dap', 'Extraer'].map(v => ({ v, s: s.header }))], cols: [8, 8, 34, 8, 8], freeze: [1, 0] };
     const ins = {
       name: 'Instrucciones', cols: [110], rows: [[{ v: 'Instrucciones para el inventario de parcelas', s: s.title }], [],
         ...['Una fila por árbol. Columnas obligatorias: Rodal, Parcela, Especie y Dap (cm).',
-          'Altura (m), opcional: se usa para calcular la altura promedio de cada especie por rodal. Si no se registra, la altura promedio se ingresa en la aplicación.',
+          'La altura promedio de cada especie se ingresa en la aplicación (sección 2 · Especies y volumen).',
           'Extraer, opcional: S/N para los árboles marcados para corta. Si no existe, la extracción se define en la aplicación (por regla o editando la tabla).',
-          'Superficie parcela (m2), opcional: si no existe, se usa la superficie indicada en la aplicación.',
+          'La superficie y forma de la parcela y el tipo de muestreo se definen en los parámetros generales de la aplicación.',
           'Especie: nombre común o científico. Se reconoce exclusivamente con la nómina del D.S. N° 68/2009 (ver hoja "Especies D.S. 68").',
           'Para registrar una parcela sin árboles, ingrese una fila con Rodal y Parcela y deje Especie y Dap vacíos.',
-          'Las filas de ejemplo de la hoja Inventario deben reemplazarse por los datos del inventario.'].map(t => [{ v: t, s: s.wrap }])]
+          'Ejemplo de fila: 1 | 1 | Roble (Nothofagus obliqua) | 23,5 | N'].map(t => [{ v: t, s: s.wrap }])]
     };
-    const d68 = { name: 'Especies D.S. 68', cols: [32, 60], rows: [['Nombre científico', 'Nombres comunes'].map(v => ({ v, s: s.header })), ...window.DS68_ESPECIES.map(e => [e.s, e.c])], freeze: [1, 0] };
+    const d68 = { name: 'Especies D.S. 68', cols: [32, 60], rows: [['Nombre para el inventario', 'Nombres comunes (D.S. 68/2009)'].map(v => ({ v, s: s.header })), ...window.DS68_ESPECIES.map(e => [(window.CALC.CAT.especies[e.s] || {}).nombreComun + ' (' + e.s + ')', e.c])], freeze: [1, 0] };
     return window.XLSXIO.writeXlsx([inv, ins, d68]);
   }
 

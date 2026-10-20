@@ -131,6 +131,13 @@
     const t = norm(texto);
     if (!t) return { key: null };
     if (CAT.porNombre[t]) return { key: CAT.porNombre[t], ambiguo: CAT.ambiguos[t] || null };
+    const par = String(texto).match(/\(([^)]+)\)/);
+    if (par) {
+      const bp = binom(par[1].trim().replace(/^./, c => c.toUpperCase()));
+      if (bp && CAT.porNombre[norm(bp)]) return { key: CAT.porNombre[norm(bp)] };
+      const antes = norm(String(texto).replace(/\(.*$/, ''));
+      if (CAT.porNombre[antes]) return { key: CAT.porNombre[antes], ambiguo: CAT.ambiguos[antes] || null };
+    }
     const b = binom(String(texto).trim().replace(/^./, c => c.toUpperCase()));
     if (b && CAT.porNombre[norm(b)]) return { key: CAT.porNombre[norm(b)] };
     // sin tildes / variantes menores: comparar quitando espacios
@@ -253,10 +260,10 @@
 
   /* ======================= Cálculo por rodal ======================= */
   // datos: árboles {rodal, parcela, key, nombre, dap, h, extArchivo, fila}
-  // ctx: {region, areaParcela, anchoClase, inicioClase, funciones:{key:fid}, cfgRodal:{id:cfg}, alturas:{rodal:{key:h}}, catOverride:{key:{code}}, especiesInfo:{key:{nombre, nativa}}}
+  // ctx: {region, areaParcela (superficie de parcela definida en los parámetros generales), anchoClase, inicioClase, funciones:{key:fid}, cfgRodal:{id:cfg}, alturas:{key:h} (altura promedio por especie), catOverride:{key:{code}}, especiesInfo:{key:{nombre, nativa}}}
   function calcularRodal(rid, arboles, ctx) {
     const cfg = ctx.cfgRodal[rid] || {};
-    const area = Number(cfg.areaParcela || ctx.areaParcela) || 500;
+    const area = Number(ctx.areaParcela) || 500;
     const FE = 10000 / area;
     const parcelas = [...new Set(arboles.map(a => String(a.parcela)).concat((ctx.parcelasExtra && ctx.parcelasExtra[rid]) || []))];
     const nP = parcelas.length || 1;
@@ -268,14 +275,9 @@
 
     // especies del rodal
     const spKeys = [...new Set(vivos.map(a => a.key))];
-    // altura promedio por especie (la definida por el usuario o la media de las alturas medidas)
-    const alt = {}; const altMedidas = {};
-    spKeys.forEach(k => {
-      const med = vivos.filter(a => a.key === k && a.h > 0).map(a => a.h);
-      altMedidas[k] = med.length ? { media: sum(med) / med.length, n: med.length } : null;
-      const u = ctx.alturas[rid] && ctx.alturas[rid][k];
-      alt[k] = (u != null && u !== '' && !isNaN(u)) ? Number(u) : (altMedidas[k] ? altMedidas[k].media : null);
-    });
+    // altura promedio por especie, ingresada por el usuario en la sección 2 (común a todos los rodales)
+    const alt = {};
+    spKeys.forEach(k => { const u = ctx.alturas[k]; alt[k] = (u != null && u !== '' && Number(u) > 0) ? Number(u) : null; });
 
     // DMC inicial (para preferencia renoval/adulto en función por defecto)
     const dmcIni = vivos.length ? Math.sqrt(sum(vivos.map(a => a.dap * a.dap)) / vivos.length) : null;
@@ -335,7 +337,7 @@
       const f = (a) => a.key === k;
       const i = agg(f, ini), r = agg(f, res), e = agg(f, ext);
       const nombre = (ctx.especiesInfo[k] || {}).nombre || k;
-      return { key: k, nombre, ini: i, res: r, ext: e, h: alt[k], hMedida: altMedidas[k], fid: (vivos.find(a => a.key === k) || {}).fid, cat: categoriaEspecie(k, ctx.region, ctx.catOverride[k]), nativa: !!CAT.especies[k] };
+      return { key: k, nombre, ini: i, res: r, ext: e, h: alt[k], fid: (vivos.find(a => a.key === k) || {}).fid, cat: categoriaEspecie(k, ctx.region, ctx.catOverride[k]), nativa: !!CAT.especies[k] };
     }).sort((a, b) => b.ini.g - a.ini.g);
     const tot = { ini: agg(() => true, ini), res: agg(() => true, res), ext: agg(() => true, ext) };
     const tabla = CL.arr.map(c => ({

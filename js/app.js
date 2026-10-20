@@ -10,7 +10,7 @@
 
   /* ======================= Estado ======================= */
   const S = window.APP_STATE = {
-    config: { region: 'IX', area: 500, ancho: 5, inicio: '' },
+    config: { region: 'IX', area: 500, ancho: 5, inicio: '', muestreo: 'aleatorio', forma: 'circular', ancho_r: 20 },
     hojas: null, hojaSel: 0, filaEnc: 0, mapeo: {}, archivo: '',
     arboles: [], nombres: {}, funciones: {}, catOverride: {}, cfgRodal: {}, alturas: {},
     rodales: [], resultados: {}, especiesInfo: {}, tieneExtraer: false, avisos: []
@@ -42,7 +42,39 @@
   selReg.innerHTML = N.REGIONES.map(r => `<option value="${r.id}">${esc(r.id + ' · ' + r.nombre)}</option>`).join('');
   selReg.value = S.config.region;
   selReg.addEventListener('change', () => { S.config.region = selReg.value; recalcular(); });
-  $('#cfgArea').addEventListener('change', e => { S.config.area = Number(e.target.value) || 500; recalcular(); });
+  const TXT_MUESTREO = {
+    aleatorio: 'Estimadores de muestreo aleatorio simple por rodal.',
+    sistematico: 'Se usan los estimadores de muestreo aleatorio simple (aproximación habitual, en general conservadora para el error de muestreo).',
+    estratificado: 'Cada rodal es un estrato. Además del error por rodal, se calcula el error del conjunto ponderado por la superficie de los rodales.',
+    conglomerados: 'La unidad de cálculo es la parcela. Si cada conglomerado agrupa varias parcelas, use el identificador del conglomerado en la columna Parcela.',
+    dirigido: 'Muestreo no probabilístico: los estadísticos se muestran sólo como referencia y no permiten inferir el error de muestreo.'
+  };
+  function renderDims() {
+    const c = S.config, A = c.area;
+    let h = '';
+    if (c.forma === 'circular') h = `<label>Radio (m)<input type="number" step="any" min="0" id="dimR" value="${+Math.sqrt(A / Math.PI).toFixed(2)}"></label><div></div>`;
+    else if (c.forma === 'cuadrada') h = `<label>Lado (m)<input type="number" step="any" min="0" id="dimL" value="${+Math.sqrt(A).toFixed(2)}"></label><div></div>`;
+    else h = `<label>Ancho (m)<input type="number" step="any" min="0" id="dimA" value="${+c.ancho_r}"></label><label>Largo (m)<input type="number" step="any" min="0" id="dimB" value="${+(A / c.ancho_r).toFixed(2)}"></label>`;
+    $('#boxDims').innerHTML = h;
+    const setA = (v) => { if (v > 0) { c.area = +v.toFixed(4); $('#cfgArea').value = +c.area.toFixed(2); actualizarTextoParcela(); renderDims(); recalcular(); } };
+    const r = $('#dimR'); if (r) r.addEventListener('change', () => setA(Math.PI * Number(r.value) ** 2));
+    const l = $('#dimL'); if (l) l.addEventListener('change', () => setA(Number(l.value) ** 2));
+    const da = $('#dimA'), db = $('#dimB');
+    if (da) da.addEventListener('change', () => { if (Number(da.value) > 0) { c.ancho_r = Number(da.value); setA(c.ancho_r * Number(db.value)); } });
+    if (db) db.addEventListener('change', () => setA(c.ancho_r * Number(db.value)));
+  }
+  function actualizarTextoParcela() {
+    $('#txtFE').textContent = `Factor de expansión = 10.000 / ${fmt(S.config.area, 2)} m² = ${fmt(10000 / S.config.area, 2)} árb/ha por cada árbol medido. Se aplica a todas las parcelas.`;
+    $('#txtMuestreo').textContent = TXT_MUESTREO[S.config.muestreo];
+  }
+  function sincronizarParametros() {
+    $('#cfgArea').value = S.config.area; $('#cfgMuestreo').value = S.config.muestreo || 'aleatorio'; $('#cfgForma').value = S.config.forma || 'circular';
+    renderDims(); actualizarTextoParcela();
+  }
+  $('#cfgArea').addEventListener('change', e => { S.config.area = Number(e.target.value) > 0 ? Number(e.target.value) : 500; e.target.value = S.config.area; renderDims(); actualizarTextoParcela(); recalcular(); });
+  $('#cfgMuestreo').addEventListener('change', e => { S.config.muestreo = e.target.value; actualizarTextoParcela(); recalcular(); });
+  $('#cfgForma').addEventListener('change', e => { S.config.forma = e.target.value; if (S.config.forma === 'rectangular' && !(S.config.ancho_r > 0)) S.config.ancho_r = 20; renderDims(); recalcular(); });
+  sincronizarParametros();
   $('#cfgAncho').addEventListener('change', e => { S.config.ancho = Math.max(0.5, Number(e.target.value) || 5); limpiarManuales(); recalcular(); });
   $('#cfgInicio').addEventListener('change', e => { S.config.inicio = e.target.value; limpiarManuales(); recalcular(); });
   function limpiarManuales() { Object.values(S.cfgRodal).forEach(c => { c.manual = {}; }); }
@@ -59,14 +91,11 @@
     parcela: /parcela|^plot|^n[°ºo.]?\s*parc|^unidad muestral|^um$/i,
     especie: /especie|^sp\.?$|species|^nombre/i,
     dap: /^d\.?a\.?p|^diam|^dap|^d130|^d1[.,]3|^dat/i,
-    altura: /^altura|^h(t|\s*\(m\))?$|^ht|^height|^alt\.?/i,
-    extraer: /extra|^corta|marca|cosech|^ralea|^elimin|^intervenci/i,
-    superficie: /^sup|superficie|^area|^área|m2|m²/i
+    extraer: /extra|^corta|marca|cosech|^ralea|^elimin|^intervenci/i
   };
   const CAMPOS = [
     { id: 'rodal', nombre: 'Rodal', req: true }, { id: 'parcela', nombre: 'Parcela', req: true }, { id: 'especie', nombre: 'Especie', req: true },
-    { id: 'dap', nombre: 'Dap (cm)', req: true }, { id: 'altura', nombre: 'Altura (m)', req: false }, { id: 'extraer', nombre: 'Extraer (S/N)', req: false },
-    { id: 'superficie', nombre: 'Superficie parcela (m²)', req: false }
+    { id: 'dap', nombre: 'Dap (cm)', req: true }, { id: 'extraer', nombre: 'Extraer (S/N)', req: false }
   ];
   function detectarEncabezado(rows) {
     let best = { score: -1, fila: 0, map: {} };
@@ -128,13 +157,13 @@
       const dap = num(r[m.dap]); const nombre = r[m.especie] == null ? '' : String(r[m.especie]).trim();
       if (!nombre && dap == null) return; // parcela sin árboles: se registra la parcela
       if (!(dap > 0)) { sinDap++; return; }
-      arboles.push({ fila: S.filaEnc + 2 + i, rodal: rid, parcela: pid, nombre, dap, h: m.altura != null ? num(r[m.altura]) : null, extArchivo: m.extraer != null ? esSi(r[m.extraer]) : false, sup: m.superficie != null ? num(r[m.superficie]) : null });
+      arboles.push({ fila: S.filaEnc + 2 + i, rodal: rid, parcela: pid, nombre, dap, extArchivo: m.extraer != null ? esSi(r[m.extraer]) : false });
     });
     if (!arboles.length) { $('#msgArchivo').innerHTML = `<div class="aviso bad">No se encontraron árboles con DAP válido.</div>`; return; }
     // parcelas sin árboles (filas con rodal y parcela pero sin especie/DAP)
     S.parcelasVacias = [...parcelasVistas].filter(k => !arboles.some(a => a.rodal + '|' + a.parcela === k)).map(k => { const [r, p] = k.split('|'); return { rodal: r, parcela: p }; });
     if (sinDap) avisos.push({ t: 'warn', m: `${sinDap} fila(s) sin DAP válido fueron omitidas.` });
-    S.tieneExtraer = m.extraer != null; S.tieneAltura = m.altura != null && arboles.some(a => a.h > 0);
+    S.tieneExtraer = m.extraer != null;
     cargarArboles(arboles, avisos);
   }
 
@@ -157,9 +186,7 @@
     S.rodales = ids;
     ids.forEach(id => {
       if (!S.cfgRodal[id]) S.cfgRodal[id] = { superficie: '', pendiente: '', suelosFragiles: false, cercaAgua: false, snap: false, ambienteUnico: false, estructura: 'auto', actividad: 'NINGUNA', metodoRegen: '', ext: { modo: S.tieneExtraer ? 'archivo' : 'ninguna', pctG: 30, criterio: 'abajo', especies: [], dapMin: '', dapMax: '', protegerAmenazadas: true }, manual: {}, inputs: {}, especiesInteres: [] };
-      const sups = arboles.filter(a => a.rodal === id && a.sup > 0).map(a => a.sup);
-      if (sups.length) S.cfgRodal[id].areaParcela = sups.sort((a, b) => sups.filter(v => v === a).length - sups.filter(v => v === b).length).pop();
-      S.alturas[id] = S.alturas[id] || {};
+      delete S.cfgRodal[id].areaParcela;
     });
     recalcular();
     renderResumenCarga();
@@ -185,7 +212,7 @@
     const amb = Object.entries(S.nombres).filter(([k, v]) => v.ambiguo && v.auto);
     $('#kpisCarga').innerHTML = [
       ['Rodales detectados', S.rodales.length], ['Parcelas', nP], ['Árboles', S.arboles.length], ['Especies', sp],
-      ['Con altura medida', S.arboles.filter(a => a.h > 0).length], ['Marcados para extraer', S.arboles.filter(a => a.extArchivo).length]
+      ['Marcados para extraer', S.arboles.filter(a => a.extArchivo).length]
     ].map(([l, v]) => `<div class="kpi"><div class="v">${v.toLocaleString('es-CL')}</div><div class="l">${l}</div></div>`).join('');
     const av = S.avisos.slice();
     av.unshift({ t: 'ok', m: `Se detectaron automáticamente ${S.rodales.length} rodal(es): ${S.rodales.map(esc).join(', ')}.` });
@@ -230,7 +257,7 @@
     const tbl = $('#tblEspecies');
     const filas = Object.entries(S.nombres).sort((a, b) => b[1].n - a[1].n);
     const todasF = Object.values(C.FN);
-    tbl.innerHTML = `<thead><tr><th>Nombre en el inventario</th><th class="num">Árboles</th><th>Especie según D.S. 68/2009</th><th>Categoría MMA (región ${esc(S.config.region)})</th><th>Función de volumen (compendio)</th></tr></thead><tbody>` +
+    tbl.innerHTML = `<thead><tr><th>Nombre en el inventario</th><th class="num">Árboles</th><th>Especie según D.S. 68/2009</th><th>Categoría MMA (región ${esc(S.config.region)})</th><th>Altura promedio (m)</th><th>Función de volumen (compendio)</th></tr></thead><tbody>` +
       filas.map(([nm, info]) => {
         const key = info.key || ('X:' + C.norm(nm));
         const cat = C.categoriaEspecie(key, S.config.region, S.catOverride[key]);
@@ -260,6 +287,7 @@
             <div class="muted" style="font-size:12px;margin-top:3px">${cat.raw ? esc('Listado: ' + cat.raw.replace(/\n/g, ' ') + ' · ' + (cat.fuente || '')) : (cat.code === 'NC' && info.key ? 'No figura en el listado MMA' : esc(cat.fuente || ''))}</div>
             ${cat.nota && cat.raw ? `<div style="font-size:12px;color:var(--warn)">${esc(cat.nota)}</div>` : ''}
             <details style="margin-top:4px"><summary class="muted" style="font-size:12px;cursor:pointer">Modificar</summary>${catSel}</details></td>
+          <td><input type="number" step="any" min="0" max="90" data-alt="${esc(key)}" value="${S.alturas[key] != null ? esc(S.alturas[key]) : ''}" placeholder="m" style="width:90px">${fUsada && fUsada.usaH && !(S.alturas[key] > 0) ? '<div class="tag warn" style="margin-top:4px">Requerida para el volumen</div>' : (fUsada && !fUsada.usaH ? '<div class="muted" style="font-size:12px;margin-top:3px">La función usa sólo DAP</div>' : '')}</td>
           <td><select data-fun="${esc(key)}">${fOpts}</select>${avisoF}
             ${fUsada ? `<div><button class="btn ghost small" data-verf="${fUsada.id}" style="margin-top:4px">Ver función N° ${fUsada.id}</button></div>` : ''}</td>
         </tr>`;
@@ -271,6 +299,11 @@
     $$('select[data-fun]', tbl).forEach(s => s.addEventListener('change', () => {
       const k = s.dataset.fun;
       if (s.value === 'auto') delete S.funciones[k]; else if (s.value === 'none') S.funciones[k] = null; else S.funciones[k] = Number(s.value);
+      recalcular(); renderEspecies();
+    }));
+    $$('input[data-alt]', tbl).forEach(el => el.addEventListener('change', () => {
+      const k = el.dataset.alt; const v = Number(el.value);
+      if (el.value === '' || !(v > 0)) delete S.alturas[k]; else S.alturas[k] = v;
       recalcular(); renderEspecies();
     }));
     $$('select[data-cat]', tbl).forEach(s => s.addEventListener('change', () => {
@@ -335,10 +368,7 @@
         <div class="card">
           <h2>Antecedentes del rodal ${esc(id)}</h2>
           <div class="form">
-            <div class="two">
-              <label>Superficie del rodal (ha)<input type="number" step="any" min="0" data-f="superficie" value="${esc(cfg.superficie)}"></label>
-              <label>Superficie de parcela (m²)<input type="number" step="any" min="1" data-f="areaParcela" value="${esc(cfg.areaParcela || '')}" placeholder="${S.config.area} (general)"></label>
-            </div>
+            <label>Superficie del rodal (ha)<input type="number" step="any" min="0" data-f="superficie" value="${esc(cfg.superficie)}"><small>Se usa para la intensidad de muestreo, el muestreo estratificado y las restricciones del art. 18 del D.S. 259.</small></label>
             <label>Pendiente media (%)<input type="number" step="any" min="0" data-f="pendiente" value="${esc(cfg.pendiente)}"><small>Se usa para la categoría de conservación y protección (≥ 45 %) y las restricciones del art. 18 del D.S. 259.</small></label>
             <div class="fl">Condiciones para la Ley 20.283</div>
             <label class="chk"><input type="checkbox" data-b="suelosFragiles" ${cfg.suelosFragiles ? 'checked' : ''}> Ubicado en suelos frágiles</label>
@@ -381,11 +411,7 @@
           </div>
         </div>
       </div>
-      <div class="card">
-        <div class="card-head"><h2>Altura promedio por especie</h2><button class="btn ghost small" id="btnAlturasTodos">Aplicar estas alturas a todos los rodales</button></div>
-        <p class="muted">La altura promedio de cada especie se usa en la función de volumen de todos sus árboles${S.tieneAltura ? '. Por defecto es la media de las alturas medidas en el inventario' : ''}. También define la altura media del rodal para distinguir repoblado y monte bravo.</p>
-        <div class="table-wrap"><table class="data" id="tblAlturas"></table></div>
-      </div>`;
+`;
     // eventos
     const root = $('#rodalCfg');
     $$('[data-f]', root).forEach(el => el.addEventListener('change', () => {
@@ -399,11 +425,6 @@
     $$('[data-eb]', root).forEach(el => el.addEventListener('change', () => { cfg.ext[el.dataset.eb] = el.checked; recalcular(); }));
     $$('[data-extsp]', root).forEach(el => el.addEventListener('change', () => { cfg.ext.especies = $$('[data-extsp]', root).filter(x => x.checked).map(x => x.dataset.extsp); recalcular(); }));
     const bbm = $('#btnBorrarManual'); if (bbm) bbm.addEventListener('click', () => { cfg.manual = {}; recalcular(); renderRodalCfg(); });
-    $('#btnAlturasTodos').addEventListener('click', () => {
-      const src = S.resultados[id].alt;
-      S.rodales.forEach(o => { if (o === id) return; S.alturas[o] = S.alturas[o] || {}; Object.entries(src).forEach(([k, h]) => { if (h != null) S.alturas[o][k] = h; }); });
-      recalcular(); toast('Alturas copiadas a todos los rodales que tienen esas especies.');
-    });
     renderInputsActividad();
     refrescarResultadosRodal();
   }
@@ -439,19 +460,6 @@
         <div class="res-item"><div class="l">Volumen inicial → residual</div><div class="v">${volTxt(r.tot.ini)} → ${volTxt(r.tot.res)} m³/ha</div><div class="d">${r.tot.ini.vCompleto ? 'Funciones del compendio' : '* Hay especies sin función o sin altura: volumen parcial'}</div></div>
       </div>
       <details class="crit"><summary>Criterios del tipo forestal (art. 19 D.S. 259)</summary><ul class="checks">${r.tipo.criterios.map(c => `<li><span class="tag ${c.cumple ? 'ok' : 'neutral'}">${c.cumple ? 'Cumple' : 'No cumple'}</span><div><b>${esc(c.nombre)}</b> · ${esc(c.detalle)}</div></li>`).join('')}</ul></details>`;
-    // alturas
-    const t = $('#tblAlturas');
-    t.innerHTML = `<thead><tr><th>Especie</th><th class="num">N (árb/ha)</th><th class="num">Árboles en parcelas</th><th class="num">Altura medida (media)</th><th>Altura promedio a usar (m)</th><th>Función de volumen</th></tr></thead><tbody>` +
-      r.porEspecie.map(e => {
-        const f = e.fid ? C.FN[e.fid] : null; const nArb = r.arboles.filter(a => a.key === e.key).length;
-        const u = S.alturas[id][e.key];
-        const falta = f && f.usaH && !(e.h > 0);
-        return `<tr><td><b>${esc(e.nombre)}</b> <span class="muted">${esc(S.especiesInfo[e.key] && S.especiesInfo[e.key].sci || '')}</span></td><td class="num">${fmt(e.ini.n, 0)}</td><td class="num">${nArb}</td>
-          <td class="num">${e.hMedida ? fmt(e.hMedida.media, 1) + ' m (n=' + e.hMedida.n + ')' : '—'}</td>
-          <td><input type="number" step="any" min="0" data-alt="${esc(e.key)}" value="${u != null && u !== '' ? esc(u) : ''}" placeholder="${e.hMedida ? fmt(e.hMedida.media, 1) : 'ingresar'}">${falta ? ' <span class="tag warn">Requerida</span>' : ''}</td>
-          <td>${f ? 'N° ' + f.id + ' · ' + esc(f.especies.join('-')) + (f.usaH ? '' : ' (sólo DAP)') : '<span class="tag warn">Sin función</span>'}</td></tr>`;
-      }).join('') + '</tbody>';
-    $$('[data-alt]', t).forEach(el => el.addEventListener('change', () => { const k = el.dataset.alt; if (el.value === '') delete S.alturas[id][k]; else S.alturas[id][k] = Number(el.value); recalcular(); }));
   }
 
   /* ======================= 4. Tabla de rodal ======================= */
@@ -509,14 +517,26 @@
   /* ======================= 5. Estadísticos ======================= */
   function renderEstadisticos() {
     const rs = S.rodales.map(id => S.resultados[id]);
-    const st = (r) => recalcStats(r);
-    $('#tblEstadisticos').innerHTML = `<table class="data"><thead><tr><th rowspan="2">Rodal</th><th rowspan="2" class="num">Parcelas (N°)</th><th rowspan="2" class="num">t student (95%)</th><th colspan="2" style="text-align:center">Media</th><th colspan="2" style="text-align:center">Varianza</th><th colspan="2" style="text-align:center">Coeficiente de variación (%)</th><th colspan="2" style="text-align:center">Error de muestreo (%)</th><th colspan="2" style="text-align:center">Volumen (m³/ha)</th></tr>
+    const est = estratificado();
+    const avisoM = { sistematico: ['info', 'Muestreo sistemático: se aplican los estimadores del muestreo aleatorio simple.'], conglomerados: ['info', 'Muestreo por conglomerados: la unidad de cálculo es el valor de la columna Parcela.'], dirigido: ['warn', 'Muestreo dirigido (no probabilístico): los estadísticos son sólo referenciales y no permiten estimar el error de muestreo.'] }[S.config.muestreo];
+    $('#tblEstadisticos').innerHTML = `<p class="muted" style="margin:10px 12px 0">Tipo de muestreo: <b>${esc($('#cfgMuestreo').selectedOptions[0].text)}</b> · Parcela ${esc(S.config.forma)} de ${fmt(S.config.area, 1)} m² (${esc(descDims())}).</p>` + (avisoM ? `<div class="aviso ${avisoM[0]}" style="margin:8px 12px">${avisoM[1]}</div>` : '') +
+      `<table class="data"><thead><tr><th rowspan="2">Rodal</th><th rowspan="2" class="num">Parcelas (N°)</th><th rowspan="2" class="num">Intensidad de muestreo (%)</th><th rowspan="2" class="num">t student (95%)</th><th colspan="2" style="text-align:center">Media</th><th colspan="2" style="text-align:center">Varianza</th><th colspan="2" style="text-align:center">Coeficiente de variación (%)</th><th colspan="2" style="text-align:center">Error de muestreo (%)</th><th colspan="2" style="text-align:center">Volumen (m³/ha)</th></tr>
       <tr><th class="num">Densidad (arb/ha)</th><th class="num">Área basal (m²/ha)</th><th class="num">Densidad</th><th class="num">Área basal</th><th class="num">Densidad</th><th class="num">Área basal</th><th class="num">Densidad</th><th class="num">Área basal</th><th class="num">Media</th><th class="num">E (%)</th></tr></thead><tbody>` +
-      rs.map(r => { const s = st(r); return `<tr><td><b>${esc(r.id)}</b></td><td class="num">${s.n}</td><td class="num">${fmt(s.t, 3)}</td><td class="num">${fmt(s.N.media, 1)}</td><td class="num">${fmt(s.G.media, 2)}</td><td class="num">${fmt(s.N.var, 1)}</td><td class="num">${fmt(s.G.var, 3)}</td><td class="num">${fmt(s.N.cv, 1)}</td><td class="num">${fmt(s.G.cv, 1)}</td><td class="num">${fmt(s.N.ePct, 1)}</td><td class="num">${fmt(s.G.ePct, 1)}</td><td class="num">${s.V ? fmt(s.V.media, 1) : '—'}</td><td class="num">${s.V ? fmt(s.V.ePct, 1) : '—'}</td></tr>`; }).join('') + '</tbody></table>';
+      rs.map(r => { const s = recalcStats(r); return `<tr><td><b>${esc(r.id)}</b></td><td class="num">${s.n}</td><td class="num">${s.intensidad == null ? '—' : fmt(s.intensidad, 2)}</td><td class="num">${fmt(s.t, 3)}</td><td class="num">${fmt(s.N.media, 1)}</td><td class="num">${fmt(s.G.media, 2)}</td><td class="num">${fmt(s.N.var, 1)}</td><td class="num">${fmt(s.G.var, 3)}</td><td class="num">${fmt(s.N.cv, 1)}</td><td class="num">${fmt(s.G.cv, 1)}</td><td class="num">${fmt(s.N.ePct, 1)}</td><td class="num">${fmt(s.G.ePct, 1)}</td><td class="num">${s.V ? fmt(s.V.media, 1) : '—'}</td><td class="num">${s.V ? fmt(s.V.ePct, 1) : '—'}</td></tr>`; }).join('') +
+      (est ? `<tr style="font-weight:650;background:var(--surface-2)"><td>Conjunto (estratificado)</td><td class="num">${est.n}</td><td class="num">${est.intensidad == null ? '—' : fmt(est.intensidad, 2)}</td><td class="num">${fmt(est.t, 3)}</td><td class="num">${fmt(est.N.media, 1)}</td><td class="num">${fmt(est.G.media, 2)}</td><td class="num">${fmt(est.N.var, 2)}</td><td class="num">${fmt(est.G.var, 4)}</td><td class="num">—</td><td class="num">—</td><td class="num">${fmt(est.N.ePct, 1)}</td><td class="num">${fmt(est.G.ePct, 1)}</td><td class="num">${est.V ? fmt(est.V.media, 1) : '—'}</td><td class="num">${est.V ? fmt(est.V.ePct, 1) : '—'}</td></tr>` : '') + '</tbody></table>' +
+      (S.config.muestreo === 'estratificado' && !est ? `<div class="aviso info" style="margin:8px 12px">Para la estimación estratificada del conjunto, ingrese la superficie de todos los rodales en la pestaña 3. En la fila del conjunto, la varianza corresponde a la varianza de la media estratificada.</div>` : '') +
+      `<p class="muted" style="margin:8px 12px;font-size:12px">Intensidad de muestreo = superficie muestreada / superficie del rodal (requiere la superficie del rodal).</p>`;
     $('#tblParcelas').innerHTML = `<table class="data"><thead><tr><th>Rodal</th><th>Parcela</th><th class="num">Árboles</th><th class="num">N (árb/ha)</th><th class="num">G (m²/ha)</th><th class="num">V (m³/ha)</th></tr></thead><tbody>` +
       rs.map(r => r.parcelas.map(p => `<tr><td>${esc(r.id)}</td><td>${esc(p.parcela)}</td><td class="num">${p.arboles}</td><td class="num">${fmt(p.n, 1)}</td><td class="num">${fmt(p.g, 2)}</td><td class="num">${p.v == null ? '—' : fmt(p.v, 1)}</td></tr>`).join('')).join('') + '</tbody></table>';
   }
-  // Estadísticos incluyendo parcelas vacías
+  function descDims() {
+    const A = S.config.area;
+    if (S.config.forma === 'circular') return 'radio ' + fmt(Math.sqrt(A / Math.PI), 2) + ' m';
+    if (S.config.forma === 'cuadrada') return 'lado ' + fmt(Math.sqrt(A), 2) + ' m';
+    return fmt(S.config.ancho_r, 2) + ' × ' + fmt(A / S.config.ancho_r, 2) + ' m';
+  }
+  window.APP_descDims = descDims;
+  // Estadísticos por rodal (incluye parcelas vacías)
   function recalcStats(r) {
     const n = r.parcelas.length;
     const est = (arr) => {
@@ -525,8 +545,27 @@
       const v = arr.reduce((a, x) => a + (x - m) ** 2, 0) / (n - 1); const s = Math.sqrt(v); const t = C.tQuantil(0.975, n - 1);
       return { media: m, var: v, s, cv: m ? s / m * 100 : null, eAbs: t * s / Math.sqrt(n), ePct: m ? t * s / Math.sqrt(n) / m * 100 : null };
     };
-    return { n, t: n > 1 ? C.tQuantil(0.975, n - 1) : null, N: est(r.parcelas.map(p => p.n)), G: est(r.parcelas.map(p => p.g)), V: r.parcelas.every(p => p.v != null) ? est(r.parcelas.map(p => p.v)) : null };
+    const sup = Number(r.cfg.superficie);
+    return { n, intensidad: sup > 0 ? n * r.area / (sup * 10000) * 100 : null, t: n > 1 ? C.tQuantil(0.975, n - 1) : null, N: est(r.parcelas.map(p => p.n)), G: est(r.parcelas.map(p => p.g)), V: r.parcelas.every(p => p.v != null) ? est(r.parcelas.map(p => p.v)) : null };
   }
+  // Muestreo estratificado: cada rodal es un estrato ponderado por su superficie
+  function estratificado() {
+    if (S.config.muestreo !== 'estratificado' || S.rodales.length < 2) return null;
+    const rs = S.rodales.map(id => S.resultados[id]);
+    if (!rs.every(r => Number(r.cfg.superficie) > 0 && r.parcelas.length >= 2)) return null;
+    const A = rs.reduce((a, r) => a + Number(r.cfg.superficie), 0);
+    const st = rs.map(r => ({ W: Number(r.cfg.superficie) / A, s: recalcStats(r) }));
+    const gl = st.reduce((a, x) => a + x.s.n - 1, 0), t = C.tQuantil(0.975, gl);
+    const comb = (k) => {
+      if (st.some(x => !x.s[k] || x.s[k].var == null)) return null;
+      const m = st.reduce((a, x) => a + x.W * x.s[k].media, 0);
+      const v = st.reduce((a, x) => a + x.W ** 2 * x.s[k].var / x.s.n, 0);
+      return { media: m, var: v, ePct: m ? t * Math.sqrt(v) / m * 100 : null };
+    };
+    const n = st.reduce((a, x) => a + x.s.n, 0);
+    return { n, t, intensidad: n * S.config.area / (A * 10000) * 100, N: comb('N'), G: comb('G'), V: comb('V') };
+  }
+  window.APP_estratificado = estratificado;
   window.APP_recalcStats = recalcStats;
 
   /* ======================= 6. Cumplimiento ======================= */
@@ -560,7 +599,7 @@
 
   /* ======================= Proyecto (JSON) ======================= */
   $('#btnGuardarProyecto').addEventListener('click', () => {
-    const p = { version: 1, config: S.config, arboles: S.arboles.map(a => ({ rodal: a.rodal, parcela: a.parcela, nombre: a.nombre, dap: a.dap, h: a.h, extArchivo: a.extArchivo, sup: a.sup, fila: a.fila })), parcelasVacias: S.parcelasVacias || [], nombres: S.nombres, funciones: S.funciones, catOverride: S.catOverride, cfgRodal: S.cfgRodal, alturas: S.alturas, tieneExtraer: S.tieneExtraer, tieneAltura: S.tieneAltura, archivo: S.archivo };
+    const p = { version: 1, config: S.config, arboles: S.arboles.map(a => ({ rodal: a.rodal, parcela: a.parcela, nombre: a.nombre, dap: a.dap, extArchivo: a.extArchivo, fila: a.fila })), parcelasVacias: S.parcelasVacias || [], nombres: S.nombres, funciones: S.funciones, catOverride: S.catOverride, cfgRodal: S.cfgRodal, alturas: S.alturas, tieneExtraer: S.tieneExtraer, archivo: S.archivo };
     descargar(new Blob([JSON.stringify(p)], { type: 'application/json' }), 'proyecto_tabla_rodal.json');
   });
   $('#inpProyecto').addEventListener('change', async (e) => {
@@ -568,8 +607,10 @@
     try {
       const p = JSON.parse(await f.text());
       Object.assign(S, { config: p.config, nombres: p.nombres || {}, funciones: p.funciones || {}, catOverride: p.catOverride || {}, cfgRodal: p.cfgRodal || {}, alturas: p.alturas || {}, tieneExtraer: p.tieneExtraer, tieneAltura: p.tieneAltura, archivo: p.archivo, parcelasVacias: p.parcelasVacias || [] });
+      if (Object.values(S.alturas).some(v => v && typeof v === 'object')) { const g = {}; Object.values(S.alturas).forEach(o => { if (o && typeof o === 'object') Object.entries(o).forEach(([k, h]) => { if (h > 0 && g[k] == null) g[k] = h; }); }); S.alturas = g; }
       Object.keys(S.funciones).forEach(k => { if (S.funciones[k] === undefined) delete S.funciones[k]; });
-      $('#cfgRegion').value = S.config.region; $('#cfgArea').value = S.config.area; $('#cfgAncho').value = S.config.ancho; $('#cfgInicio').value = S.config.inicio;
+      S.config = Object.assign({ muestreo: 'aleatorio', forma: 'circular', ancho_r: 20 }, S.config);
+      $('#cfgRegion').value = S.config.region; $('#cfgAncho').value = S.config.ancho; $('#cfgInicio').value = S.config.inicio; sincronizarParametros();
       cargarArboles(p.arboles, [{ t: 'info', m: 'Proyecto abierto: ' + esc(f.name) }]);
       toast('Proyecto abierto.');
     } catch (err) { toast('No se pudo abrir el proyecto: ' + (err.message || err)); }
@@ -591,12 +632,11 @@
         const n = Math.round(R.n[0] + rnd() * (R.n[1] - R.n[0]));
         for (let i = 0; i < n; i++) {
           const sp = pick(R.sp); const d = Math.round(R.dap() * 10) / 10;
-          const hMed = rnd() < 0.25 ? Math.round((1.3 + (R.id === '2' ? 9 : 27) * (1 - Math.exp(-0.06 * d)) + normal(0, 1)) * 10) / 10 : null;
-          arboles.push({ rodal: R.id, parcela: String(p), nombre: sp, dap: d, h: hMed, extArchivo: false, sup: 500, fila: arboles.length + 2 });
+          arboles.push({ rodal: R.id, parcela: String(p), nombre: sp, dap: d, extArchivo: false, fila: arboles.length + 2 });
         }
       }
     });
-    S.archivo = 'Datos de ejemplo'; S.tieneExtraer = false; S.tieneAltura = true; S.parcelasVacias = [];
+    S.archivo = 'Datos de ejemplo'; S.tieneExtraer = false; S.parcelasVacias = [];
     S.nombres = {}; S.funciones = {}; S.catOverride = {}; S.cfgRodal = {}; S.alturas = {};
     $('#cardMapeo').hidden = true;
     cargarArboles(arboles, [{ t: 'info', m: 'Datos de ejemplo generados aleatoriamente (no corresponden a un predio real).' }]);
@@ -604,6 +644,7 @@
     const c1 = S.cfgRodal['1']; c1.actividad = 'C_RLA'; c1.ext = Object.assign(c1.ext, { modo: 'regla', pctG: 30, criterio: 'abajo' }); c1.superficie = 12.5; c1.pendiente = 20;
     const c3 = S.cfgRodal['3']; c3.actividad = 'C_IRR'; c3.ext = Object.assign(c3.ext, { modo: 'regla', pctG: 25, criterio: 'proporcional' }); c3.superficie = 8; c3.pendiente = 35;
     S.cfgRodal['2'].superficie = 4.2; S.cfgRodal['2'].pendiente = 15;
+    Object.assign(S.alturas, { 'Nothofagus obliqua': 21, 'Nothofagus alpina': 22, 'Nothofagus dombeyi': 23, 'Laurelia sempervirens': 19, 'Persea lingue': 17, 'Quillaja saponaria': 8, 'Lithrea caustica': 6, 'Cryptocarya alba': 9, 'Peumus boldus': 7, 'Acacia caven': 5, 'Eucryphia cordifolia': 21, 'Laureliopsis philippiana': 20, 'Weinmannia trichosperma': 17, 'Drimys winteri': 15, 'Aextoxicon punctatum': 18 });
     recalcular();
     toast('Datos de ejemplo cargados: 3 rodales.');
   });

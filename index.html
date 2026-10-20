@@ -39,7 +39,7 @@
       <div class="grid2">
         <div class="card">
           <h2>Cargar inventario de parcelas</h2>
-          <p class="muted">Archivo Excel (.xlsx) o CSV con una fila por árbol. Columnas mínimas: <b>Rodal</b>, <b>Parcela</b>, <b>Especie</b> y <b>Dap</b> (cm), como la hoja 2 de la plantilla. Columnas opcionales: <b>Altura</b> (m), <b>Extraer</b> (S/N: árbol marcado para corta) y <b>Superficie</b> de la parcela (m²).</p>
+          <p class="muted">Archivo Excel (.xlsx) o CSV con una fila por árbol. Columnas mínimas: <b>Rodal</b>, <b>Parcela</b>, <b>Especie</b> y <b>Dap</b> (cm), como la hoja 2 de la plantilla. Columna opcional: <b>Extraer</b> (S/N: árbol marcado para corta). La superficie de la parcela se define en los parámetros generales y la altura promedio de cada especie en la sección 2.</p>
           <div class="drop" id="drop">
             <input type="file" id="inpArchivo" accept=".xlsx,.csv,.txt">
             <div class="drop-inner">
@@ -60,10 +60,30 @@
               <select id="cfgRegion"></select>
               <small>Define las funciones de volumen preferidas y la categoría de conservación regional del listado MMA.</small>
             </label>
-            <label>Superficie de la parcela (m²)
-              <input type="number" id="cfgArea" min="1" step="any" value="500">
-              <small>Factor de expansión = 10.000 / superficie. Puede ajustarse por rodal.</small>
+            <label>Tipo de muestreo
+              <select id="cfgMuestreo">
+                <option value="aleatorio">Aleatorio simple</option>
+                <option value="sistematico">Sistemático</option>
+                <option value="estratificado">Estratificado (cada rodal es un estrato)</option>
+                <option value="conglomerados">Por conglomerados</option>
+                <option value="dirigido">Dirigido o selectivo (no probabilístico)</option>
+              </select>
+              <small id="txtMuestreo"></small>
             </label>
+            <div class="two">
+              <label>Forma de la parcela
+                <select id="cfgForma">
+                  <option value="circular">Circular</option>
+                  <option value="cuadrada">Cuadrada</option>
+                  <option value="rectangular">Rectangular</option>
+                </select>
+              </label>
+              <label>Superficie de la parcela (m²)
+                <input type="number" id="cfgArea" min="1" step="any" value="500">
+              </label>
+            </div>
+            <div class="two" id="boxDims"></div>
+            <small id="txtFE"></small>
             <div class="two">
               <label>Amplitud de clase (cm)
                 <input type="number" id="cfgAncho" min="1" step="any" value="5">
@@ -149,7 +169,7 @@
         <h2>Fuentes y criterios</h2>
         <ul>
           <li><b>Funciones de volumen:</b> exclusivamente el <i>Compendio de Funciones Dendrométricas del Bosque Nativo</i> (Drake, Emanuelli y Acuña, 2003). Se transcribieron las 208 funciones de volumen de árboles individuales y cada ecuación se contrastó con la tabla de volumen impresa en el compendio. Por defecto se elige, para cada especie, la función verificada de la misma especie y región que usa altura total; puede cambiarse en la pestaña 2.</li>
-          <li><b>Altura:</b> para cada especie y rodal se usa una altura promedio, que ingresa el usuario o que se calcula como la media de las alturas medidas cuando el inventario trae la columna Altura.</li>
+          <li><b>Altura:</b> para cada especie se ingresa una altura promedio (m) en la sección 2; se aplica a todos sus árboles en la función de volumen del compendio y define la altura media del rodal para distinguir repoblado y monte bravo.</li>
           <li><b>Especies nativas:</b> exclusivamente la nómina del D.S. N° 68 de 2009 del Ministerio de Agricultura. Los nombres no reconocidos se tratan como especies no nativas para evaluar la presencia accidental de exóticas.</li>
           <li><b>Categorías de conservación:</b> exclusivamente el listado del Ministerio del Medio Ambiente, <i>Nómina de especies según estado de conservación</i> (20.º proceso RCE). Cuando la categoría es diferenciada por zona, se aplica la de la región del proyecto.</li>
           <li><b>Tipo forestal y métodos de corta:</b> D.S. N° 259 de 1980, arts. 18 a 24 y 30 (vigentes para la corta de regeneración según las Bases, punto 3.3.2 a).</li>

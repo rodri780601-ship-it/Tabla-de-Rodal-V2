@@ -18,11 +18,13 @@ Contenido
 - lib/jszip.min.js ...... librería JSZip 3.10.1 (MIT)
 
 Flujo
-1. Inventario: cargue el Excel/CSV (Rodal, Parcela, Especie, Dap; opcional Altura, Extraer, Superficie).
+1. Inventario: defina región, tipo de muestreo, forma y superficie de la parcela, y cargue el Excel/CSV
+   (Rodal, Parcela, Especie, Dap; opcional Extraer).
    Los rodales se detectan automáticamente.
-2. Especies y volumen: revise el reconocimiento según el D.S. 68, la categoría MMA y la función del compendio.
-3. Rodales: antecedentes (pendiente, suelos, agua, SNAP), alturas promedio por especie, actividad y extracción.
+2. Especies y volumen: ingrese la altura promedio de cada especie y revise el reconocimiento según el
+   D.S. 68, la categoría MMA y la función del compendio.
+3. Rodales: antecedentes (superficie, pendiente, suelos, agua, SNAP), actividad y extracción.
 4. Tabla de rodal: tabla inicial/residual (N residual editable) y tabla de volumen.
-5. Estadísticos: medias, varianza, CV y error de muestreo por rodal.
+5. Estadísticos: medias, varianza, CV, error e intensidad de muestreo por rodal (y del conjunto si es estratificado).
 6. Cumplimiento: Bases Técnicas 2026 y restricciones de los métodos de corta (D.S. 259).
 Exportar Excel genera todas las hojas. "Guardar proyecto" permite retomar el trabajo.

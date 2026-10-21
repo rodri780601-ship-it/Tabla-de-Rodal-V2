@@ -22,6 +22,7 @@
 
   /* ======================= Pestañas ======================= */
   function irA(tab) {
+    if (ETAPAS_POSTERIORES.includes(tab) && S.arboles.length && especiesSinFuncion().length) { tab = 'especies'; toast('Asigne una función de volumen a todas las especies antes de continuar.'); }
     $$('#tabs button').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
     $$('.panel').forEach(p => p.classList.toggle('active', p.id === 'tab-' + tab));
     if (tab === 'tabla') renderTabla();
@@ -35,6 +36,36 @@
   function habilitar(on) {
     $$('#tabs button').forEach(b => { if (b.dataset.tab !== 'datos' && b.dataset.tab !== 'fuentes') b.disabled = !on; });
     $('#btnExportar').disabled = !on; $('#btnGuardarProyecto').disabled = !on; $('#btnPDF').disabled = !on;
+    if (on) aplicarReglaFunciones();
+  }
+  /* Regla: todas las especies del inventario deben tener una función de volumen asignada
+     (del compendio o definida por el usuario) para avanzar a las etapas 3 a 6, exportar o generar el PDF. */
+  const ETAPAS_POSTERIORES = ['rodales', 'tabla', 'estadisticos', 'cumplimiento'];
+  function funcionAsignada(key, info) {
+    const sel = S.funciones[key];
+    const fid = sel !== undefined ? sel : (info.key ? C.funcionPorDefecto(info.key, regionComp(), null) : null);
+    return fid != null && C.FN[fid] && C.FN[fid].fn ? fid : null;
+  }
+  function especiesSinFuncion() {
+    return Object.entries(S.nombres).filter(([nm, info]) => info.n > 0 && !funcionAsignada(info.key || ('X:' + C.norm(nm)), info)).map(([nm]) => nm);
+  }
+  function aplicarReglaFunciones() {
+    if (!S.arboles.length) return;
+    const faltan = especiesSinFuncion();
+    const bloq = faltan.length > 0;
+    const msg = bloq ? 'Asigne una función de volumen a todas las especies en la etapa 2 (faltan: ' + faltan.join(', ') + ')' : '';
+    $$('#tabs button').forEach(b => { if (ETAPAS_POSTERIORES.includes(b.dataset.tab)) { b.disabled = bloq; b.title = msg; } });
+    ['#btnExportar', '#btnPDF'].forEach(s => { $(s).disabled = bloq; $(s).title = msg; });
+    const act = ($('#tabs button.active') || {}).dataset;
+    if (bloq && act && ETAPAS_POSTERIORES.includes(act.tab)) irA('especies');
+    const box = $('#avisoFunciones');
+    if (box) {
+      box.className = 'aviso ' + (bloq ? 'bad' : 'ok');
+      box.innerHTML = bloq
+        ? `<b>No puede avanzar a la etapa 3.</b> Falta asignar función de volumen a ${faltan.length === 1 ? 'la especie' : 'las especies'}: <b>${faltan.map(esc).join(', ')}</b>. Elija una función del compendio o "Definida por el usuario…" en la columna "Función de volumen". Mientras tanto, las etapas 3 a 6, la exportación a Excel y el PDF quedan bloqueados.`
+        : `Todas las especies tienen función de volumen asignada. <button class="btn small primary" id="btnIrRodales" style="margin-left:8px">Continuar a 3 · Rodales</button>`;
+      const b = $('#btnIrRodales'); if (b) b.addEventListener('click', () => irA('rodales'));
+    }
   }
 
   /* ======================= Parámetros generales ======================= */
@@ -281,6 +312,7 @@
     if (act && act.tab === 'tabla') renderTabla();
     if (act && act.tab === 'estadisticos') renderEstadisticos();
     if (act && act.tab === 'cumplimiento') renderCumplimiento();
+    aplicarReglaFunciones();
   }
 
   /* ======================= 2. Especies ======================= */
@@ -303,15 +335,14 @@
         const propias = info.key ? C.funcionesDeEspecie(info.key) : [];
         const auto = info.key ? C.funcionPorDefecto(info.key, regionComp(), null) : null;
         const sel = S.funciones[key];
-        const fOpts = `<option value="auto" ${sel === undefined ? 'selected' : ''}>Automática${auto ? ' (N° ' + auto + ')' : ' — sin función para la especie'}</option>` +
+        const fOpts = (auto ? `<option value="auto" ${sel === undefined ? 'selected' : ''}>Automática (N° ${auto})</option>` : `<option value="auto" ${sel === undefined || sel === null ? 'selected' : ''}>— Seleccione una función (obligatorio) —</option>`) +
           (propias.length ? `<optgroup label="Funciones de la especie">${propias.map(f => `<option value="${f.id}" ${sel === f.id ? 'selected' : ''}>${esc(etiquetaFuncion(f))}</option>`).join('')}</optgroup>` : '') +
           `<optgroup label="Otras funciones del compendio (aplicación por similitud)">${todasF.filter(f => !propias.includes(f) && f.unidad === 'm3').map(f => `<option value="${f.id}" ${sel === f.id ? 'selected' : ''}>${esc(etiquetaFuncion(f))}</option>`).join('')}</optgroup>` +
-          (`<optgroup label="Función definida por el usuario">${S.funcUsuario[key] ? `<option value="usuario" ${sel === C.idUsuario(key) ? 'selected' : ''}>Definida por el usuario: ${esc(S.funcUsuario[key].ecuacion)}</option><option value="usuario-editar">Editar la función definida por el usuario…</option>` : `<option value="usuario-editar">Definida por el usuario…</option>`}</optgroup>`) +
-          `<option value="none" ${sel === null ? 'selected' : ''}>Sin función (no calcular volumen)</option>`;
+          (`<optgroup label="Función definida por el usuario">${S.funcUsuario[key] ? `<option value="usuario" ${sel === C.idUsuario(key) ? 'selected' : ''}>Definida por el usuario: ${esc(S.funcUsuario[key].ecuacion)}</option><option value="usuario-editar">Editar la función definida por el usuario…</option>` : `<option value="usuario-editar">Definida por el usuario…</option>`}</optgroup>`);
         const fidUsada = sel === undefined ? auto : sel;
         const fUsada = fidUsada ? C.FN[fidUsada] : null;
         let avisoF = '';
-        if (!fUsada) avisoF = `<div class="tag warn" style="margin-top:4px">Sin función: volumen no calculado</div>` + (true ? `<div><button class="btn small" data-fu="${esc(key)}" data-fu-nom="${esc(nm)}" style="margin-top:4px">Definir función de volumen…</button></div>` : '');
+        if (!fUsada) avisoF = `<div class="tag bad" style="margin-top:4px">Función de volumen obligatoria</div>` + (true ? `<div><button class="btn small" data-fu="${esc(key)}" data-fu-nom="${esc(nm)}" style="margin-top:4px">Definir función de volumen…</button></div>` : '');
         else if (fUsada.usuario) avisoF = `<div class="tag info" style="margin-top:4px">Función definida por el usuario</div><div class="muted" style="font-size:12px;margin-top:3px">V = <code>${esc(fUsada.eq)}</code></div>`;
         else {
           if (fUsada.validacion !== 'verificada') avisoF += `<div class="tag warn" style="margin-top:4px">Ecuación ${esc(fUsada.validacion)}</div> `;
@@ -340,7 +371,7 @@
     $$('select[data-fun]', tbl).forEach(s => s.addEventListener('change', () => {
       const k = s.dataset.fun;
       if (s.value === 'usuario-editar') { const nm = Object.keys(S.nombres).find(n => (S.nombres[n].key || ('X:' + C.norm(n))) === k) || k; renderEspecies(); abrirFuncionUsuario(k, nm); return; }
-      if (s.value === 'auto') delete S.funciones[k]; else if (s.value === 'none') S.funciones[k] = null; else if (s.value === 'usuario') S.funciones[k] = C.idUsuario(k); else S.funciones[k] = Number(s.value);
+      if (s.value === 'auto') delete S.funciones[k]; else if (s.value === 'usuario') S.funciones[k] = C.idUsuario(k); else S.funciones[k] = Number(s.value);
       recalcular(); renderEspecies();
     }));
     $$('input[data-alt]', tbl).forEach(el => el.addEventListener('change', () => {
@@ -750,6 +781,7 @@
     S.tieneExtraer = arboles.some(a => a.extArchivo); S.tieneArbol = arboles.some(a => a.arbol != null);
     $('#cardMapeo').hidden = true;
     Object.assign(S.alturas, E.alturas);
+    Object.assign(S.funciones, E.funciones || {});
     cargarArboles(arboles, avisos);
     Object.entries(E.rodales).forEach(([id, c]) => {
       const cfg = S.cfgRodal[id]; if (!cfg) return;

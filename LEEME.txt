@@ -37,6 +37,9 @@ Flujo
    0.00005*D^2*H o exp(-9.86 + 1.92*ln(D) + 0.95*ln(H)). Funciones: ln, log (base 10), exp, sqrt,
    abs, pi. La ventana muestra un cálculo de prueba; al guardar se recalculan todas las tablas. La
    función queda guardada en el proyecto y se identifica como "definida por el usuario" en Excel y PDF.
+   REGLA: todas las especies del inventario deben tener una función de volumen asignada (del
+   compendio o definida por el usuario). Mientras falte alguna, las etapas 3 a 6, la exportación a
+   Excel y el PDF quedan bloqueados, y la etapa 2 indica qué especies faltan.
 3. Rodales: antecedentes (superficie, pendiente, suelos, agua, SNAP), actividad y extracción.
 4. Tabla de rodal: tabla inicial/residual (densidad en árboles enteros) y tabla de volumen.
 5. Estadísticos: medias, varianza, CV, error e intensidad de muestreo por rodal (y del conjunto si es

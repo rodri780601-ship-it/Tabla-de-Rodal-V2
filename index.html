@@ -133,7 +133,8 @@
           <label class="btn ghost small" title="Reemplaza el listado MMA incluido por otra versión oficial (.xlsx)">Actualizar listado MMA<input type="file" id="inpMMA" accept=".xlsx" hidden></label>
         </div>
         <p class="muted">Cada nombre del inventario se reconoce exclusivamente contra la nómina del <b>D.S. N° 68/2009</b>. La categoría de conservación proviene exclusivamente del listado del <b>Ministerio del Medio Ambiente</b> (<span id="txtFuenteMMA"></span>), aplicada a la región del proyecto. La función de volumen se elige del <b>Compendio de Funciones Dendrométricas del Bosque Nativo</b> o, para cualquier especie, puede ingresar una <b>función definida por el usuario</b> (opción "Definida por el usuario…" en la columna "Función de volumen").</p>
-        <div class="table-wrap"><table class="data" id="tblEspecies"></table></div>
+        <div class="aviso" id="avisoFunciones"></div>
+        <div class="table-wrap" style="margin-top:12px"><table class="data" id="tblEspecies"></table></div>
       </div>
       <div class="card" id="cardFuncionDetalle" hidden></div>
       <dialog id="dlgFuncion" class="dlg" aria-labelledby="fuTitulo">

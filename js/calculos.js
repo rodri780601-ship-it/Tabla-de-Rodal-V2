@@ -318,13 +318,6 @@
         }
       }
     }
-    // Ajustes manuales por celda (especie|clase): N residual/ha
-    const man = cfg.manual || {};
-    Object.entries(man).forEach(([k, nres]) => {
-      const [sk, ci] = k.split('|'); const cell = vivos.filter(a => a.key === sk && a.cl === Number(ci));
-      const nini = cell.length * fe; if (!nini) return;
-      const f = Math.max(0, Math.min(1, Number(nres) / nini)); cell.forEach(a => { a.res = f; });
-    });
 
     // ---- Agregados ----
     const agg = (filtro, peso) => {
@@ -354,7 +347,9 @@
     const porParcela = parcelas.map(p => {
       const ab = vivos.filter(a => String(a.parcela) === p);
       const vOk = ab.every(a => a.v != null);
-      return { parcela: p, n: ab.length * FE, g: sum(ab.map(a => a.g)) * FE, v: vOk ? sum(ab.map(a => a.v)) * FE : null, arboles: ab.length };
+      const cuenta = {}; ab.forEach(a => { cuenta[a.key] = (cuenta[a.key] || 0) + 1; });
+      return { parcela: p, n: ab.length * FE, g: sum(ab.map(a => a.g)) * FE, v: vOk ? sum(ab.map(a => a.v)) * FE : null, arboles: ab.length,
+        nRes: sum(ab.map(a => a.res)) * FE, gRes: sum(ab.map(a => a.res * a.g)) * FE, cuenta };
     });
     const est = (arr) => {
       const n = arr.length; if (!n) return null;
@@ -626,7 +621,24 @@
     return { actividad: act, checks, resultado, clase: hayNo ? 'bad' : hayPend ? 'warn' : 'ok' };
   }
 
-  window.CALC = {
+  /* Densidad en árboles enteros por especie y clase (método del resto mayor): para cada especie, los
+     valores por clase se redondean de modo que su suma sea igual al total de la especie redondeado. */
+  function densidadEntera(r) {
+    const out = {};
+    const reparto = (vals) => {
+      const objetivo = Math.round(vals.reduce((a, b) => a + b, 0));
+      const base = vals.map(v => Math.floor(v + 1e-9)); let falta = objetivo - base.reduce((a, b) => a + b, 0);
+      const orden = vals.map((v, i) => ({ i, f: v - base[i] })).sort((a, b) => b.f - a.f);
+      for (let k = 0; k < orden.length && falta > 0; k++, falta--) base[orden[k].i]++;
+      return base;
+    };
+    r.porEspecie.forEach(e => {
+      out[e.key] = { ini: reparto(r.tabla.map(f => f.sp[e.key].ini.n)), res: reparto(r.tabla.map(f => f.sp[e.key].res.n)) };
+    });
+    return out;
+  }
+
+  window.CALC = { densidadEntera,
     norm, construirCatalogo, reconocerEspecie, CAT, cargarMMA, categoriaEspecie, categoriaRegional, buscarMMA, getMMA: () => MMA,
     construirFunciones, FN, funcionesDeEspecie, funcionPorDefecto, puntajeFuncion, volumenArbol, calcularRodal, tQuantil, COMPENDIO_SP
   };

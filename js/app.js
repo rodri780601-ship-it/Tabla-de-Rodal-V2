@@ -75,9 +75,8 @@
   $('#cfgMuestreo').addEventListener('change', e => { S.config.muestreo = e.target.value; actualizarTextoParcela(); recalcular(); });
   $('#cfgForma').addEventListener('change', e => { S.config.forma = e.target.value; if (S.config.forma === 'rectangular' && !(S.config.ancho_r > 0)) S.config.ancho_r = 20; renderDims(); recalcular(); });
   sincronizarParametros();
-  $('#cfgAncho').addEventListener('change', e => { S.config.ancho = Math.max(0.5, Number(e.target.value) || 5); limpiarManuales(); recalcular(); });
-  $('#cfgInicio').addEventListener('change', e => { S.config.inicio = e.target.value; limpiarManuales(); recalcular(); });
-  function limpiarManuales() { Object.values(S.cfgRodal).forEach(c => { c.manual = {}; }); }
+  $('#cfgAncho').addEventListener('change', e => { S.config.ancho = Math.max(0.5, Number(e.target.value) || 5); recalcular(); });
+  $('#cfgInicio').addEventListener('change', e => { S.config.inicio = e.target.value; recalcular(); });
   $('#txtFuenteMMA').textContent = window.MMA_LISTADO.fuente;
 
   /* ======================= Carga de archivo ======================= */
@@ -185,7 +184,7 @@
     ids.sort((a, b) => { const na = parseFloat(a), nb = parseFloat(b); return (!isNaN(na) && !isNaN(nb) && na !== nb) ? na - nb : String(a).localeCompare(String(b), 'es', { numeric: true }); });
     S.rodales = ids;
     ids.forEach(id => {
-      if (!S.cfgRodal[id]) S.cfgRodal[id] = { superficie: '', pendiente: '', suelosFragiles: false, cercaAgua: false, snap: false, ambienteUnico: false, estructura: 'auto', actividad: 'NINGUNA', metodoRegen: '', ext: { modo: S.tieneExtraer ? 'archivo' : 'ninguna', pctG: 30, criterio: 'abajo', especies: [], dapMin: '', dapMax: '', protegerAmenazadas: true }, manual: {}, inputs: {}, especiesInteres: [] };
+      if (!S.cfgRodal[id]) S.cfgRodal[id] = { superficie: '', pendiente: '', suelosFragiles: false, cercaAgua: false, snap: false, ambienteUnico: false, estructura: 'auto', actividad: 'NINGUNA', metodoRegen: '', ext: { modo: S.tieneExtraer ? 'archivo' : 'ninguna', pctG: 30, criterio: 'abajo', especies: [], dapMin: '', dapMax: '', protegerAmenazadas: true }, inputs: {}, especiesInteres: [] };
       delete S.cfgRodal[id].areaParcela;
     });
     recalcular();
@@ -407,7 +406,6 @@
               <label class="chk"><input type="checkbox" data-eb="protegerAmenazadas" ${cfg.ext.protegerAmenazadas ? 'checked' : ''}> No cortar especies en categoría CR, EN o VU (art. 19 Ley 20.283)</label>
               <details class="crit"><summary>Especies a intervenir (${cfg.ext.especies.length ? cfg.ext.especies.length + ' seleccionadas' : 'todas'})</summary><div style="margin-top:6px">${chkSp('extsp', cfg.ext.especies)}</div></details>
             </div>
-            <small>Los valores residuales también pueden editarse celda a celda en la pestaña 4. ${Object.keys(cfg.manual || {}).length ? `<button class="btn ghost small" id="btnBorrarManual">Borrar ${Object.keys(cfg.manual).length} ajuste(s) manual(es)</button>` : ''}</small>
           </div>
         </div>
       </div>
@@ -424,7 +422,6 @@
     $$('[data-e]', root).forEach(el => el.addEventListener('change', () => { cfg.ext[el.dataset.e] = el.type === 'number' ? (el.value === '' ? '' : Number(el.value)) : el.value; recalcular(); }));
     $$('[data-eb]', root).forEach(el => el.addEventListener('change', () => { cfg.ext[el.dataset.eb] = el.checked; recalcular(); }));
     $$('[data-extsp]', root).forEach(el => el.addEventListener('change', () => { cfg.ext.especies = $$('[data-extsp]', root).filter(x => x.checked).map(x => x.dataset.extsp); recalcular(); }));
-    const bbm = $('#btnBorrarManual'); if (bbm) bbm.addEventListener('click', () => { cfg.manual = {}; recalcular(); renderRodalCfg(); });
     renderInputsActividad();
     refrescarResultadosRodal();
   }
@@ -469,6 +466,9 @@
     return { cols: sps.slice(0, 3), otras: sps.slice(3) };
   }
   let rodalTabla = null;
+  // Densidad redondeada a árboles enteros por especie y clase; "Otras" y "Total" se obtienen sumando
+  // los valores redondeados, de modo que filas y columnas cuadren.
+  function nEntero(x) { return Math.round(x || 0); }
   function renderTabla() {
     if (!S.rodales.length) return;
     if (!rodalTabla || !S.rodales.includes(rodalTabla)) rodalTabla = S.rodales[0];
@@ -476,41 +476,39 @@
     sel.onchange = () => { rodalTabla = sel.value; renderTabla(); };
     const todas = $('#chkTodas').checked;
     const r = S.resultados[rodalTabla]; const { cols, otras } = columnasEspecies(r, todas);
+    const todasSp = r.porEspecie.filter(e => e.ini.n > 0);
     const filas = r.tabla.filter((f, i) => r.tabla.slice(i).some(x => x.tot.ini.n > 0) && r.tabla.slice(0, i + 1).some(x => x.tot.ini.n > 0));
-    const sumOtras = (f, est, campo) => otras.reduce((s, e) => s + f.sp[e.key][est][campo], 0);
-    const tot = (e, est, campo) => e[est][campo];
-    const enc = (titulo) => `<thead><tr><th colspan="3" rowspan="1">Especie</th>${cols.map(e => `<th colspan="4">${esc(e.nombre)}</th>`).join('')}${otras ? '<th colspan="4">Otras</th>' : ''}<th colspan="4">Total</th></tr>
+    const enc = (titulo) => `<thead><tr><th colspan="3">Especie</th>${cols.map(e => `<th colspan="4">${esc(e.nombre)}</th>`).join('')}${otras ? '<th colspan="4">Otras</th>' : ''}<th colspan="4">Total</th></tr>
       <tr><th colspan="2" rowspan="2">Rango (cm)<br>≤ Ø &lt;</th><th rowspan="2">Mc</th>${[...cols, ...(otras ? [0] : []), 0].map(() => `<th colspan="2">${titulo[0]}</th><th colspan="2">${titulo[1]}</th>`).join('')}</tr>
       <tr>${[...cols, ...(otras ? [0] : []), 0].map(() => '<th>Ini.</th><th>Res.</th><th>Ini.</th><th>Res.</th>').join('')}</tr></thead>`;
-    const man = r.cfg.manual || {};
-    const cuerpo = (c1, c2, d1, d2, editable) => filas.map(f => {
-      const c = f.clase;
-      const celdas = cols.map(e => {
-        const x = f.sp[e.key];
-        const resCell = editable && x.ini.n > 0 ? `<td class="res edit"><input type="number" step="any" min="0" data-cell="${esc(e.key)}|${c.i}" value="${+x.res.n.toFixed(1)}" class="${man[e.key + '|' + c.i] != null ? 'mod' : ''}" title="N residual (árb/ha). Inicial: ${fmt(x.ini.n, 1)}"></td>` : `<td class="res">${fmt(x.res[c1], d1)}</td>`;
-        return `<td>${fmt(x.ini[c1], d1)}</td>${resCell}<td>${fmt(x.ini[c2], d2)}</td><td class="res">${fmt(x.res[c2], d2)}</td>`;
+    const grupos = [...cols.map(e => [e.key]), ...(otras ? [otras.map(e => e.key)] : []), todasSp.map(e => e.key)];
+    const NE = C.densidadEntera(r);
+    const val = (f, keys, est, campo) => keys.reduce((s, k) => s + (campo === 'n' ? NE[k][est][f.clase.i] : (f.sp[k][est][campo] || 0)), 0);
+    const cuerpo = (c2, d2) => {
+      const totales = grupos.map(() => [0, 0, 0, 0]);
+      const html = filas.map(f => {
+        const c = f.clase;
+        const celdas = grupos.map((keys, gi) => {
+          const v = [val(f, keys, 'ini', 'n'), val(f, keys, 'res', 'n'), val(f, keys, 'ini', c2), val(f, keys, 'res', c2)];
+          v.forEach((x, k) => { totales[gi][k] += x; });
+          return `<td>${fmt(v[0], 0)}</td><td class="res">${fmt(v[1], 0)}</td><td>${fmt(v[2], d2)}</td><td class="res">${fmt(v[3], d2)}</td>`;
+        }).join('');
+        return `<tr><td class="rng">${fmt(c.li, c.li % 1 ? 1 : 0)}</td><td class="rng">${fmt(c.ls, c.ls % 1 ? 1 : 0)}</td><td class="rng">${fmt(c.mc, c.mc % 1 ? 1 : 0)}</td>${celdas}</tr>`;
       }).join('');
-      const o = otras ? `<td>${fmt(sumOtras(f, 'ini', c1), d1)}</td><td class="res">${fmt(sumOtras(f, 'res', c1), d1)}</td><td>${fmt(sumOtras(f, 'ini', c2), d2)}</td><td class="res">${fmt(sumOtras(f, 'res', c2), d2)}</td>` : '';
-      return `<tr><td class="rng">${fmt(c.li, c.li % 1 ? 1 : 0)}</td><td class="rng">${fmt(c.ls, c.ls % 1 ? 1 : 0)}</td><td class="rng">${fmt(c.mc, c.mc % 1 ? 1 : 0)}</td>${celdas}${o}<td>${fmt(f.tot.ini[c1], d1)}</td><td class="res">${fmt(f.tot.res[c1], d1)}</td><td>${fmt(f.tot.ini[c2], d2)}</td><td class="res">${fmt(f.tot.res[c2], d2)}</td></tr>`;
-    }).join('') + `<tr class="tot"><td colspan="3" style="text-align:center">Total</td>${cols.map(e => `<td>${fmt(e.ini[c1], d1)}</td><td>${fmt(e.res[c1], d1)}</td><td>${fmt(e.ini[c2], d2)}</td><td>${fmt(e.res[c2], d2)}</td>`).join('')}${otras ? `<td>${fmt(otras.reduce((s, e) => s + e.ini[c1], 0), d1)}</td><td>${fmt(otras.reduce((s, e) => s + e.res[c1], 0), d1)}</td><td>${fmt(otras.reduce((s, e) => s + (e.ini[c2] || 0), 0), d2)}</td><td>${fmt(otras.reduce((s, e) => s + (e.res[c2] || 0), 0), d2)}</td>` : ''}<td>${fmt(r.tot.ini[c1], d1)}</td><td>${fmt(r.tot.res[c1], d1)}</td><td>${fmt(r.tot.ini[c2], d2)}</td><td>${fmt(r.tot.res[c2], d2)}</td></tr>`;
-    // volumen: tabla con N y V
+      return html + `<tr class="tot"><td colspan="3" style="text-align:center">Total</td>${totales.map(t => `<td>${fmt(t[0], 0)}</td><td>${fmt(t[1], 0)}</td><td>${fmt(t[2], d2)}</td><td>${fmt(t[3], d2)}</td>`).join('')}</tr>`;
+    };
     $('#tablaRodal').innerHTML = `
       <div class="card">
         <div class="titulo-plantilla">12.3.9 Tabla de rodal inicial y residual, después de la intervención inmediata</div>
-        <p class="muted" style="margin-top:0">Rodal: <b>${esc(rodalTabla)}</b> · ${esc(r.tipo.nombre)} · ${esc(r.estado.estado || '')} · ${r.nP} parcela(s) · Las celdas sombreadas son residuales; el N residual por especie y clase es editable.</p>
-        <div class="table-wrap"><table class="rodal">${enc(['N (árb./ha)', 'G (m²/ha)'])}<tbody>${cuerpo('n', 'g', 1, 2, true)}</tbody></table></div>
-        ${otras ? `<p class="muted" style="font-size:12px">Otras: ${otras.map(e => esc(e.nombre)).join(', ')}.</p>` : ''}
+        <p class="muted" style="margin-top:0">Rodal: <b>${esc(rodalTabla)}</b> · ${esc(r.tipo.nombre)} · ${esc(r.estado.estado || '')} · ${r.nP} parcela(s) · Las columnas sombreadas son residuales. La intervención se define en la pestaña 3.</p>
+        <div class="table-wrap"><table class="rodal">${enc(['N (árb./ha)', 'G (m²/ha)'])}<tbody>${cuerpo('g', 2)}</tbody></table></div>
+        <p class="muted" style="font-size:12px">${otras ? `Otras: ${otras.map(e => esc(e.nombre)).join(', ')}. ` : ''}Densidad expresada en árboles enteros por hectárea: en cada especie los valores por clase se redondean de modo que sumen el total de la especie redondeado; Otras y Total suman esos enteros.</p>
       </div>
       <div class="card">
         <div class="titulo-plantilla">Volumen inicial y residual por clase diamétrica (funciones del compendio)</div>
         <p class="muted" style="margin-top:0">${r.tot.ini.vCompleto ? '' : 'Hay especies sin función de volumen o sin altura promedio: los totales son parciales. '}Volumen según la variable de cada función (ver pestaña 2).</p>
-        <div class="table-wrap"><table class="rodal">${enc(['N (árb./ha)', 'V (m³/ha)'])}<tbody>${cuerpo('n', 'v', 1, 2, false)}</tbody></table></div>
+        <div class="table-wrap"><table class="rodal">${enc(['N (árb./ha)', 'V (m³/ha)'])}<tbody>${cuerpo('v', 2)}</tbody></table></div>
       </div>`;
-    $$('[data-cell]', $('#tablaRodal')).forEach(inp => inp.addEventListener('change', () => {
-      const cfg = S.cfgRodal[rodalTabla]; cfg.manual = cfg.manual || {};
-      if (inp.value === '') delete cfg.manual[inp.dataset.cell]; else cfg.manual[inp.dataset.cell] = Math.max(0, Number(inp.value));
-      recalcular();
-    }));
   }
   $('#chkTodas').addEventListener('change', renderTabla);
 
@@ -522,13 +520,18 @@
     $('#tblEstadisticos').innerHTML = `<p class="muted" style="margin:10px 12px 0">Tipo de muestreo: <b>${esc($('#cfgMuestreo').selectedOptions[0].text)}</b> · Parcela ${esc(S.config.forma)} de ${fmt(S.config.area, 1)} m² (${esc(descDims())}).</p>` + (avisoM ? `<div class="aviso ${avisoM[0]}" style="margin:8px 12px">${avisoM[1]}</div>` : '') +
       `<table class="data"><thead><tr><th rowspan="2">Rodal</th><th rowspan="2" class="num">Parcelas (N°)</th><th rowspan="2" class="num">Intensidad de muestreo (%)</th><th rowspan="2" class="num">t student (95%)</th><th colspan="2" style="text-align:center">Media</th><th colspan="2" style="text-align:center">Varianza</th><th colspan="2" style="text-align:center">Coeficiente de variación (%)</th><th colspan="2" style="text-align:center">Error de muestreo (%)</th><th colspan="2" style="text-align:center">Volumen (m³/ha)</th></tr>
       <tr><th class="num">Densidad (arb/ha)</th><th class="num">Área basal (m²/ha)</th><th class="num">Densidad</th><th class="num">Área basal</th><th class="num">Densidad</th><th class="num">Área basal</th><th class="num">Densidad</th><th class="num">Área basal</th><th class="num">Media</th><th class="num">E (%)</th></tr></thead><tbody>` +
-      rs.map(r => { const s = recalcStats(r); return `<tr><td><b>${esc(r.id)}</b></td><td class="num">${s.n}</td><td class="num">${s.intensidad == null ? '—' : fmt(s.intensidad, 2)}</td><td class="num">${fmt(s.t, 3)}</td><td class="num">${fmt(s.N.media, 1)}</td><td class="num">${fmt(s.G.media, 2)}</td><td class="num">${fmt(s.N.var, 1)}</td><td class="num">${fmt(s.G.var, 3)}</td><td class="num">${fmt(s.N.cv, 1)}</td><td class="num">${fmt(s.G.cv, 1)}</td><td class="num">${fmt(s.N.ePct, 1)}</td><td class="num">${fmt(s.G.ePct, 1)}</td><td class="num">${s.V ? fmt(s.V.media, 1) : '—'}</td><td class="num">${s.V ? fmt(s.V.ePct, 1) : '—'}</td></tr>`; }).join('') +
-      (est ? `<tr style="font-weight:650;background:var(--surface-2)"><td>Conjunto (estratificado)</td><td class="num">${est.n}</td><td class="num">${est.intensidad == null ? '—' : fmt(est.intensidad, 2)}</td><td class="num">${fmt(est.t, 3)}</td><td class="num">${fmt(est.N.media, 1)}</td><td class="num">${fmt(est.G.media, 2)}</td><td class="num">${fmt(est.N.var, 2)}</td><td class="num">${fmt(est.G.var, 4)}</td><td class="num">—</td><td class="num">—</td><td class="num">${fmt(est.N.ePct, 1)}</td><td class="num">${fmt(est.G.ePct, 1)}</td><td class="num">${est.V ? fmt(est.V.media, 1) : '—'}</td><td class="num">${est.V ? fmt(est.V.ePct, 1) : '—'}</td></tr>` : '') + '</tbody></table>' +
+      rs.map(r => { const s = recalcStats(r); return `<tr><td><b>${esc(r.id)}</b></td><td class="num">${s.n}</td><td class="num">${s.intensidad == null ? '—' : fmt(s.intensidad, 2)}</td><td class="num">${fmt(s.t, 3)}</td><td class="num">${fmt(s.N.media, 0)}</td><td class="num">${fmt(s.G.media, 2)}</td><td class="num">${fmt(s.N.var, 1)}</td><td class="num">${fmt(s.G.var, 3)}</td><td class="num">${fmt(s.N.cv, 1)}</td><td class="num">${fmt(s.G.cv, 1)}</td><td class="num">${fmt(s.N.ePct, 1)}</td><td class="num">${fmt(s.G.ePct, 1)}</td><td class="num">${s.V ? fmt(s.V.media, 1) : '—'}</td><td class="num">${s.V ? fmt(s.V.ePct, 1) : '—'}</td></tr>`; }).join('') +
+      (est ? `<tr style="font-weight:650;background:var(--surface-2)"><td>Conjunto (estratificado)</td><td class="num">${est.n}</td><td class="num">${est.intensidad == null ? '—' : fmt(est.intensidad, 2)}</td><td class="num">${fmt(est.t, 3)}</td><td class="num">${fmt(est.N.media, 0)}</td><td class="num">${fmt(est.G.media, 2)}</td><td class="num">${fmt(est.N.var, 2)}</td><td class="num">${fmt(est.G.var, 4)}</td><td class="num">—</td><td class="num">—</td><td class="num">${fmt(est.N.ePct, 1)}</td><td class="num">${fmt(est.G.ePct, 1)}</td><td class="num">${est.V ? fmt(est.V.media, 1) : '—'}</td><td class="num">${est.V ? fmt(est.V.ePct, 1) : '—'}</td></tr>` : '') + '</tbody></table>' +
       (S.config.muestreo === 'estratificado' && !est ? `<div class="aviso info" style="margin:8px 12px">Para la estimación estratificada del conjunto, ingrese la superficie de todos los rodales en la pestaña 3. En la fila del conjunto, la varianza corresponde a la varianza de la media estratificada.</div>` : '') +
       `<p class="muted" style="margin:8px 12px;font-size:12px">Intensidad de muestreo = superficie muestreada / superficie del rodal (requiere la superficie del rodal).</p>`;
     $('#tblParcelas').innerHTML = `<table class="data"><thead><tr><th>Rodal</th><th>Parcela</th><th class="num">Árboles</th><th class="num">N (árb/ha)</th><th class="num">G (m²/ha)</th><th class="num">V (m³/ha)</th></tr></thead><tbody>` +
-      rs.map(r => r.parcelas.map(p => `<tr><td>${esc(r.id)}</td><td>${esc(p.parcela)}</td><td class="num">${p.arboles}</td><td class="num">${fmt(p.n, 1)}</td><td class="num">${fmt(p.g, 2)}</td><td class="num">${p.v == null ? '—' : fmt(p.v, 1)}</td></tr>`).join('')).join('') + '</tbody></table>';
+      rs.map(r => r.parcelas.map(p => `<tr><td>${esc(r.id)}</td><td>${esc(p.parcela)}</td><td class="num">${p.arboles}</td><td class="num">${fmt(p.n, 0)}</td><td class="num">${fmt(p.g, 2)}</td><td class="num">${p.v == null ? '—' : fmt(p.v, 1)}</td></tr>`).join('')).join('') + '</tbody></table>';
+    if (!rodalGraf || !S.rodales.includes(rodalGraf)) rodalGraf = S.rodales[0];
+    const sg = $('#selRodalGraf'); sg.innerHTML = opcionesRodal(rodalGraf);
+    sg.onchange = () => { rodalGraf = sg.value; window.GRAFICOS.render($('#graficos'), S.resultados[rodalGraf], rodalGraf); };
+    window.GRAFICOS.render($('#graficos'), S.resultados[rodalGraf], rodalGraf);
   }
+  let rodalGraf = null;
   function descDims() {
     const A = S.config.area;
     if (S.config.forma === 'circular') return 'radio ' + fmt(Math.sqrt(A / Math.PI), 2) + ' m';

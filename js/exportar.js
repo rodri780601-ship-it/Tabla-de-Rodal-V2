@@ -36,27 +36,30 @@
     rows[4] = h5; rows[5] = h6; rows[6] = h7;
     const filas = r.tabla.filter((f, i) => r.tabla.slice(i).some(x => x.tot.ini.n > 0) && r.tabla.slice(0, i + 1).some(x => x.tot.ini.n > 0));
     const dec = campo2 === 'g' ? s.dec3 : s.dec2;
-    const sumK = (f, keys, est, c) => keys.reduce((a, k) => a + ((f.sp[k] && f.sp[k][est][c]) || 0), 0);
+    // Densidad en árboles enteros por especie y clase; Otras y Total suman los valores redondeados.
+    const todas = sps.map(e => e.key);
+    const grupos = [...bloques.map(b => b.keys), todas];
+    const NE = window.CALC.densidadEntera(r);
+    const val = (f, keys, est, c) => keys.reduce((a, k) => a + (f.sp[k] ? (c === 'n' ? NE[k][est][f.clase.i] : (f.sp[k][est][c] || 0)) : 0), 0);
+    const totales = grupos.map(() => [0, 0, 0, 0]);
     filas.forEach(f => {
       const row = [{ v: f.clase.li, s: s.dec1 }, { v: f.clase.ls, s: s.dec1 }, { v: f.clase.mc, s: s.dec1 }];
-      bloques.forEach(b => {
-        row.push({ v: r2(sumK(f, b.keys, 'ini', 'n'), 2), s: s.dec1 }, { v: r2(sumK(f, b.keys, 'res', 'n'), 2), s: s.dec1 },
-          { v: r2(sumK(f, b.keys, 'ini', campo2)), s: dec }, { v: r2(sumK(f, b.keys, 'res', campo2)), s: dec });
+      grupos.forEach((keys, gi) => {
+        const v = [val(f, keys, 'ini', 'n'), val(f, keys, 'res', 'n'), val(f, keys, 'ini', campo2), val(f, keys, 'res', campo2)];
+        v.forEach((x, k) => { totales[gi][k] += x; });
+        row.push({ v: v[0], s: s.int }, { v: v[1], s: s.int }, { v: r2(v[2]), s: dec }, { v: r2(v[3]), s: dec });
       });
-      row.push({ v: r2(f.tot.ini.n, 2), s: s.dec1 }, { v: r2(f.tot.res.n, 2), s: s.dec1 }, { v: r2(f.tot.ini[campo2]), s: dec }, { v: r2(f.tot.res[campo2]), s: dec });
       rows.push(row);
     });
     const tot = [{ v: 'Total', s: s.label }, { v: null, s: s.label }, { v: null, s: s.label }];
     const totDec = campo2 === 'g' ? s.totDec3 : s.totDec2;
-    const sumE = (keys, est, c) => r.porEspecie.filter(e => keys.includes(e.key)).reduce((a, e) => a + (e[est][c] || 0), 0);
-    bloques.forEach(b => { tot.push({ v: r2(sumE(b.keys, 'ini', 'n'), 2), s: s.totDec1 }, { v: r2(sumE(b.keys, 'res', 'n'), 2), s: s.totDec1 }, { v: r2(sumE(b.keys, 'ini', campo2)), s: totDec }, { v: r2(sumE(b.keys, 'res', campo2)), s: totDec }); });
-    tot.push({ v: r2(r.tot.ini.n, 2), s: s.totDec1 }, { v: r2(r.tot.res.n, 2), s: s.totDec1 }, { v: r2(r.tot.ini[campo2]), s: totDec }, { v: r2(r.tot.res[campo2]), s: totDec });
+    totales.forEach(t => { tot.push({ v: t[0], s: s.totInt }, { v: t[1], s: s.totInt }, { v: r2(t[2]), s: totDec }, { v: r2(t[3]), s: totDec }); });
     rows.push(tot);
     merges.push(`A${rows.length}:C${rows.length}`);
     const notas = [];
     if (otras.length) notas.push('Otras: ' + otras.map(e => e.nombre).join(', ') + '.');
     if (campo2 === 'v') notas.push('Volumen calculado con las funciones del Compendio de Funciones Dendrométricas del Bosque Nativo (ver hoja "Funciones de volumen") y la altura promedio por especie.' + (r.tot.ini.vCompleto ? '' : ' Hay especies sin función o sin altura: los totales son parciales.'));
-    notas.push('Ini. = inicial; Res. = residual después de la intervención inmediata. Mc = marca de clase.');
+    notas.push('Ini. = inicial; Res. = residual después de la intervención inmediata. Mc = marca de clase. Densidad en árboles enteros por hectárea: en cada especie los valores por clase se redondean de modo que sumen el total de la especie redondeado; Otras y Total suman esos enteros.');
     rows.push([]);
     notas.forEach(n => rows.push([{ v: n, s: s.note }]));
     return { name: nombreHoja, rows, merges, cols: [7, 7, 6, ...Array(4 * (bloques.length + 1)).fill(8.5)], freeze: [7, 3], landscape: true };
@@ -69,7 +72,7 @@
     S.rodales.forEach(id => {
       const r = S.resultados[id];
       rows.push([{ v: id, s: s.text }, { v: r.cfg.superficie === '' ? null : Number(r.cfg.superficie), s: s.dec2 }, { v: r.nP, s: s.int }, { v: r2(r.area, 2), s: s.dec2 }, { v: r.tipo.nombre, s: s.text }, { v: r.estado.estado || '—', s: s.text }, { v: r.categoria.cat, s: s.text }, { v: r.estructura === 'irregular' ? 'Irregular' : 'Regular', s: s.text },
-        { v: r2(r.DMCini, 2), s: s.dec1 }, { v: r2(r.DMCres, 2), s: s.dec1 }, { v: r2(r.hProm, 2), s: s.dec1 }, { v: r2(r.tot.ini.n, 1), s: s.int }, { v: r2(r.tot.res.n, 1), s: s.int }, { v: r2(r.tot.ini.g), s: s.dec2 }, { v: r2(r.tot.res.g), s: s.dec2 },
+        { v: r2(r.DMCini, 2), s: s.dec1 }, { v: r2(r.DMCres, 2), s: s.dec1 }, { v: r2(r.hProm, 2), s: s.dec1 }, { v: Math.round(r.tot.ini.n), s: s.int }, { v: Math.round(r.tot.res.n), s: s.int }, { v: r2(r.tot.ini.g), s: s.dec2 }, { v: r2(r.tot.res.g), s: s.dec2 },
         { v: r.tot.ini.g ? r2(r.tot.ext.g / r.tot.ini.g, 4) : 0, s: s.pct }, { v: r2(r.tot.ini.v, 2), s: s.dec1 }, { v: r2(r.tot.res.v, 2), s: s.dec1 },
         { v: r.bases.actividad ? r.bases.actividad.nombre : '—', s: s.wrap }, { v: r.bases.resultado, s: r.bases.clase === 'ok' ? s.ok : r.bases.clase === 'bad' ? s.bad : s.warn }]);
     });
@@ -129,7 +132,7 @@
       r.porEspecie.forEach(e => {
         const f = e.fid ? window.CALC.FN[e.fid] : null;
         rows.push([{ v: id, s: s.text }, { v: e.nombre, s: s.text }, { v: (S.especiesInfo[e.key] || {}).sci || 'No figura en D.S. 68', s: s.text }, { v: e.cat.code + ' · ' + ((window.NORMATIVA.CATEGORIAS[e.cat.code] || {}).nombre || ''), s: e.cat.amenazada ? s.bad : s.text },
-          { v: (e.cat.raw || '').replace(/\n/g, ' '), s: s.wrap }, { v: e.cat.fuente || '', s: s.wrap }, { v: r2(e.ini.n, 1), s: s.dec1 }, { v: r2(e.res.n, 1), s: s.dec1 }, { v: r2(e.ini.g), s: s.dec3 }, { v: r2(e.res.g), s: s.dec3 },
+          { v: (e.cat.raw || '').replace(/\n/g, ' '), s: s.wrap }, { v: e.cat.fuente || '', s: s.wrap }, { v: Math.round(e.ini.n), s: s.int }, { v: Math.round(e.res.n), s: s.int }, { v: r2(e.ini.g), s: s.dec3 }, { v: r2(e.res.g), s: s.dec3 },
           { v: r2(e.ini.v, 3), s: s.dec2 }, { v: r2(e.res.v, 3), s: s.dec2 }, { v: r2(e.h, 2), s: s.dec1 }, { v: f ? f.id : 'Sin función', s: s.text }, { v: f ? f.variable : '', s: s.wrap }]);
       });
     });

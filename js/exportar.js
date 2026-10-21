@@ -20,7 +20,7 @@
     merges.push(`A1:${col(Math.min(nCols - 1, 14))}1`);
     rows[2] = [{ v: 'Rodal:', s: s.subtitle }, null, { v: r.id, s: s.subtitle }];
     merges.push('A3:B3', 'C3:D3');
-    rows[3] = [{ v: `Tipo forestal: ${r.tipo.nombre} · Estado de desarrollo: ${r.estado.estado || '—'} · Categoría (Ley 20.283): ${r.categoria.cat} · ${r.nP} parcela(s) de ${fa(r.area)} m²`, s: s.note }];
+    rows[3] = [{ v: `${r.simpodico ? 'Bosque simpódico · ' : ''}Tipo forestal: ${r.tipo.nombre} · Estado de desarrollo: ${r.estado.estado || '—'} · Categoría (Ley 20.283): ${r.categoria.cat} · ${r.nP} parcela(s) de ${fa(r.area)} m²`, s: s.note }];
     const h5 = [{ v: 'Especie', s: s.header }, { v: null, s: s.header }, { v: null, s: s.header }];
     const h6 = [{ v: 'Rango (cm)                 ≤  Ø  <', s: s.header }, { v: null, s: s.header }, { v: 'Mc', s: s.header }];
     const h7 = [{ v: null, s: s.header }, { v: null, s: s.header }, { v: null, s: s.header }];
@@ -59,6 +59,7 @@
     const notas = [];
     if (otras.length) notas.push('Otras: ' + otras.map(e => e.nombre).join(', ') + '.');
     if (campo2 === 'v') notas.push('Volumen calculado con las funciones del Compendio de Funciones Dendrométricas del Bosque Nativo (ver hoja "Funciones de volumen") y la altura promedio por especie.' + (r.tot.ini.vCompleto ? '' : ' Hay especies sin función o sin altura: los totales son parciales.'));
+    if (r.simpodico) notas.push('Bosque simpódico: N = individuos (cepas) por hectárea; G y V incluyen todos los vástagos (ramas), cada uno con su DAP; cada individuo se clasifica por su diámetro equivalente √(Σ d²). Vástagos: ' + Math.round(r.tot.ini.tallos) + ' /ha inicial, ' + Math.round(r.tot.res.tallos) + ' /ha residual. DMC calculado ' + (r.dmcPorVastago ? 'por vástago.' : 'por individuo (diámetro equivalente).'));
     notas.push('Ini. = inicial; Res. = residual después de la intervención inmediata. Mc = marca de clase. Densidad en árboles enteros por hectárea: en cada especie los valores por clase se redondean de modo que sumen el total de la especie redondeado; Otras y Total suman esos enteros.');
     rows.push([]);
     notas.forEach(n => rows.push([{ v: n, s: s.note }]));
@@ -67,34 +68,39 @@
 
   function hojaResumen(S) {
     const s = ST(); const rows = [[{ v: 'Resumen por rodal', s: s.title }], [{ v: `Región del proyecto: ${(window.NORMATIVA.REGIONES.find(x => x.id === S.config.region) || {}).nombre} · Muestreo: ${MUESTREO[S.config.muestreo] || ''} · Parcela ${S.config.forma} de ${fa(S.config.area)} m² (${window.APP_descDims()}) · Archivo: ${S.archivo || ''} · Generado: ${new Date().toLocaleString('es-CL')}`, s: s.note }], []];
-    const H = ['Rodal', 'Superficie (ha)', 'Parcelas', 'Sup. parcela (m²)', 'Tipo forestal (D.S. 259)', 'Estado de desarrollo (Bases 2.5)', 'Categoría (Ley 20.283)', 'Estructura', 'DMC inicial (cm)', 'DMC residual (cm)', 'Altura media (m)', 'N inicial (árb/ha)', 'N residual (árb/ha)', 'G inicial (m²/ha)', 'G residual (m²/ha)', 'G extraída (%)', 'V inicial (m³/ha)', 'V residual (m³/ha)', 'Actividad a postular', 'Resultado Bases 2026'];
+    const H = ['Rodal', 'Superficie (ha)', 'Parcelas', 'Sup. parcela (m²)', 'Forma de crecimiento', 'Vástagos inicial (/ha)', 'Tipo forestal (D.S. 259)', 'Estado de desarrollo (Bases 2.5)', 'Categoría (Ley 20.283)', 'Estructura', 'DMC inicial (cm)', 'DMC residual (cm)', 'Altura media (m)', 'N inicial (árb/ha)', 'N residual (árb/ha)', 'G inicial (m²/ha)', 'G residual (m²/ha)', 'G extraída (%)', 'V inicial (m³/ha)', 'V residual (m³/ha)', 'Actividad a postular', 'Resultado Bases 2026'];
     rows.push(H.map(h => ({ v: h, s: s.header })));
     S.rodales.forEach(id => {
       const r = S.resultados[id];
-      rows.push([{ v: id, s: s.text }, { v: r.cfg.superficie === '' ? null : Number(r.cfg.superficie), s: s.dec2 }, { v: r.nP, s: s.int }, { v: r2(r.area, 2), s: s.dec2 }, { v: r.tipo.nombre, s: s.text }, { v: r.estado.estado || '—', s: s.text }, { v: r.categoria.cat, s: s.text }, { v: r.estructura === 'irregular' ? 'Irregular' : 'Regular', s: s.text },
+      rows.push([{ v: id, s: s.text }, { v: r.cfg.superficie === '' ? null : Number(r.cfg.superficie), s: s.dec2 }, { v: r.nP, s: s.int }, { v: r2(r.area, 2), s: s.dec2 }, { v: r.simpodico ? 'Simpódico' : 'Monopódico', s: s.text }, { v: Math.round(r.tot.ini.tallos), s: s.int }, { v: r.tipo.nombre, s: s.text }, { v: r.estado.estado || '—', s: s.text }, { v: r.categoria.cat, s: s.text }, { v: r.estructura === 'irregular' ? 'Irregular' : 'Regular', s: s.text },
         { v: r2(r.DMCini, 2), s: s.dec1 }, { v: r2(r.DMCres, 2), s: s.dec1 }, { v: r2(r.hProm, 2), s: s.dec1 }, { v: Math.round(r.tot.ini.n), s: s.int }, { v: Math.round(r.tot.res.n), s: s.int }, { v: r2(r.tot.ini.g), s: s.dec2 }, { v: r2(r.tot.res.g), s: s.dec2 },
         { v: r.tot.ini.g ? r2(r.tot.ext.g / r.tot.ini.g, 4) : 0, s: s.pct }, { v: r2(r.tot.ini.v, 2), s: s.dec1 }, { v: r2(r.tot.res.v, 2), s: s.dec1 },
         { v: r.bases.actividad ? r.bases.actividad.nombre : '—', s: s.wrap }, { v: r.bases.resultado, s: r.bases.clase === 'ok' ? s.ok : r.bases.clase === 'bad' ? s.bad : s.warn }]);
     });
     rows.push([]);
     rows.push([{ v: 'Los volúmenes marcados como parciales excluyen especies sin función de volumen del compendio o sin altura promedio. Revise la hoja "Especies y conservación".', s: s.note }]);
-    return { name: 'Resumen', landscape: true, rows, cols: [8, 10, 9, 10, 22, 18, 20, 11, 10, 10, 10, 11, 11, 10, 10, 10, 10, 10, 34, 18], freeze: [4, 1] };
+    return { name: 'Resumen', landscape: true, rows, cols: [8, 10, 9, 10, 13, 11, 22, 18, 20, 11, 10, 10, 10, 11, 11, 10, 10, 10, 10, 10, 34, 18], freeze: [4, 1] };
   }
 
   function hojaInventario(S) {
     const s = ST(); const rows = [];
-    const H = ['Rodal', 'Parcela', 'Especie', 'Dap', 'Especie (D.S. 68/2009)', 'Nombre científico', 'Altura promedio usada (m)', 'Clase (cm)', 'g (m²)', 'Función compendio N°', 'v (m³)', 'Fracción residual', 'Extraído', 'Categoría MMA'];
+    const H = ['Rodal', 'Parcela', 'Árbol', 'Tipo', 'Especie', 'Dap', 'Especie (D.S. 68/2009)', 'Nombre científico', 'Altura promedio usada (m)', 'g vástago (m²)', 'Función compendio N°', 'v vástago (m³)', 'Vástagos del individuo', 'DAP equivalente individuo (cm)', 'Clase del individuo (cm)', 'Extraído', 'Categoría MMA'];
     rows.push(H.map(h => ({ v: h, s: s.header })));
+    const numOtxt = (x) => x == null ? null : (isNaN(Number(x)) ? x : Number(x));
     S.rodales.forEach(id => {
       const r = S.resultados[id];
       r.arboles.forEach(a => {
         const info = S.especiesInfo[a.key] || {};
-        rows.push([{ v: isNaN(Number(a.rodal)) ? a.rodal : Number(a.rodal) }, { v: isNaN(Number(a.parcela)) ? a.parcela : Number(a.parcela) }, { v: a.nombre }, { v: a.dap },
-          { v: info.nativa ? info.nombre : 'No figura en D.S. 68' }, { v: info.sci || '' }, { v: r2(r.alt[a.key], 2) },
-          { v: `${r.CL.arr[a.cl].li}–${r.CL.arr[a.cl].ls}` }, { v: r2(a.g, 6) }, { v: a.fid || null }, { v: r2(a.v, 5) }, { v: r2(a.res, 4) }, { v: a.res < 1 ? (a.res === 0 ? 'Sí' : 'Parcial') : 'No' }, { v: a.cat.code }]);
+        a.tallos.forEach(t => {
+          const extr = t.extraido ? 'Sí' : (a.res === 0 ? 'Sí' : a.res < 1 ? 'Parcial (regla de área basal)' : 'No');
+          rows.push([{ v: numOtxt(id) }, { v: numOtxt(a.parcela) }, { v: t.arbolAuto ? null : numOtxt(t.arbol) }, { v: t.tipo || (a.nTallos > 1 ? null : null) }, { v: t.nombre }, { v: t.dap },
+            { v: info.nativa ? info.nombre : 'No figura en D.S. 68' }, { v: info.sci || '' }, { v: r2(r.alt[a.key], 2) },
+            { v: r2(t.g, 6) }, { v: a.fid || null }, { v: r2(t.v, 5) }, { v: a.nTallos }, { v: r2(a.dap, 2) },
+            { v: `${r.CL.arr[a.cl].li}–${r.CL.arr[a.cl].ls}` }, { v: extr }, { v: a.cat.code }]);
+        });
       });
     });
-    return { name: 'Inventario', rows, cols: [7, 8, 18, 7, 22, 26, 10, 10, 10, 10, 10, 10, 9, 10], freeze: [1, 0] };
+    return { name: 'Inventario', rows, cols: [7, 8, 7, 9, 18, 7, 22, 26, 10, 10, 10, 10, 10, 12, 10, 12, 10], freeze: [1, 0] };
   }
 
   function hojaEstadisticos(S) {

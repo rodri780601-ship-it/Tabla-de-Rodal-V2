@@ -187,8 +187,8 @@
     const filas = r.tabla.filter((f, i) => r.tabla.slice(i).some(x => x.tot.ini.n > 0) && r.tabla.slice(0, i + 1).some(x => x.tot.ini.n > 0));
     const ps = r.parcelas, sp = r.porEspecie.filter(e => e.ini.n > 0), parcelasId = ps.map(p => p.parcela);
     const cuentaRes = {}; r.arboles.forEach(a => { const k = a.key + '|' + a.parcela; cuentaRes[k] = (cuentaRes[k] || 0) + a.res; });
-    const dmcSp = (e, w) => { let s2 = 0, q = 0; r.arboles.filter(t => t.key === e.key).forEach(t => { const p = w(t); s2 += p * t.dap * t.dap; q += p; }); return q > 0 ? Math.sqrt(s2 / q) : null; };
-    const estructura = sp.map(e => ({ nombre: e.nombre, nIni: r.tot.ini.n ? e.ini.n / r.tot.ini.n * 100 : 0, nRes: r.tot.res.n ? e.res.n / r.tot.res.n * 100 : 0, gIni: r.tot.ini.g ? e.ini.g / r.tot.ini.g * 100 : 0, gRes: r.tot.res.g ? e.res.g / r.tot.res.g * 100 : 0, dmcIni: dmcSp(e, () => 1), dmcRes: dmcSp(e, t => t.res) }));
+    const dmcSp = (e, w, res) => { let s2 = 0, q = 0; r.arboles.filter(t => t.key === e.key).forEach(t => { const p = w(t); const d = res ? t.dapRes : t.dap; s2 += p * d * d; q += p; }); return q > 0 ? Math.sqrt(s2 / q) : null; };
+    const estructura = sp.map(e => ({ nombre: e.nombre, nIni: r.tot.ini.n ? e.ini.n / r.tot.ini.n * 100 : 0, nRes: r.tot.res.n ? e.res.n / r.tot.res.n * 100 : 0, gIni: r.tot.ini.g ? e.ini.g / r.tot.ini.g * 100 : 0, gRes: r.tot.res.g ? e.res.g / r.tot.res.g * 100 : 0, dmcIni: dmcSp(e, () => 1), dmcRes: dmcSp(e, t => t.res, true) }));
     const disp = sp.map(e => ({ nombre: e.nombre, d: dispersion(parcelasId.map(p => (ps.find(x => x.parcela === p).cuenta || {})[e.key] || 0)) }));
     return { filas, ps, sp, parcelasId, cuentaRes, estructura, disp };
   }
@@ -244,8 +244,8 @@
     const pctN = (e) => r.tot.ini.n ? e.ini.n / r.tot.ini.n * 100 : 0, pctNr = (e) => r.tot.res.n ? e.res.n / r.tot.res.n * 100 : 0;
     const pctG = (e) => r.tot.ini.g ? e.ini.g / r.tot.ini.g * 100 : 0, pctGr = (e) => r.tot.res.g ? e.res.g / r.tot.res.g * 100 : 0;
     const tablaEstr = `<div class="table-wrap" style="margin-top:10px"><table class="data"><thead><tr><th>Especie</th><th class="num">N inicial (%)</th><th class="num">N residual (%)</th><th class="num">G inicial (%)</th><th class="num">G residual (%)</th><th class="num">DMC inicial (cm)</th><th class="num">DMC residual (cm)</th></tr></thead><tbody>` +
-      sp.map(e => { const a = r.arboles.filter(t => t.key === e.key); const dmc = (w) => { let s = 0, q = 0; a.forEach(t => { const p = w(t); s += p * t.dap * t.dap; q += p; }); return q > 0 ? Math.sqrt(s / q) : null; };
-        return `<tr><td>${esc(e.nombre)}</td><td class="num">${fmt(pctN(e))}</td><td class="num">${fmt(pctNr(e))}</td><td class="num">${fmt(pctG(e))}</td><td class="num">${fmt(pctGr(e))}</td><td class="num">${fmt(dmc(() => 1))}</td><td class="num">${fmt(dmc(t => t.res))}</td></tr>`; }).join('') + '</tbody></table></div>';
+      sp.map(e => { const a = r.arboles.filter(t => t.key === e.key); const dmc = (w, res) => { let s = 0, q = 0; a.forEach(t => { const p = w(t); const d = res ? t.dapRes : t.dap; s += p * d * d; q += p; }); return q > 0 ? Math.sqrt(s / q) : null; };
+        return `<tr><td>${esc(e.nombre)}</td><td class="num">${fmt(pctN(e))}</td><td class="num">${fmt(pctNr(e))}</td><td class="num">${fmt(pctG(e))}</td><td class="num">${fmt(pctGr(e))}</td><td class="num">${fmt(dmc(() => 1))}</td><td class="num">${fmt(dmc(t => t.res, true))}</td></tr>`; }).join('') + '</tbody></table></div>';
     // 4. distribución espacial
     const FE = r.FE;
     const parcelasId = ps.map(p => p.parcela);

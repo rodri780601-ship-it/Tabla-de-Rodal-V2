@@ -5,7 +5,8 @@ Uso: descomprima la carpeta y abra index.html en un navegador moderno (Chrome, E
 No requiere instalación ni conexión a internet.
 
 Contenido
-- Plantilla_inventario_parcelas.xlsx .. planilla para cargar el inventario (Rodal, Parcela, Especie, Dap, Extraer)
+- Plantilla_inventario_parcelas.xlsx .. planilla para cargar el inventario (Rodal, Parcela, Árbol, Tipo, Especie, Dap, Extraer)
+- ejemplos/ .......................... Ejemplo_monopodico.xlsx y Ejemplo_simpodico.xlsx
 - index.html ............ página principal
 - css/styles.css ........ estilos
 - js/app.js ............. interfaz
@@ -13,6 +14,7 @@ Contenido
 - js/exportar.js ........ exportación a Excel (todas las hojas)
 - js/graficos.js ........ gráficos de la sección 5 (SVG, descargables en PNG)
 - js/informe.js ......... informe en PDF (papel oficio)
+- js/data-ejemplos.js ... datos de los dos ejemplos
 - js/xlsxio.js .......... lectura/escritura de .xlsx y .csv
 - js/data-funciones.js .. 208 funciones de volumen del Compendio de Funciones Dendrométricas del Bosque Nativo
 - js/data-d68.js ........ nómina de especies del D.S. N° 68/2009
@@ -22,7 +24,11 @@ Contenido
 
 Flujo
 1. Inventario: defina región, tipo de muestreo, forma y superficie de la parcela, y cargue el Excel/CSV
-   (Rodal, Parcela, Especie, Dap; opcional Extraer).
+   (Rodal, Parcela, Especie, Dap; opcional Árbol, Tipo y Extraer).
+   Forma de crecimiento: en bosque simpódico (p. ej. esclerófilo) registre una fila por fuste,
+   Tipo = Cepa en la fila principal y Tipo = Vástago en las ramas, con el mismo N° de árbol (o sin
+   N°: cada Cepa agrupa los Vástagos que le siguen). La densidad cuenta individuos y el área basal
+   suma la cepa y todos sus vástagos.
    Los rodales se detectan automáticamente.
 2. Especies y volumen: ingrese la altura promedio de cada especie y revise el reconocimiento según el
    D.S. 68, la categoría MMA y la función del compendio.
@@ -32,6 +38,9 @@ Flujo
    estratificado), y gráficos: distribución diamétrica, densidad y área basal por parcela, estructura
    por especie y distribución espacial por especie (con índices de dispersión).
 6. Cumplimiento: Bases Técnicas 2026 y restricciones de los métodos de corta (D.S. 259).
+Ejemplos: los botones "Ejemplo monopódico" y "Ejemplo simpódico" cargan datos sintéticos con sus
+parámetros; los mismos inventarios están en la carpeta "ejemplos" (con una hoja de parámetros sugeridos).
+
 Exportar Excel genera todas las hojas, incluida la hoja "Gráficos" con los gráficos de cada rodal;
 todas las hojas vienen configuradas para papel oficio (216 × 330 mm) y ajustadas al ancho de página.
 Guardar PDF arma un informe en papel oficio (vertical, con las tablas de rodal en horizontal),

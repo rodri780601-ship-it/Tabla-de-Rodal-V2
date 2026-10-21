@@ -40,7 +40,7 @@
       <div class="grid2">
         <div class="card">
           <h2>Cargar inventario de parcelas</h2>
-          <p class="muted">Archivo Excel (.xlsx) o CSV con una fila por árbol. Columnas mínimas: <b>Rodal</b>, <b>Parcela</b>, <b>Especie</b> y <b>Dap</b> (cm), como la hoja 2 de la plantilla. Columna opcional: <b>Extraer</b> (S/N: árbol marcado para corta). La superficie de la parcela se define en los parámetros generales y la altura promedio de cada especie en la sección 2.</p>
+          <p class="muted">Archivo Excel (.xlsx) o CSV con una fila por árbol. Columnas mínimas: <b>Rodal</b>, <b>Parcela</b>, <b>Especie</b> y <b>Dap</b> (cm), como la hoja 2 de la plantilla. Columnas opcionales: <b>Árbol</b> (N° del individuo en la parcela), <b>Tipo</b> (Cepa / Vástago: en bosque simpódico, cada cepa con sus vástagos forma un individuo) y <b>Extraer</b> (S/N). La superficie de la parcela se define en los parámetros generales y la altura promedio de cada especie en la sección 2.</p>
           <div class="drop" id="drop">
             <input type="file" id="inpArchivo" accept=".xlsx,.csv,.txt">
             <div class="drop-inner">
@@ -50,7 +50,8 @@
           </div>
           <div class="row-btns">
             <button class="btn" id="btnPlantilla">Descargar plantilla</button>
-            <button class="btn ghost" id="btnEjemplo">Cargar datos de ejemplo</button>
+            <button class="btn ghost" id="btnEjemploMono" title="Roble-raulí-coigüe y siempreverde, Región de La Araucanía">Ejemplo monopódico</button>
+            <button class="btn ghost" id="btnEjemploSimp" title="Esclerófilo con cepas y vástagos, Región de Valparaíso">Ejemplo simpódico</button>
           </div>
           <div id="msgArchivo"></div>
         </div>
@@ -70,6 +71,19 @@
                 <option value="dirigido">Dirigido o selectivo (no probabilístico)</option>
               </select>
               <small id="txtMuestreo"></small>
+            </label>
+            <label>Forma de crecimiento del bosque
+              <select id="cfgCrecimiento">
+                <option value="monopodico">Monopódico (un fuste por individuo)</option>
+                <option value="simpodico">Simpódico (individuos con varios vástagos o ramas, p. ej. esclerófilo)</option>
+              </select>
+              <small id="txtCrecimiento"></small>
+            </label>
+            <label id="boxDmcSimp" hidden>DMC en bosque simpódico (define el estado de desarrollo)
+              <select id="cfgDmcSimp">
+                <option value="individuo">Por individuo: diámetro equivalente √(Σ d²) de cada cepa</option>
+                <option value="vastago">Por vástago: promedio cuadrático de todos los vástagos</option>
+              </select>
             </label>
             <div class="two">
               <label>Forma de la parcela
@@ -189,6 +203,7 @@
           <li>Preservación: basta la presencia en el inventario de una especie en categoría CR, EN o VU, según la categoría regional vigente.</li>
           <li>Para esclerófilo, las Bases indican que el DMC se calcula con el diámetro a la altura del tocón (0,3 m). La aplicación usa el diámetro de la columna Dap tal como viene; si corresponde, ingrese el DAT en esa columna.</li>
           <li>Los volúmenes negativos que entregan algunas funciones para árboles pequeños se fijan en cero.</li>
+          <li>Bosque simpódico: la densidad cuenta individuos (cepas), identificados por el N° de la columna «Árbol»; el área basal y el volumen suman todos los vástagos o ramas, cada uno con su DAP (el volumen se calcula vástago a vástago con la función de la especie). En la tabla de rodal cada individuo se clasifica por su diámetro equivalente √(Σ d²), de modo que N, G y DMC sean coherentes. El DMC puede calcularse por individuo o por vástago (parámetros generales); esta elección define el estado de desarrollo. Si se marcan para extraer sólo algunos vástagos de una cepa, el individuo permanece en la densidad residual con el área basal de los vástagos que quedan.</li>
         </ul>
         <p class="muted">Todos los resultados son una ayuda para el profesional y deben revisarse antes de presentar el plan de manejo.</p>
       </div>
@@ -202,6 +217,7 @@
   <script src="js/data-mma.js"></script>
   <script src="js/data-funciones.js"></script>
   <script src="js/data-normativa.js"></script>
+  <script src="js/data-ejemplos.js"></script>
   <script src="js/xlsxio.js"></script>
   <script src="js/calculos.js"></script>
   <script src="js/exportar.js"></script>

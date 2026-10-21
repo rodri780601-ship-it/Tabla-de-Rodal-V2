@@ -31,8 +31,8 @@ Flujo
    suma la cepa y todos sus vástagos.
    Los rodales se detectan automáticamente.
 2. Especies y volumen: ingrese la altura promedio de cada especie y revise el reconocimiento según el
-   D.S. 68, la categoría MMA y la función del compendio. Si una especie no tiene función en el
-   compendio, elija "Función definida por el usuario…" (o el botón "Definir función de volumen…") y
+   D.S. 68, la categoría MMA y la función del compendio. Para cualquier especie puede elegir en la
+   lista de funciones "Definida por el usuario…" (o el botón "Definir función de volumen…") y
    escriba la ecuación del volumen por árbol en m³ usando D (DAP, cm) y H (altura, m), por ejemplo
    0.00005*D^2*H o exp(-9.86 + 1.92*ln(D) + 0.95*ln(H)). Funciones: ln, log (base 10), exp, sqrt,
    abs, pi. La ventana muestra un cálculo de prueba; al guardar se recalculan todas las tablas. La

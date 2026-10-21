@@ -58,7 +58,7 @@
     merges.push(`A${rows.length}:C${rows.length}`);
     const notas = [];
     if (otras.length) notas.push('Otras: ' + otras.map(e => e.nombre).join(', ') + '.');
-    if (campo2 === 'v') notas.push('Volumen calculado con las funciones del Compendio de Funciones Dendrométricas del Bosque Nativo' + (r.porEspecie.some(e => (window.CALC.FN[e.fid] || {}).usuario) ? ' y, para especies sin función en el compendio, con funciones definidas por el usuario' : '') + ' (ver hoja "Funciones de volumen") y la altura promedio por especie.' + (r.tot.ini.vCompleto ? '' : ' Hay especies sin función o sin altura: los totales son parciales.'));
+    if (campo2 === 'v') notas.push('Volumen calculado con las funciones del Compendio de Funciones Dendrométricas del Bosque Nativo' + (r.porEspecie.some(e => (window.CALC.FN[e.fid] || {}).usuario) ? ' y con funciones definidas por el usuario' : '') + ' (ver hoja "Funciones de volumen") y la altura promedio por especie.' + (r.tot.ini.vCompleto ? '' : ' Hay especies sin función o sin altura: los totales son parciales.'));
     if (r.simpodico) notas.push('Bosque simpódico: N = individuos (cepas) por hectárea; G y V incluyen todos los vástagos (ramas), cada uno con su DAP; cada individuo se clasifica por su diámetro equivalente √(Σ d²). Vástagos: ' + Math.round(r.tot.ini.tallos) + ' /ha inicial, ' + Math.round(r.tot.res.tallos) + ' /ha residual. DMC calculado ' + (r.dmcPorVastago ? 'por vástago.' : 'por individuo (diámetro equivalente).'));
     notas.push('Ini. = inicial; Res. = residual después de la intervención inmediata. Mc = marca de clase. Densidad en árboles enteros por hectárea: en cada especie los valores por clase se redondean de modo que sumen el total de la especie redondeado; Otras y Total suman esos enteros.');
     rows.push([]);
@@ -78,7 +78,7 @@
         { v: r.bases.actividad ? r.bases.actividad.nombre : '—', s: s.wrap }, { v: r.bases.resultado, s: r.bases.clase === 'ok' ? s.ok : r.bases.clase === 'bad' ? s.bad : s.warn }]);
     });
     rows.push([]);
-    rows.push([{ v: 'Los volúmenes marcados como parciales excluyen especies sin función de volumen del compendio o sin altura promedio. Revise la hoja "Especies y conservación".', s: s.note }]);
+    rows.push([{ v: 'Los volúmenes marcados como parciales excluyen especies sin función de volumen o sin altura promedio. Revise la hoja "Especies y conservación".', s: s.note }]);
     return { name: 'Resumen', landscape: true, rows, cols: [8, 10, 9, 10, 13, 11, 22, 18, 20, 11, 10, 10, 10, 11, 11, 10, 10, 10, 10, 10, 34, 18], freeze: [4, 1] };
   }
 
@@ -184,7 +184,7 @@
     const usadas = new Map();
     S.rodales.forEach(id => S.resultados[id].porEspecie.forEach(e => { if (e.fid) { const u = usadas.get(e.fid) || new Set(); u.add(e.nombre); usadas.set(e.fid, u); } }));
     const hayU = [...usadas.keys()].some(k => (window.CALC.FN[k] || {}).usuario);
-    const s = ST(); const rows = [[{ v: 'Funciones de volumen utilizadas (Compendio de Funciones Dendrométricas del Bosque Nativo, Drake, Emanuelli y Acuña, 2003' + (hayU ? '; y funciones definidas por el usuario para especies sin función en el compendio' : '') + ')', s: s.title }], []];
+    const s = ST(); const rows = [[{ v: 'Funciones de volumen utilizadas (Compendio de Funciones Dendrométricas del Bosque Nativo, Drake, Emanuelli y Acuña, 2003' + (hayU ? '; y funciones definidas por el usuario' : '') + ')', s: s.title }], []];
     const H = ['N°', 'Página', 'Especies de la función', 'Aplicada a', 'Región', 'Estructura', 'Ecuación', 'Variable', 'DLU (cm)', 'Altura', 'Rango diamétrico', 'Rango altura', 'Fuente', 'Año', 'R²', 'Verificación con tabla del compendio', 'Nota'];
     rows.push(H.map(h => ({ v: h, s: s.header })));
     [...usadas.keys()].sort(window.CALC.ordenFid).forEach(fid => {

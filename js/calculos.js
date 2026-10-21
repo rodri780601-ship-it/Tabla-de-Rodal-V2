@@ -240,7 +240,7 @@
   }
   function funcionesDeEspecie(key) { return Object.values(FN).filter(f => !f.usuario && f.keys.includes(key)); }
 
-  /* ---- Funciones de volumen definidas por el usuario (especies sin función en el compendio) ----
+  /* ---- Funciones de volumen definidas por el usuario (disponibles para todas las especies) ----
      La ecuación se analiza con un intérprete propio que sólo admite números, las variables D y H,
      operadores + - * / ^, paréntesis y las funciones ln, log (base 10), exp, sqrt, abs; nunca se evalúa texto arbitrario. */
   const FUNC_PERMITIDAS = { ln: 'Math.log', log: 'Math.log10', log10: 'Math.log10', exp: 'Math.exp', sqrt: 'Math.sqrt', raiz: 'Math.sqrt', abs: 'Math.abs' };
@@ -311,7 +311,7 @@
       usaH: c.usaH, alturaTipo: c.usaH ? 'total' : 'no aplica', alturaDesc: c.usaH ? 'Altura promedio de la especie (sección 2)' : '', unidad: 'm3',
       validacion: 'definida por el usuario', eq: def.ecuacion, expr: c.js, fn: c.fn, pag: '—', estructura: '—', localidad: '—',
       variable: def.variable || 'Volumen por árbol (m³)', dlu: '', rangoD: def.rangoD || '', rangoH: '', fuente: def.fuente || 'Definida por el usuario', anio: def.anio || '', r2: '', muestra: '',
-      nota: 'Función ingresada por el usuario porque la especie no tiene función en el Compendio de Funciones Dendrométricas del Bosque Nativo. Su validez es responsabilidad del profesional.'
+      nota: 'Función ingresada por el usuario; no proviene del Compendio de Funciones Dendrométricas del Bosque Nativo. Su validez es responsabilidad del profesional.'
     };
     return { ok: true, fid: idUsuario(key), usaH: c.usaH };
   }

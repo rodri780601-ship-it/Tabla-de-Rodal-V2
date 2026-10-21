@@ -134,6 +134,196 @@
     return h;
   }
 
+  /* ======================= PDF directo (sin diálogo de impresión) =======================
+     El informe se compagina en hojas oficio (216 × 330 mm; las tablas de rodal en oficio horizontal),
+     cada hoja se rasteriza a 2× y se arma el PDF con pdf-lib, todo dentro del navegador y sin conexión. */
+  const CSS_INFORME = `#informe { font: 9pt/1.35 Arial, "Segoe UI", sans-serif; color: #111; background: #fff; }
+#informe .pg { page: auto; }
+#informe .pg-h { page: horizontal; }
+#informe .salto { break-before: page; }
+#informe h1 { font-size: 16pt; margin: 0 0 4pt; color: #1f3d27; }
+#informe h2 { font-size: 12pt; margin: 12pt 0 5pt; color: #1f3d27; break-after: avoid; }
+#informe h2.rodal { margin-top: 0; border-bottom: 1.5pt solid #2f5d3a; padding-bottom: 3pt; }
+#informe h3 { font-size: 10pt; margin: 10pt 0 4pt; break-after: avoid; }
+#informe .ihead { border-bottom: 2pt solid #2f5d3a; padding-bottom: 6pt; margin-bottom: 8pt; }
+#informe .ihead p { margin: 2pt 0; }
+#informe table { border-collapse: collapse; width: 100%; }
+#informe thead { display: table-header-group; }
+#informe tr, #informe figure, #informe .bloque, #informe .par { break-inside: avoid; }
+#informe table.it th, #informe table.it td, #informe table.kv th, #informe table.kv td { border: 0.5pt solid #9a9a9a; padding: 2.5pt 4pt; vertical-align: top; text-align: left; }
+#informe table.it th, #informe table.kv th { background: #dde8dc; font-weight: bold; }
+#informe table.kv th { width: 30%; }
+#informe td.n { text-align: right; white-space: nowrap; }
+#informe td.eq { font-size: 7.5pt; }
+#informe tr.tot td { font-weight: bold; background: #f0f0ea; }
+#informe table.tr { font-size: 7.6pt; }
+#informe table.tr th, #informe table.tr td { border: 0.5pt solid #9a9a9a; padding: 1.5pt 3pt; text-align: right; }
+#informe table.tr th { background: #dde8dc; text-align: center; }
+#informe table.tr td.res { background: #eef3ec; }
+#informe table.tr tr.tot td { text-align: right; }
+#informe table.tr tr.tot td:first-child { text-align: center; }
+#informe .nota { font-size: 7.8pt; color: #444; margin: 3pt 0; }
+#informe figure.if { margin: 6pt 0 10pt; }
+#informe figure.if figcaption { font-weight: bold; font-size: 9.5pt; }
+#informe .svgbox svg { width: 100%; height: auto; display: block; }
+#informe .par { display: flex; gap: 8mm; }
+#informe .par figure.mitad { flex: 1 1 0; min-width: 0; }
+#informe .ley { display: flex; gap: 10pt; font-size: 8pt; color: #444; margin: 2pt 0; }
+#informe .ley i { display: inline-block; width: 8pt; height: 8pt; border-radius: 2pt; margin-right: 3pt; vertical-align: -1pt; }
+#informe .st-no, #informe .res-bad { color: #b42318; font-weight: bold; }
+#informe .st-si, #informe .res-ok { color: #1e6b35; font-weight: bold; }
+#informe .st-obs, #informe .st-pend, #informe .res-warn { color: #9a6700; font-weight: bold; }
+#informe ul.fuentes { padding-left: 14pt; }
+#informe .hoja { background: #fff; overflow: hidden; position: relative; box-sizing: border-box; }
+#informe .hoja > section { margin: 0; }
+#informe .hoja > section > :first-child { margin-top: 0; }`;
+  const MM = 96 / 25.4, PT = 72 / 25.4;
+  const FORMATOS = {
+    v: { pagW: 216, pagH: 330, mT: 16, mR: 14, mB: 16, mL: 14 },
+    h: { pagW: 330, pagH: 216, mT: 14, mR: 16, mB: 14, mL: 16 }
+  };
+  const anchoPx = f => Math.floor((f.pagW - f.mL - f.mR) * MM);
+  const altoPx = f => Math.floor((f.pagH - f.mT - f.mB) * MM);
+
+  function compaginar(raiz, secciones) {
+    const hojas = [];
+    secciones.forEach(sec => {
+      const fmtKey = sec.classList.contains('pg-h') ? 'h' : 'v';
+      const F = FORMATOS[fmtKey], W = anchoPx(F), H = altoPx(F);
+      let hoja, cont, colocados;
+      const nueva = (ruta) => {
+        hoja = document.createElement('div'); hoja.className = 'hoja';
+        hoja.style.width = W + 'px'; hoja.style.height = H + 'px';
+        raiz.appendChild(hoja); hojas.push({ el: hoja, fmt: fmtKey });
+        cont = hoja; colocados = 0;
+        ruta.forEach(anc => { const c = anc.cloneNode(false); cont.appendChild(c); cont = c; });
+      };
+      const desborda = () => hoja.scrollHeight > H + 1;
+      const rutaDe = (c) => { const r = []; let x = c; while (x && x !== hoja) { r.unshift(x); x = x.parentNode; } return r; };
+      const esTitulo = (e) => e && e.nodeType === 1 && /^H[1-4]$/.test(e.tagName);
+      function colocar(nodo) {
+        cont.appendChild(nodo);
+        if (!desborda()) { if (nodo.nodeType === 1 || nodo.textContent.trim()) colocados++; return; }
+        cont.removeChild(nodo);
+        // tabla: se divide por filas repitiendo el encabezado
+        if (nodo.tagName === 'TABLE' && nodo.tBodies.length && nodo.tBodies[0].rows.length > 1) return dividirTabla(nodo);
+        // contenedor con varios hijos: se reparte su contenido
+        if (nodo.nodeType === 1 && !/^(FIGURE|SVG|svg|TR|IMG)$/.test(nodo.tagName) && !nodo.classList.contains('par') && nodo.childNodes.length > 1 && !(colocados > 0 && cabe(nodo))) {
+          const shell = nodo.cloneNode(false); cont.appendChild(shell); cont = shell;
+          [...nodo.childNodes].forEach(colocar);
+          cont = cont.parentNode; return;
+        }
+        if (colocados > 0) {
+          // mantener los títulos junto al contenido siguiente
+          const prev = cont.lastElementChild; const ruta = rutaDe(cont);
+          if (esTitulo(prev) && cont.children.length > 1) { cont.removeChild(prev); nueva(ruta); cont.appendChild(prev); }
+          else nueva(ruta);
+          cont.appendChild(nodo);
+          if (!desborda()) { colocados++; return; }
+          cont.removeChild(nodo);
+          if (nodo.tagName === 'TABLE' && nodo.tBodies.length && nodo.tBodies[0].rows.length > 1) return dividirTabla(nodo);
+        }
+        // elemento indivisible más alto que la hoja: se reduce para que quepa
+        cont.appendChild(nodo);
+        const h = nodo.getBoundingClientRect().height, libre = H - (nodo.getBoundingClientRect().top - hoja.getBoundingClientRect().top);
+        if (h > 0 && libre > 0) nodo.style.zoom = Math.max(0.3, Math.min(1, libre / h - 0.01));
+        colocados++;
+      }
+      function cabe(nodo) {
+        // ¿cabría completo en una hoja nueva?
+        const prueba = document.createElement('div'); prueba.className = 'hoja'; prueba.style.width = W + 'px';
+        raiz.appendChild(prueba); prueba.appendChild(nodo.cloneNode(true));
+        const ok = prueba.scrollHeight <= H; raiz.removeChild(prueba); return ok;
+      }
+      function dividirTabla(tbl) {
+        const filas = [...tbl.tBodies[0].rows];
+        const nuevaCasco = () => { const t = tbl.cloneNode(false); [...tbl.children].forEach(ch => { if (ch.tagName !== 'TBODY') t.appendChild(ch.cloneNode(true)); }); t.appendChild(document.createElement('tbody')); cont.appendChild(t); return t; };
+        let t = nuevaCasco();
+        filas.forEach(fila => {
+          t.tBodies[0].appendChild(fila);
+          if (!desborda()) return;
+          t.tBodies[0].removeChild(fila);
+          if (!t.tBodies[0].rows.length) { cont.removeChild(t); const prev = cont.lastElementChild; const ruta = rutaDe(cont); if (esTitulo(prev) && cont.children.length > 1) { cont.removeChild(prev); nueva(ruta); cont.appendChild(prev); } else nueva(ruta); }
+          else nueva(rutaDe(cont));
+          t = nuevaCasco(); t.tBodies[0].appendChild(fila);
+        });
+        colocados++;
+      }
+      nueva([]);
+      const casco = sec.cloneNode(false); hoja.appendChild(casco); cont = casco;
+      // si la sección excede la hoja en poco (≤ 18 %), se reduce levemente para no dejar una hoja casi vacía
+      [...sec.childNodes].forEach(n => casco.appendChild(n));
+      // tablas o figuras más anchas que la hoja: se reducen para respetar los márgenes
+      casco.querySelectorAll('table, .par, figure').forEach(el => {
+        if (el.parentElement.closest('table')) return;
+        const w = Math.max(el.scrollWidth, el.getBoundingClientRect().width);
+        if (w > W + 1) el.style.zoom = (W / w - 0.002).toFixed(4);
+      });
+      const alto = hoja.scrollHeight;
+      if (alto <= H + 1) return;
+      if (alto <= H * 1.18) { casco.style.zoom = (H / alto - 0.005).toFixed(4); if (hoja.scrollHeight <= H + 1) return; casco.style.zoom = ''; }
+      const hijos = [...casco.childNodes]; hijos.forEach(n => casco.removeChild(n));
+      hijos.forEach(colocar);
+    });
+    // quitar hojas vacías
+    return hojas.filter(h => h.el.textContent.trim() || h.el.querySelector('svg,img'));
+  }
+
+  function rasterizar(hoja, escala) {
+    return new Promise((ok, mal) => {
+      const W = hoja.offsetWidth, H = hoja.offsetHeight;
+      const xml = new XMLSerializer().serializeToString(hoja);
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}"><foreignObject x="0" y="0" width="100%" height="100%"><div xmlns="http://www.w3.org/1999/xhtml" id="informe" style="display:block;width:${W}px;height:${H}px;background:#fff"><style>${CSS_INFORME.replace(/</g, '&lt;')}</style>${xml}</div></foreignObject></svg>`;
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const c = document.createElement('canvas'); c.width = Math.round(W * escala); c.height = Math.round(H * escala);
+          const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.drawImage(img, 0, 0, c.width, c.height);
+          c.toBlob(b => b ? b.arrayBuffer().then(ok, mal) : mal(new Error('El navegador no permitió convertir la hoja en imagen.')), 'image/jpeg', 0.9);
+        } catch (e) { mal(e); }
+      };
+      img.onerror = () => mal(new Error('No se pudo dibujar una hoja del informe.'));
+      img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+    });
+  }
+
+  async function generarPDF(S, progreso) {
+    if (!window.PDFLib) throw new Error('No se encontró la librería pdf-lib (lib/pdf-lib.min.js).');
+    const raiz = document.createElement('div');
+    raiz.id = 'informe-pdf';
+    // el CSS del informe usa el selector #informe: se compagina dentro de un contenedor con ese id, fuera de pantalla
+    const viejo = document.getElementById('informe'); if (viejo) viejo.id = 'informe-print';
+    raiz.id = 'informe';
+    raiz.style.cssText = 'display:block;position:fixed;left:-30000px;top:0;width:auto;background:#fff;z-index:-1';
+    document.body.appendChild(raiz);
+    try {
+      const fuente = document.createElement('div'); fuente.innerHTML = construir(S);
+      const secciones = [...fuente.children];
+      const hojas = compaginar(raiz, secciones);
+      const { PDFDocument, StandardFonts, rgb } = window.PDFLib;
+      const pdf = await PDFDocument.create();
+      pdf.setTitle('Tabla de rodal y diagnóstico del bosque'); pdf.setCreator('Tabla de Rodal · Bosque Nativo'); pdf.setProducer('pdf-lib'); pdf.setCreationDate(new Date());
+      const helv = await pdf.embedFont(StandardFonts.Helvetica);
+      for (let i = 0; i < hojas.length; i++) {
+        if (progreso) progreso(i + 1, hojas.length);
+        const F = FORMATOS[hojas[i].fmt];
+        const bytes = await rasterizar(hojas[i].el, 2);
+        const jpg = await pdf.embedJpg(bytes);
+        const pw = F.pagW * PT, ph = F.pagH * PT;
+        const page = pdf.addPage([pw, ph]);
+        const w = (F.pagW - F.mL - F.mR) * PT, h = (F.pagH - F.mT - F.mB) * PT;
+        page.drawImage(jpg, { x: F.mL * PT, y: F.mB * PT, width: w, height: h });
+        const pie = 'Página ' + (i + 1) + ' de ' + hojas.length, gris = rgb(0.4, 0.4, 0.4), yPie = F.mB * PT / 2 - 3;
+        page.drawText('Tabla de rodal · Bosque nativo', { x: F.mL * PT, y: yPie, size: 8, font: helv, color: gris });
+        page.drawText(pie, { x: pw - F.mR * PT - helv.widthOfTextAtSize(pie, 8), y: yPie, size: 8, font: helv, color: gris });
+      }
+      return new Blob([await pdf.save()], { type: 'application/pdf' });
+    } finally {
+      raiz.remove();
+      const v = document.getElementById('informe-print'); if (v) v.id = 'informe';
+    }
+  }
+
   function imprimir(S) {
     let el = document.getElementById('informe');
     if (!el) { el = document.createElement('div'); el.id = 'informe'; document.body.appendChild(el); }
@@ -144,5 +334,5 @@
     setTimeout(() => window.print(), 80);
   }
 
-  window.INFORME = { construir, imprimir };
+  window.INFORME = { construir, imprimir, generarPDF };
 })();

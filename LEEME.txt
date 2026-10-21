@@ -21,6 +21,7 @@ Contenido
 - js/data-mma.js ........ listado MMA de especies clasificadas (flora, 20° proceso RCE)
 - js/data-normativa.js .. reglas del D.S. 259, Ley 20.283 y Bases Técnicas 2026
 - lib/jszip.min.js ...... librería JSZip 3.10.1 (MIT)
+- lib/pdf-lib.min.js .... librería pdf-lib 1.17.1 (MIT), genera el PDF
 
 Flujo
 1. Inventario: defina región, tipo de muestreo, forma y superficie de la parcela, y cargue el Excel/CSV
@@ -52,6 +53,7 @@ parámetros; los mismos inventarios están en la carpeta "ejemplos" (con una hoj
 Exportar Excel genera todas las hojas, incluida la hoja "Gráficos" con los gráficos de cada rodal;
 todas las hojas vienen configuradas para papel oficio (216 × 330 mm) y ajustadas al ancho de página.
 Guardar PDF arma un informe en papel oficio (vertical, con las tablas de rodal en horizontal),
-con márgenes y saltos de página definidos: en el diálogo de impresión elija "Guardar como PDF"
-(recomendado: Chrome o Edge; deje los márgenes en "Predeterminados" y active "Gráficos de fondo").
+con márgenes y saltos de página definidos, y lo descarga de inmediato sin pasar por el diálogo de
+impresión. Las tablas largas se dividen repitiendo el encabezado. Cada hoja se guarda como imagen
+(el texto del PDF no es seleccionable). Recomendado: Chrome, Edge o Firefox.
 "Guardar proyecto" permite retomar el trabajo.

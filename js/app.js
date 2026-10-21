@@ -727,9 +727,16 @@
       toast('Archivo Excel generado.');
     } catch (err) { console.error(err); toast('Error al exportar: ' + (err.message || err)); }
   });
-  $('#btnPDF').addEventListener('click', () => {
-    try { window.INFORME.imprimir(S); toast('En el diálogo de impresión elija «Guardar como PDF». El tamaño oficio y los márgenes ya vienen definidos.'); }
-    catch (err) { console.error(err); toast('Error al preparar el PDF: ' + (err.message || err)); }
+  $('#btnPDF').addEventListener('click', async () => {
+    const b = $('#btnPDF'), txt = b.textContent; b.disabled = true;
+    try {
+      b.textContent = 'Generando PDF…';
+      const blob = await window.INFORME.generarPDF(S, (i, n) => { b.textContent = `Generando PDF… ${i}/${n}`; });
+      const f = new Date(); const dd = n => String(n).padStart(2, '0');
+      descargar(blob, `Tabla_de_rodal_${f.getFullYear()}-${dd(f.getMonth() + 1)}-${dd(f.getDate())}.pdf`);
+      toast('PDF generado en tamaño oficio.');
+    } catch (err) { console.error(err); toast('No se pudo generar el PDF: ' + (err.message || err)); }
+    finally { b.textContent = txt; b.disabled = false; aplicarReglaFunciones(); }
   });
   function descargar(blob, nombre) { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = nombre; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500); }
   $('#btnPlantilla').addEventListener('click', () => {

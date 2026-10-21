@@ -132,10 +132,34 @@
           <h2>Especies del inventario</h2>
           <label class="btn ghost small" title="Reemplaza el listado MMA incluido por otra versión oficial (.xlsx)">Actualizar listado MMA<input type="file" id="inpMMA" accept=".xlsx" hidden></label>
         </div>
-        <p class="muted">Cada nombre del inventario se reconoce exclusivamente contra la nómina del <b>D.S. N° 68/2009</b>. La categoría de conservación proviene exclusivamente del listado del <b>Ministerio del Medio Ambiente</b> (<span id="txtFuenteMMA"></span>), aplicada a la región del proyecto. La función de volumen proviene exclusivamente del <b>Compendio de Funciones Dendrométricas del Bosque Nativo</b>.</p>
+        <p class="muted">Cada nombre del inventario se reconoce exclusivamente contra la nómina del <b>D.S. N° 68/2009</b>. La categoría de conservación proviene exclusivamente del listado del <b>Ministerio del Medio Ambiente</b> (<span id="txtFuenteMMA"></span>), aplicada a la región del proyecto. La función de volumen proviene del <b>Compendio de Funciones Dendrométricas del Bosque Nativo</b>; sólo cuando una especie no tiene función en el compendio puede ingresar una <b>función definida por el usuario</b> (opción en la columna "Función de volumen").</p>
         <div class="table-wrap"><table class="data" id="tblEspecies"></table></div>
       </div>
       <div class="card" id="cardFuncionDetalle" hidden></div>
+      <dialog id="dlgFuncion" class="dlg" aria-labelledby="fuTitulo">
+        <div class="dlg-head"><h2 id="fuTitulo">Función de volumen definida por el usuario</h2><div class="muted" id="fuEspecie"></div></div>
+        <label class="dlg-campo">Ecuación del volumen por árbol (m³)
+          <textarea id="fuEcuacion" rows="3" spellcheck="false" placeholder="Ejemplo: 0.0000523 * D^2 * H   o   exp(-9.86 + 1.92*ln(D) + 0.95*ln(H))"></textarea></label>
+        <div class="dlg-ayuda">
+          <b>Variables:</b> <code>D</code> = DAP (cm) · <code>H</code> = altura (m), se usa la altura promedio de la especie indicada en esta sección.<br>
+          <b>Operadores:</b> <code>+ - * / ^</code> y paréntesis. Se admite multiplicación implícita (<code>0.00005 D^2 H</code>), coma o punto decimal y notación científica (<code>5.2e-5</code>).<br>
+          <b>Funciones:</b> <code>ln()</code> logaritmo natural, <code>log()</code> logaritmo base 10, <code>exp()</code>, <code>sqrt()</code>, <code>abs()</code>, constante <code>pi</code>.<br>
+          El resultado debe ser el volumen de un árbol (o vástago) en m³; en bosques simpódicos se aplica a cada vástago y se suma por individuo.
+        </div>
+        <div class="dlg-grid">
+          <label>Variable de volumen<input type="text" id="fuVariable" placeholder="Ej.: volumen fustal total con corteza"></label>
+          <label>Fuente o referencia<input type="text" id="fuFuente" placeholder="Autor, año, publicación"></label>
+          <label>Rango de validez del DAP (cm)<input type="text" id="fuRangoD" placeholder="Ej.: 5 – 60"></label>
+        </div>
+        <div class="dlg-prueba">
+          <div><b>Prueba:</b> D <input type="number" id="fuD" step="any" min="0" style="width:80px"> cm · H <input type="number" id="fuH" step="any" min="0" style="width:80px"> m → V = <b id="fuPrueba">—</b></div>
+          <div class="muted" style="font-size:12px;margin-top:4px">Ecuación interpretada: <code id="fuInterpretada">—</code></div>
+          <div class="muted" style="font-size:12px" id="fuUsaH"></div>
+          <div class="aviso warn" id="fuError" hidden></div>
+        </div>
+        <p class="muted" style="font-size:12px;margin:10px 0 0">La función se identifica en la página, el Excel y el PDF como "definida por el usuario", con su fuente; su validez es responsabilidad del profesional.</p>
+        <div class="dlg-pie"><button class="btn ghost" id="fuEliminar">Eliminar función</button><span style="flex:1"></span><button class="btn" id="fuCancelar">Cancelar</button><button class="btn primary" id="fuGuardar">Guardar y calcular</button></div>
+      </dialog>
     </section>
 
     <!-- ============ 3. RODALES ============ -->

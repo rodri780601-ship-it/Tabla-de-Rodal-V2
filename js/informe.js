@@ -87,13 +87,13 @@
         ${r.metodos.especial ? `<p class="nota"><b>${esc(r.metodos.especial)}</b></p>` : ''}
         <table class="it"><thead><tr><th>Método</th><th>Aplicable</th><th>Requisitos de regeneración</th><th>Restricciones</th></tr></thead><tbody>${r.metodos.metodos.map(m => `<tr><td>${esc(m.nombre)} (art. ${esc(m.art)})</td><td>${m.aplica === false ? 'No' : m.aplica ? 'Sí' : '—'}</td><td>${esc(m.requisitos)}${m.maxG ? ` Extracción máxima ${m.maxG} % G.` : ''}</td><td>${esc(m.obs.join(' '))}</td></tr>`).join('')}</tbody></table>
         <h3>Especies, categoría de conservación y volumen</h3>
-        <table class="it"><thead><tr><th>Especie</th><th>Nombre científico</th><th>Categoría</th><th>N ini/res</th><th>G ini/res</th><th>V ini/res</th><th>Altura (m)</th><th>Función</th></tr></thead><tbody>${r.porEspecie.map(e => `<tr><td>${esc(e.nombre)}</td><td><i>${esc((S.especiesInfo[e.key] || {}).sci || 'No figura en D.S. 68')}</i></td><td>${esc(e.cat.code)}</td><td class="n">${fmt(e.ini.n, 0)} / ${fmt(e.res.n, 0)}</td><td class="n">${fmt(e.ini.g, 2)} / ${fmt(e.res.g, 2)}</td><td class="n">${e.ini.v == null ? '—' : fmt(e.ini.v, 1) + ' / ' + fmt(e.res.v, 1)}</td><td class="n">${fmt(e.h, 1)}</td><td>${e.fid ? 'N° ' + e.fid : 'Sin función'}</td></tr>`).join('')}</tbody></table>
+        <table class="it"><thead><tr><th>Especie</th><th>Nombre científico</th><th>Categoría</th><th>N ini/res</th><th>G ini/res</th><th>V ini/res</th><th>Altura (m)</th><th>Función</th></tr></thead><tbody>${r.porEspecie.map(e => `<tr><td>${esc(e.nombre)}</td><td><i>${esc((S.especiesInfo[e.key] || {}).sci || 'No figura en D.S. 68')}</i></td><td>${esc(e.cat.code)}</td><td class="n">${fmt(e.ini.n, 0)} / ${fmt(e.res.n, 0)}</td><td class="n">${fmt(e.ini.g, 2)} / ${fmt(e.res.g, 2)}</td><td class="n">${e.ini.v == null ? '—' : fmt(e.ini.v, 1) + ' / ' + fmt(e.res.v, 1)}</td><td class="n">${fmt(e.h, 1)}</td><td>${esc(window.CALC.etiquetaFid(e.fid))}</td></tr>`).join('')}</tbody></table>
       </section>`;
       // ---------- Tablas de rodal (oficio horizontal) ----------
       h += `<section class="pg-h salto">
         <h2 class="rodal">Rodal ${esc(r.id)} · 12.3.9 Tabla de rodal inicial y residual, después de la intervención inmediata</h2>
         <div class="bloque">${tablaRodal(r, 'g', 'G (m²/ha)', 2)}</div>
-        <h3>Volumen inicial y residual por clase diamétrica (funciones del compendio)</h3>
+        <h3>Volumen inicial y residual por clase diamétrica (funciones del compendio${r.porEspecie.some(e => (window.CALC.FN[e.fid] || {}).usuario) ? ' y definidas por el usuario' : ''})</h3>
         <div class="bloque">${tablaRodal(r, 'v', 'V (m³/ha)', 2)}</div>
         <p class="nota">${r.simpodico ? 'Bosque simpódico: N = individuos (cepas)/ha; G y V incluyen todos los vástagos; clase según diámetro equivalente √(Σ d²). ' : ''}Densidad en árboles enteros por hectárea: en cada especie los valores por clase se redondean de modo que sumen el total de la especie redondeado. Columnas Res. = residual.${r.tot.ini.vCompleto ? '' : ' Hay especies sin función de volumen o sin altura: volumen parcial.'}</p>
       </section>`;
@@ -121,7 +121,7 @@
     const usadas = new Map(); rs.forEach(r => r.porEspecie.forEach(e => { if (e.fid) { const u = usadas.get(e.fid) || new Set(); u.add(e.nombre); usadas.set(e.fid, u); } }));
     h += `<section class="pg salto"><h2>Funciones de volumen utilizadas</h2>
       <table class="it"><thead><tr><th>N°</th><th>Especies de la función</th><th>Aplicada a</th><th>Región</th><th>Ecuación</th><th>Variable</th><th>Fuente</th></tr></thead><tbody>
-      ${[...usadas.keys()].sort((a, b) => a - b).map(id => { const f = window.CALC.FN[id]; return `<tr><td>${f.id}</td><td>${esc(f.especies.join(' - '))}</td><td>${esc([...usadas.get(id)].join(', '))}</td><td>${esc(f.regiones.join(' - '))}</td><td class="eq">${esc(f.eq)}</td><td>${esc(f.variable)}</td><td>${esc(f.fuente)} (${esc(f.anio)})</td></tr>`; }).join('')}
+      ${[...usadas.keys()].sort(window.CALC.ordenFid).map(id => { const f = window.CALC.FN[id]; return `<tr><td>${f.usuario ? 'Usuario' : f.id}</td><td>${esc(f.especies.join(' - '))}</td><td>${esc([...usadas.get(id)].join(', '))}</td><td>${esc(f.regiones.join(' - '))}</td><td class="eq">${esc(f.eq)}</td><td>${esc(f.variable)}</td><td>${esc(f.fuente)} (${esc(f.anio)})</td></tr>`; }).join('')}
       </tbody></table>
       <h2>Fuentes</h2><ul class="fuentes">
         <li>Funciones de volumen: Drake, F.; Emanuelli, P.; Acuña, E. (2003). Compendio de Funciones Dendrométricas del Bosque Nativo. CONAF-GTZ.</li>

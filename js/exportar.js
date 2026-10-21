@@ -58,7 +58,7 @@
     merges.push(`A${rows.length}:C${rows.length}`);
     const notas = [];
     if (otras.length) notas.push('Otras: ' + otras.map(e => e.nombre).join(', ') + '.');
-    if (campo2 === 'v') notas.push('Volumen calculado con las funciones del Compendio de Funciones Dendrométricas del Bosque Nativo (ver hoja "Funciones de volumen") y la altura promedio por especie.' + (r.tot.ini.vCompleto ? '' : ' Hay especies sin función o sin altura: los totales son parciales.'));
+    if (campo2 === 'v') notas.push('Volumen calculado con las funciones del Compendio de Funciones Dendrométricas del Bosque Nativo' + (r.porEspecie.some(e => (window.CALC.FN[e.fid] || {}).usuario) ? ' y, para especies sin función en el compendio, con funciones definidas por el usuario' : '') + ' (ver hoja "Funciones de volumen") y la altura promedio por especie.' + (r.tot.ini.vCompleto ? '' : ' Hay especies sin función o sin altura: los totales son parciales.'));
     if (r.simpodico) notas.push('Bosque simpódico: N = individuos (cepas) por hectárea; G y V incluyen todos los vástagos (ramas), cada uno con su DAP; cada individuo se clasifica por su diámetro equivalente √(Σ d²). Vástagos: ' + Math.round(r.tot.ini.tallos) + ' /ha inicial, ' + Math.round(r.tot.res.tallos) + ' /ha residual. DMC calculado ' + (r.dmcPorVastago ? 'por vástago.' : 'por individuo (diámetro equivalente).'));
     notas.push('Ini. = inicial; Res. = residual después de la intervención inmediata. Mc = marca de clase. Densidad en árboles enteros por hectárea: en cada especie los valores por clase se redondean de modo que sumen el total de la especie redondeado; Otras y Total suman esos enteros.');
     rows.push([]);
@@ -139,7 +139,7 @@
         const f = e.fid ? window.CALC.FN[e.fid] : null;
         rows.push([{ v: id, s: s.text }, { v: e.nombre, s: s.text }, { v: (S.especiesInfo[e.key] || {}).sci || 'No figura en D.S. 68', s: s.text }, { v: e.cat.code + ' · ' + ((window.NORMATIVA.CATEGORIAS[e.cat.code] || {}).nombre || ''), s: e.cat.amenazada ? s.bad : s.text },
           { v: (e.cat.raw || '').replace(/\n/g, ' '), s: s.wrap }, { v: e.cat.fuente || '', s: s.wrap }, { v: Math.round(e.ini.n), s: s.int }, { v: Math.round(e.res.n), s: s.int }, { v: r2(e.ini.g), s: s.dec3 }, { v: r2(e.res.g), s: s.dec3 },
-          { v: r2(e.ini.v, 3), s: s.dec2 }, { v: r2(e.res.v, 3), s: s.dec2 }, { v: r2(e.h, 2), s: s.dec1 }, { v: f ? f.id : 'Sin función', s: s.text }, { v: f ? f.variable : '', s: s.wrap }]);
+          { v: r2(e.ini.v, 3), s: s.dec2 }, { v: r2(e.res.v, 3), s: s.dec2 }, { v: r2(e.h, 2), s: s.dec1 }, { v: f ? (f.usuario ? 'Definida por el usuario' : f.id) : 'Sin función', s: s.text }, { v: f ? f.variable : '', s: s.wrap }]);
       });
     });
     return { name: 'Especies y conservación', landscape: true, rows, cols: [7, 20, 26, 22, 26, 26, 10, 10, 10, 10, 10, 10, 10, 10, 32], freeze: [3, 2] };
@@ -181,14 +181,15 @@
   }
 
   function hojaFunciones(S) {
-    const s = ST(); const rows = [[{ v: 'Funciones de volumen utilizadas (Compendio de Funciones Dendrométricas del Bosque Nativo, Drake, Emanuelli y Acuña, 2003)', s: s.title }], []];
     const usadas = new Map();
     S.rodales.forEach(id => S.resultados[id].porEspecie.forEach(e => { if (e.fid) { const u = usadas.get(e.fid) || new Set(); u.add(e.nombre); usadas.set(e.fid, u); } }));
+    const hayU = [...usadas.keys()].some(k => (window.CALC.FN[k] || {}).usuario);
+    const s = ST(); const rows = [[{ v: 'Funciones de volumen utilizadas (Compendio de Funciones Dendrométricas del Bosque Nativo, Drake, Emanuelli y Acuña, 2003' + (hayU ? '; y funciones definidas por el usuario para especies sin función en el compendio' : '') + ')', s: s.title }], []];
     const H = ['N°', 'Página', 'Especies de la función', 'Aplicada a', 'Región', 'Estructura', 'Ecuación', 'Variable', 'DLU (cm)', 'Altura', 'Rango diamétrico', 'Rango altura', 'Fuente', 'Año', 'R²', 'Verificación con tabla del compendio', 'Nota'];
     rows.push(H.map(h => ({ v: h, s: s.header })));
-    [...usadas.keys()].sort((a, b) => a - b).forEach(fid => {
+    [...usadas.keys()].sort(window.CALC.ordenFid).forEach(fid => {
       const f = window.CALC.FN[fid];
-      rows.push([f.id, f.pag, f.especies.join(' - '), [...usadas.get(fid)].join(', '), f.regiones.join(' - '), f.estructura, f.eq, f.variable, f.dlu, f.usaH ? (f.alturaDesc || f.alturaTipo) : 'No usa', f.rangoD, f.rangoH, f.fuente, f.anio, f.r2, f.validacion + (f.valTot ? ` (${f.valOk}/${f.valTot})` : ''), f.nota || ''].map(v => ({ v, s: s.wrap })));
+      rows.push([f.usuario ? 'Usuario' : f.id, f.pag, f.especies.join(' - '), [...usadas.get(fid)].join(', '), f.regiones.join(' - '), f.estructura, f.eq, f.variable, f.dlu, f.usaH ? (f.alturaDesc || f.alturaTipo) : 'No usa', f.rangoD, f.rangoH, f.fuente, f.anio, f.r2, f.validacion + (f.valTot ? ` (${f.valOk}/${f.valTot})` : ''), f.nota || ''].map(v => ({ v, s: s.wrap })));
     });
     return { name: 'Funciones de volumen', landscape: true, rows, cols: [6, 7, 22, 22, 10, 13, 50, 30, 8, 20, 14, 12, 18, 7, 8, 16, 30], freeze: [3, 1] };
   }

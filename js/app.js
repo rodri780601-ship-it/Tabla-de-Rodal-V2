@@ -12,7 +12,7 @@
   const S = window.APP_STATE = {
     config: { region: 'IX', area: 500, ancho: 5, inicio: '', muestreo: 'aleatorio', forma: 'circular', ancho_r: 20, crecimiento: 'monopodico', dmcSimp: 'individuo' },
     hojas: null, hojaSel: 0, filaEnc: 0, mapeo: {}, archivo: '',
-    arboles: [], nombres: {}, funciones: {}, catOverride: {}, cfgRodal: {}, alturas: {},
+    arboles: [], nombres: {}, funciones: {}, funcUsuario: {}, catOverride: {}, cfgRodal: {}, alturas: {},
     rodales: [], resultados: {}, especiesInfo: {}, tieneExtraer: false, avisos: []
   };
 
@@ -295,8 +295,8 @@
   function renderEspecies() {
     const tbl = $('#tblEspecies');
     const filas = Object.entries(S.nombres).sort((a, b) => b[1].n - a[1].n);
-    const todasF = Object.values(C.FN);
-    tbl.innerHTML = `<thead><tr><th>Nombre en el inventario</th><th class="num">Árboles</th><th>Especie según D.S. 68/2009</th><th>Categoría MMA (región ${esc(S.config.region)})</th><th>Altura promedio (m)</th><th>Función de volumen (compendio)</th></tr></thead><tbody>` +
+    const todasF = Object.values(C.FN).filter(f => !f.usuario);
+    tbl.innerHTML = `<thead><tr><th>Nombre en el inventario</th><th class="num">Árboles</th><th>Especie según D.S. 68/2009</th><th>Categoría MMA (región ${esc(S.config.region)})</th><th>Altura promedio (m)</th><th>Función de volumen</th></tr></thead><tbody>` +
       filas.map(([nm, info]) => {
         const key = info.key || ('X:' + C.norm(nm));
         const cat = C.categoriaEspecie(key, S.config.region, S.catOverride[key]);
@@ -306,11 +306,13 @@
         const fOpts = `<option value="auto" ${sel === undefined ? 'selected' : ''}>Automática${auto ? ' (N° ' + auto + ')' : ' — sin función para la especie'}</option>` +
           (propias.length ? `<optgroup label="Funciones de la especie">${propias.map(f => `<option value="${f.id}" ${sel === f.id ? 'selected' : ''}>${esc(etiquetaFuncion(f))}</option>`).join('')}</optgroup>` : '') +
           `<optgroup label="Otras funciones del compendio (aplicación por similitud)">${todasF.filter(f => !propias.includes(f) && f.unidad === 'm3').map(f => `<option value="${f.id}" ${sel === f.id ? 'selected' : ''}>${esc(etiquetaFuncion(f))}</option>`).join('')}</optgroup>` +
+          (!propias.length || S.funcUsuario[key] ? `<optgroup label="Especie sin función en el compendio">${S.funcUsuario[key] ? `<option value="usuario" ${sel === C.idUsuario(key) ? 'selected' : ''}>Definida por el usuario: ${esc(S.funcUsuario[key].ecuacion)}</option><option value="usuario-editar">Editar la función definida por el usuario…</option>` : `<option value="usuario-editar">Función definida por el usuario…</option>`}</optgroup>` : '') +
           `<option value="none" ${sel === null ? 'selected' : ''}>Sin función (no calcular volumen)</option>`;
         const fidUsada = sel === undefined ? auto : sel;
         const fUsada = fidUsada ? C.FN[fidUsada] : null;
         let avisoF = '';
-        if (!fUsada) avisoF = `<div class="tag warn" style="margin-top:4px">Sin función: volumen no calculado</div>`;
+        if (!fUsada) avisoF = `<div class="tag warn" style="margin-top:4px">Sin función: volumen no calculado</div>` + (!propias.length ? `<div><button class="btn small" data-fu="${esc(key)}" data-fu-nom="${esc(nm)}" style="margin-top:4px">Definir función de volumen…</button></div>` : '');
+        else if (fUsada.usuario) avisoF = `<div class="tag info" style="margin-top:4px">Función definida por el usuario</div><div class="muted" style="font-size:12px;margin-top:3px">V = <code>${esc(fUsada.eq)}</code></div>`;
         else {
           if (fUsada.validacion !== 'verificada') avisoF += `<div class="tag warn" style="margin-top:4px">Ecuación ${esc(fUsada.validacion)}</div> `;
           if (!fUsada.keys.includes(info.key)) avisoF += `<div class="tag info" style="margin-top:4px">Función de otra especie</div> `;
@@ -328,7 +330,7 @@
             <details style="margin-top:4px"><summary class="muted" style="font-size:12px;cursor:pointer">Modificar</summary>${catSel}</details></td>
           <td><input type="number" step="any" min="0" max="90" data-alt="${esc(key)}" value="${S.alturas[key] != null ? esc(S.alturas[key]) : ''}" placeholder="m" style="width:90px">${fUsada && fUsada.usaH && !(S.alturas[key] > 0) ? '<div class="tag warn" style="margin-top:4px">Requerida para el volumen</div>' : (fUsada && !fUsada.usaH ? '<div class="muted" style="font-size:12px;margin-top:3px">La función usa sólo DAP</div>' : '')}</td>
           <td><select data-fun="${esc(key)}">${fOpts}</select>${avisoF}
-            ${fUsada ? `<div><button class="btn ghost small" data-verf="${fUsada.id}" style="margin-top:4px">Ver función N° ${fUsada.id}</button></div>` : ''}</td>
+            ${fUsada && fUsada.usuario ? `<div><button class="btn ghost small" data-fu="${esc(key)}" data-fu-nom="${esc(nm)}" style="margin-top:4px">Editar ecuación</button></div>` : fUsada ? `<div><button class="btn ghost small" data-verf="${fUsada.id}" style="margin-top:4px">Ver función N° ${fUsada.id}</button></div>` : ''}</td>
         </tr>`;
       }).join('') + '</tbody>';
     $$('select[data-nombre]', tbl).forEach(s => s.addEventListener('change', () => {
@@ -337,7 +339,8 @@
     }));
     $$('select[data-fun]', tbl).forEach(s => s.addEventListener('change', () => {
       const k = s.dataset.fun;
-      if (s.value === 'auto') delete S.funciones[k]; else if (s.value === 'none') S.funciones[k] = null; else S.funciones[k] = Number(s.value);
+      if (s.value === 'usuario-editar') { const nm = Object.keys(S.nombres).find(n => (S.nombres[n].key || ('X:' + C.norm(n))) === k) || k; renderEspecies(); abrirFuncionUsuario(k, nm); return; }
+      if (s.value === 'auto') delete S.funciones[k]; else if (s.value === 'none') S.funciones[k] = null; else if (s.value === 'usuario') S.funciones[k] = C.idUsuario(k); else S.funciones[k] = Number(s.value);
       recalcular(); renderEspecies();
     }));
     $$('input[data-alt]', tbl).forEach(el => el.addEventListener('change', () => {
@@ -350,7 +353,60 @@
       recalcular(); renderEspecies();
     }));
     $$('button[data-verf]', tbl).forEach(b => b.addEventListener('click', () => verFuncion(Number(b.dataset.verf))));
+    $$('button[data-fu]', tbl).forEach(b => b.addEventListener('click', () => abrirFuncionUsuario(b.dataset.fu, b.dataset.fuNom)));
   }
+
+  /* ---- Ventana: función de volumen definida por el usuario ---- */
+  const dlgFU = $('#dlgFuncion');
+  let fuKey = null;
+  function nombreEspecie(key, nm) { const e = C.CAT.especies[key]; return e ? `${e.nombreComun} (${e.s})` : (nm || key.replace(/^X:/, '')); }
+  function abrirFuncionUsuario(key, nm) {
+    fuKey = key;
+    const d = S.funcUsuario[key] || {};
+    $('#fuEspecie').textContent = nombreEspecie(key, nm);
+    $('#fuEcuacion').value = d.ecuacion || '';
+    $('#fuVariable').value = d.variable || '';
+    $('#fuFuente').value = d.fuente || '';
+    $('#fuRangoD').value = d.rangoD || '';
+    const ds = S.arboles.filter(a => (a.key || ('X:' + C.norm(a.nombre))) === key).map(a => a.dap);
+    $('#fuD').value = ds.length ? Math.round(ds.reduce((x, y) => x + y, 0) / ds.length * 10) / 10 : 20;
+    $('#fuH').value = S.alturas[key] || 10;
+    $('#fuEliminar').hidden = !S.funcUsuario[key];
+    previewFU();
+    if (dlgFU.showModal) dlgFU.showModal(); else dlgFU.setAttribute('open', '');
+    $('#fuEcuacion').focus();
+  }
+  function previewFU() {
+    const c = C.compilarEcuacion($('#fuEcuacion').value);
+    const out = $('#fuPrueba'), err = $('#fuError');
+    if (!$('#fuEcuacion').value.trim()) { err.hidden = true; out.textContent = '—'; $('#fuGuardar').disabled = true; $('#fuInterpretada').textContent = '—'; $('#fuUsaH').textContent = ''; return; }
+    if (!c.ok) { err.hidden = false; err.textContent = c.error; out.textContent = '—'; $('#fuGuardar').disabled = true; $('#fuInterpretada').textContent = '—'; $('#fuUsaH').textContent = ''; return; }
+    const D = Number($('#fuD').value), H = Number($('#fuH').value);
+    const v = c.fn(D, H);
+    err.hidden = isFinite(v) && v >= 0;
+    err.textContent = !isFinite(v) ? 'Con estos valores de prueba la ecuación no entrega un número (revise logaritmos de valores ≤ 0 o divisiones por cero).' : v < 0 ? 'Con estos valores de prueba el volumen resulta negativo; en el cálculo se reemplazará por 0.' : '';
+    out.textContent = isFinite(v) ? v.toLocaleString('es-CL', { maximumFractionDigits: 5 }) + ' m³' : '—';
+    $('#fuInterpretada').textContent = c.js.replace(/Math\./g, '').replace(/log10/g, 'log₁₀').replace(/\blog\(/g, 'ln(');
+    $('#fuUsaH').textContent = c.usaH ? 'Usa DAP y altura: se aplicará la altura promedio de la especie indicada en la columna "Altura promedio".' : 'Usa sólo el DAP.';
+    $('#fuGuardar').disabled = false;
+  }
+  ['fuEcuacion', 'fuD', 'fuH'].forEach(id => $('#' + id).addEventListener('input', previewFU));
+  const cerrarFU = () => { if (dlgFU.close) dlgFU.close(); else dlgFU.removeAttribute('open'); };
+  $('#fuCancelar').addEventListener('click', cerrarFU);
+  $('#fuGuardar').addEventListener('click', () => {
+    const nm = $('#fuEspecie').textContent;
+    const d = { ecuacion: $('#fuEcuacion').value.trim(), variable: $('#fuVariable').value.trim(), fuente: $('#fuFuente').value.trim(), rangoD: $('#fuRangoD').value.trim(), especie: nm };
+    const r = C.registrarFuncionUsuario(fuKey, d);
+    if (!r.ok) { $('#fuError').hidden = false; $('#fuError').textContent = r.error; return; }
+    S.funcUsuario[fuKey] = d; S.funciones[fuKey] = r.fid;
+    cerrarFU(); recalcular(); renderEspecies();
+    toast('Función de volumen guardada para ' + nm + (r.usaH && !(S.alturas[fuKey] > 0) ? '. Indique la altura promedio de la especie para calcular el volumen.' : '.'));
+  });
+  $('#fuEliminar').addEventListener('click', () => {
+    C.eliminarFuncionUsuario(fuKey); delete S.funcUsuario[fuKey];
+    if (S.funciones[fuKey] === C.idUsuario(fuKey)) delete S.funciones[fuKey];
+    cerrarFU(); recalcular(); renderEspecies(); toast('Función definida por el usuario eliminada.');
+  });
   function verFuncion(id) {
     const f = C.FN[id]; const c = $('#cardFuncionDetalle'); c.hidden = false;
     c.innerHTML = `<div class="card-head"><h2>Función N° ${f.id} · ${esc(f.especies.join(' - '))}</h2><button class="btn ghost small" id="cerrarF">Cerrar</button></div>
@@ -547,7 +603,7 @@
         <p class="muted" style="font-size:12px">${otras ? `Otras: ${otras.map(e => esc(e.nombre)).join(', ')}. ` : ''}${r.simpodico ? 'Bosque simpódico: N = individuos (cepas) por hectárea; G y V incluyen todos los vástagos; cada individuo se clasifica por su diámetro equivalente √(Σ d²). ' : ''}Densidad expresada en árboles enteros por hectárea: en cada especie los valores por clase se redondean de modo que sumen el total de la especie redondeado; Otras y Total suman esos enteros.</p>
       </div>
       <div class="card">
-        <div class="titulo-plantilla">Volumen inicial y residual por clase diamétrica (funciones del compendio)</div>
+        <div class="titulo-plantilla">Volumen inicial y residual por clase diamétrica (funciones del compendio${r.porEspecie.some(e => (window.CALC.FN[e.fid] || {}).usuario) ? ' y definidas por el usuario' : ''})</div>
         <p class="muted" style="margin-top:0">${r.tot.ini.vCompleto ? '' : 'Hay especies sin función de volumen o sin altura promedio: los totales son parciales. '}Volumen según la variable de cada función (ver pestaña 2).</p>
         <div class="table-wrap"><table class="rodal">${enc(['N (árb./ha)', 'V (m³/ha)'])}<tbody>${cuerpo('v', 2)}</tbody></table></div>
       </div>`;
@@ -654,7 +710,7 @@
 
   /* ======================= Proyecto (JSON) ======================= */
   $('#btnGuardarProyecto').addEventListener('click', () => {
-    const p = { version: 1, config: S.config, arboles: S.arboles.map(a => ({ rodal: a.rodal, parcela: a.parcela, arbol: a.arbol, arbolAuto: a.arbolAuto, tipo: a.tipo, nombre: a.nombre, dap: a.dap, extArchivo: a.extArchivo, fila: a.fila })), parcelasVacias: S.parcelasVacias || [], nombres: S.nombres, funciones: S.funciones, catOverride: S.catOverride, cfgRodal: S.cfgRodal, alturas: S.alturas, tieneExtraer: S.tieneExtraer, tieneArbol: S.tieneArbol, archivo: S.archivo };
+    const p = { version: 1, config: S.config, arboles: S.arboles.map(a => ({ rodal: a.rodal, parcela: a.parcela, arbol: a.arbol, arbolAuto: a.arbolAuto, tipo: a.tipo, nombre: a.nombre, dap: a.dap, extArchivo: a.extArchivo, fila: a.fila })), parcelasVacias: S.parcelasVacias || [], nombres: S.nombres, funciones: S.funciones, funcUsuario: S.funcUsuario, catOverride: S.catOverride, cfgRodal: S.cfgRodal, alturas: S.alturas, tieneExtraer: S.tieneExtraer, tieneArbol: S.tieneArbol, archivo: S.archivo };
     descargar(new Blob([JSON.stringify(p)], { type: 'application/json' }), 'proyecto_tabla_rodal.json');
   });
   $('#inpProyecto').addEventListener('change', async (e) => {
@@ -664,6 +720,9 @@
       Object.assign(S, { config: p.config, nombres: p.nombres || {}, funciones: p.funciones || {}, catOverride: p.catOverride || {}, cfgRodal: p.cfgRodal || {}, alturas: p.alturas || {}, tieneExtraer: p.tieneExtraer, tieneArbol: p.tieneArbol, tieneAltura: p.tieneAltura, archivo: p.archivo, parcelasVacias: p.parcelasVacias || [] });
       if (Object.values(S.alturas).some(v => v && typeof v === 'object')) { const g = {}; Object.values(S.alturas).forEach(o => { if (o && typeof o === 'object') Object.entries(o).forEach(([k, h]) => { if (h > 0 && g[k] == null) g[k] = h; }); }); S.alturas = g; }
       Object.keys(S.funciones).forEach(k => { if (S.funciones[k] === undefined) delete S.funciones[k]; });
+      Object.keys(S.funcUsuario || {}).forEach(k => C.eliminarFuncionUsuario(k));
+      S.funcUsuario = p.funcUsuario || {};
+      Object.entries(S.funcUsuario).forEach(([k, d]) => { if (!C.registrarFuncionUsuario(k, d).ok && S.funciones[k] === C.idUsuario(k)) delete S.funciones[k]; });
       S.config = Object.assign({ muestreo: 'aleatorio', forma: 'circular', ancho_r: 20, crecimiento: 'monopodico', dmcSimp: 'individuo' }, S.config);
       $('#cfgCrecimiento').value = S.config.crecimiento; textoCrecimiento();
       $('#cfgRegion').value = S.config.region; $('#cfgAncho').value = S.config.ancho; $('#cfgInicio').value = S.config.inicio; sincronizarParametros();

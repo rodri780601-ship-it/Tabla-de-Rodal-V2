@@ -243,3 +243,19 @@ details.crit summary { cursor: pointer; font-weight: 600; font-size: 13px; color
 #informe .st-obs, #informe .st-pend, #informe .res-warn { color: #9a6700; font-weight: bold; }
 #informe ul.fuentes { padding-left: 14pt; }
 
+
+/* Ventana: función de volumen definida por el usuario */
+.dlg { width: min(720px, calc(100vw - 32px)); border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); color: var(--ink); padding: 20px 22px; box-shadow: 0 10px 40px rgba(0,0,0,.25); }
+.dlg::backdrop { background: rgba(10, 15, 10, .45); }
+.dlg h2 { margin: 0 0 2px; font-size: 18px; }
+.dlg-head { margin-bottom: 14px; }
+.dlg-campo { display: block; font-weight: 600; font-size: 13px; }
+.dlg-campo textarea { display: block; width: 100%; margin-top: 6px; font-family: var(--mono); font-size: 14px; resize: vertical; }
+.dlg-ayuda { font-size: 12.5px; color: var(--ink-2); background: var(--surface-2); border: 1px solid var(--line-2); border-radius: 8px; padding: 9px 12px; margin: 10px 0; line-height: 1.55; }
+.dlg-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; }
+.dlg-grid label { font-size: 12.5px; font-weight: 600; display: block; }
+.dlg-grid input { display: block; width: 100%; margin-top: 4px; }
+.dlg-prueba { margin-top: 12px; padding: 10px 12px; border: 1px dashed var(--line); border-radius: 8px; font-size: 13.5px; }
+.dlg-pie { display: flex; gap: 8px; margin-top: 16px; align-items: center; flex-wrap: wrap; }
+@media print { .dlg { display: none !important; } }
+.dlg-prueba input { display: inline-block !important; width: 80px; margin: 0 4px; }

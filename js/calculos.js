@@ -238,7 +238,86 @@
     if (preferRenoval != null) p += (preferRenoval ? f.estructura === 'Renoval' : f.estructura === 'Bosque Adulto') ? 5 : 0;
     return p;
   }
-  function funcionesDeEspecie(key) { return Object.values(FN).filter(f => f.keys.includes(key)); }
+  function funcionesDeEspecie(key) { return Object.values(FN).filter(f => !f.usuario && f.keys.includes(key)); }
+
+  /* ---- Funciones de volumen definidas por el usuario (especies sin función en el compendio) ----
+     La ecuación se analiza con un intérprete propio que sólo admite números, las variables D y H,
+     operadores + - * / ^, paréntesis y las funciones ln, log (base 10), exp, sqrt, abs; nunca se evalúa texto arbitrario. */
+  const FUNC_PERMITIDAS = { ln: 'Math.log', log: 'Math.log10', log10: 'Math.log10', exp: 'Math.exp', sqrt: 'Math.sqrt', raiz: 'Math.sqrt', abs: 'Math.abs' };
+  function compilarEcuacion(txt) {
+    let s = String(txt || '').trim();
+    if (!s) return { ok: false, error: 'Escriba la ecuación.' };
+    s = s.replace(/^\s*v\w*\s*=/i, '')                 // admite "V = ..."
+      .replace(/(\d),(\d)/g, '$1.$2')                 // coma decimal
+      .replace(/[×·•]/g, '*').replace(/÷/g, '/').replace(/[−–]/g, '-')
+      .replace(/²/g, '^2').replace(/³/g, '^3').replace(/π/g, 'pi').replace(/√/g, 'sqrt');
+    const tk = []; let i = 0;
+    while (i < s.length) {
+      const c = s[i];
+      if (/\s/.test(c)) { i++; continue; }
+      let m = /^(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?/.exec(s.slice(i));
+      if (m) { tk.push({ t: 'num', v: m[0] }); i += m[0].length; continue; }
+      m = /^[A-Za-zÁÉÍÓÚáéíóúñÑ_][A-Za-z0-9ÁÉÍÓÚáéíóúñÑ_]*/.exec(s.slice(i));
+      if (m) {
+        const w = m[0].toLowerCase(); i += m[0].length;
+        if (w === 'd' || w === 'dap') tk.push({ t: 'var', v: 'D' });
+        else if (w === 'h' || w === 'ht' || w === 'altura') tk.push({ t: 'var', v: 'H' });
+        else if (w === 'pi') tk.push({ t: 'num', v: String(Math.PI) });
+        else if (FUNC_PERMITIDAS[w]) tk.push({ t: 'fn', v: FUNC_PERMITIDAS[w] });
+        else return { ok: false, error: `"${m[0]}" no es una variable ni función reconocida. Use D (DAP, cm), H (altura, m), ln, log, exp, sqrt, abs, pi.` };
+        continue;
+      }
+      if ('+-*/^()'.includes(c)) { tk.push({ t: c }); i++; continue; }
+      if (c === '[' || c === '{') { tk.push({ t: '(' }); i++; continue; }
+      if (c === ']' || c === '}') { tk.push({ t: ')' }); i++; continue; }
+      return { ok: false, error: `Carácter no permitido: "${c}".` };
+    }
+    let p = 0; let usaH = false;
+    const ver = () => tk[p] || { t: 'fin' };
+    const inicioAtomo = (x) => x.t === 'num' || x.t === 'var' || x.t === 'fn' || x.t === '(';
+    function expr() { let a = term(); while (ver().t === '+' || ver().t === '-') { const o = tk[p++].t; a = `(${a}${o}${term()})`; } return a; }
+    function term() {
+      let a = unario();
+      for (;;) {
+        const x = ver();
+        if (x.t === '*' || x.t === '/') { p++; a = `(${a}${x.t}${unario()})`; }
+        else if (inicioAtomo(x)) a = `(${a}*${unario()})`;         // multiplicación implícita: 0.00005 D^2 H
+        else return a;
+      }
+    }
+    function unario() { const x = ver(); if (x.t === '-') { p++; return `(-${unario()})`; } if (x.t === '+') { p++; return unario(); } return potencia(); }
+    function potencia() { const b = atomo(); if (ver().t === '^') { p++; return `Math.pow(${b},${unario()})`; } return b; }
+    function atomo() {
+      const x = tk[p++] || { t: 'fin' };
+      if (x.t === 'num') return `(${Number(x.v)})`;
+      if (x.t === 'var') { if (x.v === 'H') usaH = true; return x.v; }
+      if (x.t === 'fn') { if (ver().t !== '(') throw new Error('Después de una función debe ir un paréntesis, por ejemplo ln(D).'); p++; const a = expr(); if (ver().t !== ')') throw new Error('Falta cerrar un paréntesis.'); p++; return `${x.v}(${a})`; }
+      if (x.t === '(') { const a = expr(); if (ver().t !== ')') throw new Error('Falta cerrar un paréntesis.'); p++; return a; }
+      throw new Error(x.t === 'fin' ? 'La ecuación termina de forma incompleta.' : `Símbolo inesperado "${x.t}".`);
+    }
+    let js;
+    try { js = expr(); if (p < tk.length) throw new Error(tk[p].t === ')' ? 'Sobra un paréntesis de cierre.' : 'Hay símbolos que no se pudieron interpretar.'); }
+    catch (e) { return { ok: false, error: e.message }; }
+    if (!/D/.test(js)) return { ok: false, error: 'La ecuación debe usar al menos el DAP (D).' };
+    let fn; try { fn = new Function('D', 'H', '"use strict"; return ' + js + ';'); } catch (e) { return { ok: false, error: 'Ecuación no válida.' }; }
+    return { ok: true, js, fn, usaH };
+  }
+  function idUsuario(key) { return 'U:' + key; }
+  function registrarFuncionUsuario(key, def) {
+    const c = compilarEcuacion(def.ecuacion);
+    if (!c.ok) { delete FN[idUsuario(key)]; return c; }
+    FN[idUsuario(key)] = {
+      id: idUsuario(key), usuario: true, especies: [def.especie || key.replace(/^X:/, '')], keys: [key], regiones: ['—'],
+      usaH: c.usaH, alturaTipo: c.usaH ? 'total' : 'no aplica', alturaDesc: c.usaH ? 'Altura promedio de la especie (sección 2)' : '', unidad: 'm3',
+      validacion: 'definida por el usuario', eq: def.ecuacion, expr: c.js, fn: c.fn, pag: '—', estructura: '—', localidad: '—',
+      variable: def.variable || 'Volumen por árbol (m³)', dlu: '', rangoD: def.rangoD || '', rangoH: '', fuente: def.fuente || 'Definida por el usuario', anio: def.anio || '', r2: '', muestra: '',
+      nota: 'Función ingresada por el usuario porque la especie no tiene función en el Compendio de Funciones Dendrométricas del Bosque Nativo. Su validez es responsabilidad del profesional.'
+    };
+    return { ok: true, fid: idUsuario(key), usaH: c.usaH };
+  }
+  function eliminarFuncionUsuario(key) { delete FN[idUsuario(key)]; }
+  function etiquetaFid(fid) { const f = FN[fid]; return !f ? 'Sin función' : f.usuario ? 'Definida por el usuario' : 'N° ' + f.id; }
+  function ordenFid(a, b) { const ua = typeof a === 'string', ub = typeof b === 'string'; return ua !== ub ? (ua ? 1 : -1) : ua ? a.localeCompare(b) : a - b; }
   function funcionPorDefecto(key, regionComp, preferRenoval) {
     const c = funcionesDeEspecie(key).map(f => ({ f, p: puntajeFuncion(f, key, regionComp, preferRenoval) })).filter(x => x.p > -100).sort((a, b) => b.p - a.p);
     return c.length ? c[0].f.id : null;
@@ -679,6 +758,6 @@
 
   window.CALC = { densidadEntera,
     norm, construirCatalogo, reconocerEspecie, CAT, cargarMMA, categoriaEspecie, categoriaRegional, buscarMMA, getMMA: () => MMA,
-    construirFunciones, FN, funcionesDeEspecie, funcionPorDefecto, puntajeFuncion, volumenArbol, calcularRodal, tQuantil, COMPENDIO_SP
+    construirFunciones, FN, funcionesDeEspecie, compilarEcuacion, registrarFuncionUsuario, eliminarFuncionUsuario, idUsuario, etiquetaFid, ordenFid, funcionPorDefecto, puntajeFuncion, volumenArbol, calcularRodal, tQuantil, COMPENDIO_SP
   };
 })();

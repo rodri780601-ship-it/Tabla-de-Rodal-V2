@@ -78,7 +78,7 @@
     });
     rows.push([]);
     rows.push([{ v: 'Los volúmenes marcados como parciales excluyen especies sin función de volumen del compendio o sin altura promedio. Revise la hoja "Especies y conservación".', s: s.note }]);
-    return { name: 'Resumen', rows, cols: [8, 10, 9, 10, 22, 18, 20, 11, 10, 10, 10, 11, 11, 10, 10, 10, 10, 10, 34, 18], freeze: [4, 1] };
+    return { name: 'Resumen', landscape: true, rows, cols: [8, 10, 9, 10, 22, 18, 20, 11, 10, 10, 10, 11, 11, 10, 10, 10, 10, 10, 34, 18], freeze: [4, 1] };
   }
 
   function hojaInventario(S) {
@@ -120,7 +120,7 @@
     rows.push([]);
     rows.push(['Rodal', 'Parcela', 'Árboles', 'N (árb/ha)', 'G (m²/ha)', 'V (m³/ha)'].map(v => ({ v, s: s.header })));
     S.rodales.forEach(id => S.resultados[id].parcelas.forEach(p => rows.push([{ v: id, s: s.text }, { v: p.parcela, s: s.text }, { v: p.arboles, s: s.int }, { v: r2(p.n, 2), s: s.dec1 }, { v: r2(p.g), s: s.dec2 }, { v: r2(p.v, 2), s: s.dec1 }])));
-    return { name: 'Estadísticos', rows, merges, cols: [22, 11, 11, 13, 13, 13, 13, 12, 12, 12, 12, 11, 12, 12], freeze: [2, 1] };
+    return { name: 'Estadísticos', landscape: true, rows, merges, cols: [22, 11, 11, 13, 13, 13, 13, 12, 12, 12, 12, 11, 12, 12], freeze: [2, 1] };
   }
 
   function hojaEspecies(S) {
@@ -136,7 +136,7 @@
           { v: r2(e.ini.v, 3), s: s.dec2 }, { v: r2(e.res.v, 3), s: s.dec2 }, { v: r2(e.h, 2), s: s.dec1 }, { v: f ? f.id : 'Sin función', s: s.text }, { v: f ? f.variable : '', s: s.wrap }]);
       });
     });
-    return { name: 'Especies y conservación', rows, cols: [7, 20, 26, 22, 26, 26, 10, 10, 10, 10, 10, 10, 10, 10, 32], freeze: [3, 2] };
+    return { name: 'Especies y conservación', landscape: true, rows, cols: [7, 20, 26, 22, 26, 26, 10, 10, 10, 10, 10, 10, 10, 10, 32], freeze: [3, 2] };
   }
 
   function hojaTipoForestal(S) {
@@ -171,7 +171,7 @@
       r.metodos.metodos.forEach(m => rows.push([{ v: `${m.nombre} (art. ${m.art})`, s: s.wrap }, { v: m.aplica === false ? 'No' : m.aplica ? 'Sí' : 'Sin tipo', s: m.aplica === false ? s.bad : m.aplica ? s.ok : s.text }, { v: m.requisitos + (m.maxG ? ` Extracción máxima: ${m.maxG} % del área basal.` : ''), s: s.wrap }, { v: [m.obs.join(' '), m.nota || ''].filter(Boolean).join(' '), s: s.wrap }]));
       rows.push([]);
     });
-    return { name: 'Cumplimiento Bases', rows, cols: [34, 13, 80, 30] };
+    return { name: 'Cumplimiento Bases', landscape: true, rows, cols: [34, 13, 80, 30] };
   }
 
   function hojaFunciones(S) {
@@ -184,7 +184,7 @@
       const f = window.CALC.FN[fid];
       rows.push([f.id, f.pag, f.especies.join(' - '), [...usadas.get(fid)].join(', '), f.regiones.join(' - '), f.estructura, f.eq, f.variable, f.dlu, f.usaH ? (f.alturaDesc || f.alturaTipo) : 'No usa', f.rangoD, f.rangoH, f.fuente, f.anio, f.r2, f.validacion + (f.valTot ? ` (${f.valOk}/${f.valTot})` : ''), f.nota || ''].map(v => ({ v, s: s.wrap })));
     });
-    return { name: 'Funciones de volumen', rows, cols: [6, 7, 22, 22, 10, 13, 50, 30, 8, 20, 14, 12, 18, 7, 8, 16, 30], freeze: [3, 1] };
+    return { name: 'Funciones de volumen', landscape: true, rows, cols: [6, 7, 22, 22, 10, 13, 50, 30, 8, 20, 14, 12, 18, 7, 8, 16, 30], freeze: [3, 1] };
   }
 
   function hojaFuentes() {
@@ -201,6 +201,50 @@
     return { name: 'Fuentes', rows: [[{ v: 'Fuentes y criterios', s: s.title }], [], ...t.map(x => [{ v: x, s: s.wrap }])], cols: [120] };
   }
 
+  /* Hoja con todos los gráficos de cada rodal (imágenes PNG), paginada para papel oficio vertical. */
+  async function hojaGraficos(S) {
+    const s = ST();
+    const rows = [], images = [], breaks = [], merges = [], heights = {};
+    const ROW_PX = 20, ANCHO = 690, ALTO_PAG = 1220; // filas fijas de 15 pt (20 px); columnas ≤ 720 px → escala de impresión 1 // alto útil aproximado de una hoja oficio en px (96 ppp)
+    let fila = 0, usado = 0;
+    const nuevaPagina = () => { if (fila > 0) { breaks.push(fila); usado = 0; } };
+    const texto = (v, st) => { rows[fila] = [null, { v, s: st }]; fila++; usado += ROW_PX; };
+    for (let k = 0; k < S.rodales.length; k++) {
+      const id = S.rodales[k], r = S.resultados[id];
+      nuevaPagina();
+      texto(`Gráficos · Rodal ${id}`, s.title);
+      texto(`${r.tipo.nombre} · ${r.estado.estado || '—'} · Intervención: ${r.bases.actividad && r.bases.actividad.id !== 'NINGUNA' ? r.bases.actividad.nombre : 'no definida'} · Extracción ${Math.round(r.tot.ext.n)} árb/ha y ${r2(r.tot.ext.g, 2)} m²/ha`, s.normal);
+      fila++; usado += ROW_PX;
+      const { figs, datos } = window.GRAFICOS.figurasRodal(r);
+      for (const f of figs) {
+        const png = await window.GRAFICOS.svgAPng(f.svg, f.titulo, f.leyenda);
+        const esc = Math.min(1, ANCHO / png.w), w = png.w * esc, h = png.h * esc;
+        const filasImg = Math.ceil(h / ROW_PX) + 1;
+        if (usado + (filasImg + 2) * ROW_PX > ALTO_PAG && usado > 3 * ROW_PX) { breaks.push(fila); usado = 0; }
+        if (f.sub) texto(f.sub, s.normal);
+        images.push({ data: png.bytes, row: fila, col: 1, w, h, nombre: `Rodal ${id} - ${f.titulo}` });
+        fila += filasImg; usado += filasImg * ROW_PX;
+        if (f.id === 'esp') {
+          // tabla de dispersión bajo el mapa de calor
+          const H = ['Especie', 'Árboles', 'Frec. (%)', 'Media/ parcela', 'Varianza', 'S²/x̄', 'Morisita', 'χ²', 'Límites χ² 95 %', 'Distribución'];
+          const need = (datos.disp.length + 3) * ROW_PX;
+          if (usado + need > ALTO_PAG) { breaks.push(fila); usado = 0; }
+          rows[fila] = [null, { v: 'Índices de dispersión espacial por especie', s: s.subtitle }]; fila++;
+          rows[fila] = [null, ...H.map(v => ({ v, s: s.header }))]; fila++;
+          datos.disp.forEach(x => {
+            const d = x.d;
+            rows[fila] = [null, { v: x.nombre, s: s.text }, { v: d.Nt, s: s.int }, { v: d.presencia == null ? null : Math.round(d.presencia), s: s.int }, { v: d.media == null ? null : r2(d.media, 2), s: s.dec2 }, { v: d.var == null ? null : r2(d.var, 2), s: s.dec2 }, { v: d.id == null ? null : r2(d.id, 2), s: s.dec2 }, { v: d.mor == null ? null : r2(d.mor, 2), s: s.dec2 }, { v: d.chi == null ? null : r2(d.chi, 2), s: s.dec2 }, { v: d.lo == null ? '—' : `${r2(d.lo, 1)} – ${r2(d.hi, 1)}`, s: s.text }, { v: d.patron, s: s.text }]; fila++;
+          });
+          heights[fila - datos.disp.length - 1] = 30; usado += 10;
+          usado += need;
+        }
+        fila++; usado += ROW_PX;
+      }
+    }
+    for (let i = 0; i <= fila + 2; i++) if (!heights[i]) heights[i] = 15;
+    return { name: 'Gráficos', rows, merges, images, breaks, heights, cols: [2, 14, 7, 9, 8, 8, 8, 8, 8, 10, 12] };
+  }
+
   async function libro(S) {
     const sheets = [hojaResumen(S)];
     S.rodales.forEach(id => {
@@ -208,6 +252,7 @@
       sheets.push(hojaTablaRodal(r, 'g', 'G (m²/ha)', `Tabla rodal ${id}`, '12.3.9 Tabla de rodal inicial y residual, después de la intervención inmediata'));
       sheets.push(hojaTablaRodal(r, 'v', 'V (m³/ha)', `Volumen rodal ${id}`, 'Tabla de volumen inicial y residual, después de la intervención inmediata'));
     });
+    sheets.push(await hojaGraficos(S));
     sheets.push(hojaInventario(S), hojaEstadisticos(S), hojaEspecies(S), hojaTipoForestal(S), hojaCumplimiento(S), hojaFunciones(S), hojaFuentes());
     return window.XLSXIO.writeXlsx(sheets);
   }

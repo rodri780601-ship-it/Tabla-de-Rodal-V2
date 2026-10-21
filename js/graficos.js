@@ -5,7 +5,11 @@
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const fmt = (x, d = 1) => (x == null || !isFinite(x)) ? '—' : Number(x).toLocaleString('es-CL', { minimumFractionDigits: d, maximumFractionDigits: d });
 
+  const CLARA = { res: '#2a78d6', ext: '#eb6834', grid: '#e1e0d9', axis: '#c3c2b7', ink: '#1d2420', ink2: '#4d5650', muted: '#6c746e', surface: '#ffffff', empty: '#f2f2ee',
+    ramp: ['#cde2fb', '#9ec5f4', '#6da7ec', '#3987e5', '#256abf', '#184f95', '#0d366b'] };
+  let FORZAR_CLARA = false;
   function paleta() {
+    if (FORZAR_CLARA) return CLARA;
     const cs = getComputedStyle(document.documentElement);
     const g = (v, def) => (cs.getPropertyValue(v) || '').trim() || def;
     return {
@@ -145,25 +149,69 @@
   }
 
   /* ---------- descarga PNG ---------- */
-  function descargarPNG(svgEl, nombre, titulo, conLeyenda) {
+  // Compone título + leyenda + gráfico y lo rasteriza. Devuelve {bytes, w, h} (w, h en px lógicos).
+  function svgAPng(svgSrc, titulo, conLeyenda, escala = 2) {
+    let svgEl = svgSrc;
+    if (typeof svgSrc === 'string') { const d = document.createElement('div'); d.innerHTML = svgSrc; svgEl = d.querySelector('svg'); }
     const P = paleta(); const NS = 'http://www.w3.org/2000/svg';
-    const vb = svgEl.viewBox.baseVal; const top = conLeyenda ? 56 : 34, W = vb.width, H = vb.height + top;
+    const vb = svgEl.viewBox.baseVal; const top = titulo ? (conLeyenda ? 56 : 34) : (conLeyenda ? 26 : 0), W = vb.width, H = vb.height + top;
     const out = document.createElementNS(NS, 'svg');
     out.setAttribute('xmlns', NS); out.setAttribute('width', W); out.setAttribute('height', H); out.setAttribute('viewBox', `0 0 ${W} ${H}`);
-    out.setAttribute('font-family', "system-ui, -apple-system, 'Segoe UI', sans-serif");
-    let enc = `<rect width="100%" height="100%" fill="${P.surface}"/><text x="12" y="22" font-size="15" font-weight="600" fill="${P.ink}">${esc(titulo)}</text>`;
-    if (conLeyenda) enc += `<rect x="12" y="34" width="12" height="12" rx="3" fill="${P.res}"/><text x="30" y="44" font-size="12" fill="${P.ink2}">Residual</text><rect x="100" y="34" width="12" height="12" rx="3" fill="${P.ext}"/><text x="118" y="44" font-size="12" fill="${P.ink2}">Extraído</text><text x="190" y="44" font-size="12" fill="${P.muted}">Barra completa = inicial</text>`;
+    out.setAttribute('font-family', "Arial, 'Segoe UI', system-ui, sans-serif");
+    let enc = `<rect width="100%" height="100%" fill="${P.surface}"/>`;
+    if (titulo) enc += `<text x="12" y="22" font-size="15" font-weight="600" fill="${P.ink}">${esc(titulo)}</text>`;
+    const yl = titulo ? 34 : 6;
+    if (conLeyenda) enc += `<rect x="12" y="${yl}" width="12" height="12" rx="3" fill="${P.res}"/><text x="30" y="${yl + 10}" font-size="12" fill="${P.ink2}">Residual</text><rect x="100" y="${yl}" width="12" height="12" rx="3" fill="${P.ext}"/><text x="118" y="${yl + 10}" font-size="12" fill="${P.ink2}">Extraído</text><text x="190" y="${yl + 10}" font-size="12" fill="${P.muted}">Barra completa = inicial</text>`;
     out.innerHTML = enc;
     const g = document.createElementNS(NS, 'g'); g.setAttribute('transform', `translate(0 ${top})`);
     g.innerHTML = svgEl.innerHTML; g.querySelectorAll('[data-tip]').forEach(e => e.removeAttribute('data-tip'));
     out.appendChild(g);
-    const k = 2, img = new Image();
-    img.onload = () => {
-      const c = document.createElement('canvas'); c.width = W * k; c.height = H * k;
-      const ctx = c.getContext('2d'); ctx.scale(k, k); ctx.drawImage(img, 0, 0);
-      c.toBlob(bl => { const a = document.createElement('a'); a.href = URL.createObjectURL(bl); a.download = nombre + '.png'; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500); });
-    };
-    img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(new XMLSerializer().serializeToString(out));
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        const c = document.createElement('canvas'); c.width = Math.round(W * escala); c.height = Math.round(H * escala);
+        const ctx = c.getContext('2d'); ctx.scale(escala, escala); ctx.drawImage(img, 0, 0);
+        c.toBlob(async bl => { if (!bl) return reject(new Error('No se pudo generar la imagen')); resolve({ blob: bl, bytes: new Uint8Array(await bl.arrayBuffer()), w: W, h: H }); }, 'image/png');
+      };
+      img.onerror = () => reject(new Error('No se pudo rasterizar el gráfico'));
+      img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(new XMLSerializer().serializeToString(out));
+    });
+  }
+  async function descargarPNG(svgEl, nombre, titulo, conLeyenda) {
+    const { blob } = await svgAPng(svgEl, titulo, conLeyenda);
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = nombre + '.png'; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+  }
+
+  /* ---------- datos y figuras de un rodal (para informe PDF y Excel) ---------- */
+  function datosRodal(r) {
+    const filas = r.tabla.filter((f, i) => r.tabla.slice(i).some(x => x.tot.ini.n > 0) && r.tabla.slice(0, i + 1).some(x => x.tot.ini.n > 0));
+    const ps = r.parcelas, sp = r.porEspecie.filter(e => e.ini.n > 0), parcelasId = ps.map(p => p.parcela);
+    const cuentaRes = {}; r.arboles.forEach(a => { const k = a.key + '|' + a.parcela; cuentaRes[k] = (cuentaRes[k] || 0) + a.res; });
+    const dmcSp = (e, w) => { let s2 = 0, q = 0; r.arboles.filter(t => t.key === e.key).forEach(t => { const p = w(t); s2 += p * t.dap * t.dap; q += p; }); return q > 0 ? Math.sqrt(s2 / q) : null; };
+    const estructura = sp.map(e => ({ nombre: e.nombre, nIni: r.tot.ini.n ? e.ini.n / r.tot.ini.n * 100 : 0, nRes: r.tot.res.n ? e.res.n / r.tot.res.n * 100 : 0, gIni: r.tot.ini.g ? e.ini.g / r.tot.ini.g * 100 : 0, gRes: r.tot.res.g ? e.res.g / r.tot.res.g * 100 : 0, dmcIni: dmcSp(e, () => 1), dmcRes: dmcSp(e, t => t.res) }));
+    const disp = sp.map(e => ({ nombre: e.nombre, d: dispersion(parcelasId.map(p => (ps.find(x => x.parcela === p).cuenta || {})[e.key] || 0)) }));
+    return { filas, ps, sp, parcelasId, cuentaRes, estructura, disp };
+  }
+  function figurasRodal(r) {
+    FORZAR_CLARA = true;
+    try {
+      const D = datosRodal(r), fmtC = (x) => fmt(x, x % 1 ? 1 : 0);
+      const figs = [
+        { id: 'dd', titulo: '1. Efecto de la intervención sobre la distribución diamétrica', sub: `DMC ${fmt(r.DMCini)} → ${fmt(r.DMCres)} cm · densidad ${fmt(r.tot.ini.n, 0)} → ${fmt(r.tot.res.n, 0)} árb/ha`, leyenda: true, ancho: 'completo',
+          svg: barrasApiladas({ cats: D.filas.map(f => fmtC(f.clase.mc)), res: D.filas.map(f => f.tot.res.n), ext: D.filas.map(f => f.tot.ini.n - f.tot.res.n), yLabel: 'Densidad (árb/ha)', xLabel: 'Marca de clase diamétrica (cm)', ancho: 900 }) },
+        { id: 'np', titulo: '2a. Densidad por parcela', sub: `Media ${fmt(r.tot.ini.n, 0)} → ${fmt(r.tot.res.n, 0)} árb/ha`, leyenda: true,
+          svg: barrasApiladas({ cats: D.ps.map(p => p.parcela), res: D.ps.map(p => p.nRes || 0), ext: D.ps.map(p => p.n - (p.nRes || 0)), yLabel: 'Densidad (árb/ha)', xLabel: 'Parcela' }) },
+        { id: 'gp', titulo: '2b. Área basal por parcela', sub: `Media ${fmt(r.tot.ini.g, 2)} → ${fmt(r.tot.res.g, 2)} m²/ha`, leyenda: true,
+          svg: barrasApiladas({ cats: D.ps.map(p => p.parcela), res: D.ps.map(p => p.gRes || 0), ext: D.ps.map(p => p.g - (p.gRes || 0)), yLabel: 'Área basal (m²/ha)', xLabel: 'Parcela', dec: 2 }) },
+        { id: 'ne', titulo: '3a. Densidad por especie', sub: '', leyenda: true,
+          svg: barrasHorizontales({ cats: D.sp.map(e => e.nombre), res: D.sp.map(e => e.res.n), ext: D.sp.map(e => e.ext.n), xLabel: 'Densidad (árb/ha)' }) },
+        { id: 'ge', titulo: '3b. Área basal por especie', sub: '', leyenda: true,
+          svg: barrasHorizontales({ cats: D.sp.map(e => e.nombre), res: D.sp.map(e => e.res.g), ext: D.sp.map(e => e.ext.g), xLabel: 'Área basal (m²/ha)', dec: 2 }) }
+      ];
+      const hm = mapaCalor({ especies: D.sp, parcelas: D.parcelasId, valor: (e, p) => ((D.ps.find(x => x.parcela === p).cuenta || {})[e.key] || 0) * r.FE, valorRes: (e, p) => (D.cuentaRes[e.key + '|' + p] || 0) * r.FE });
+      figs.push({ id: 'esp', titulo: '4. Distribución espacial por especie (densidad inicial, árb/ha por parcela)', sub: 'Cada celda es una parcela; el tono indica la densidad.', leyenda: false, ancho: 'completo', svg: hm.svg });
+      return { figs, datos: D };
+    } finally { FORZAR_CLARA = false; }
   }
 
   /* ---------- render de la sección ---------- */
@@ -245,5 +293,5 @@
     }));
   }
 
-  window.GRAFICOS = { render, dispersion };
+  window.GRAFICOS = { render, dispersion, figurasRodal, svgAPng };
 })();

@@ -34,7 +34,7 @@
   $$('#tabs button').forEach(b => b.addEventListener('click', () => { if (!b.disabled) irA(b.dataset.tab); }));
   function habilitar(on) {
     $$('#tabs button').forEach(b => { if (b.dataset.tab !== 'datos' && b.dataset.tab !== 'fuentes') b.disabled = !on; });
-    $('#btnExportar').disabled = !on; $('#btnGuardarProyecto').disabled = !on;
+    $('#btnExportar').disabled = !on; $('#btnGuardarProyecto').disabled = !on; $('#btnPDF').disabled = !on;
   }
 
   /* ======================= Parámetros generales ======================= */
@@ -591,11 +591,16 @@
 
   /* ======================= Exportar ======================= */
   $('#btnExportar').addEventListener('click', async () => {
+    toast('Generando Excel con gráficos…');
     try {
       const blob = await window.EXPORTAR.libro(S);
       descargar(blob, `Tabla_de_rodal_${new Date().toISOString().slice(0, 10)}.xlsx`);
       toast('Archivo Excel generado.');
     } catch (err) { console.error(err); toast('Error al exportar: ' + (err.message || err)); }
+  });
+  $('#btnPDF').addEventListener('click', () => {
+    try { window.INFORME.imprimir(S); toast('En el diálogo de impresión elija «Guardar como PDF». El tamaño oficio y los márgenes ya vienen definidos.'); }
+    catch (err) { console.error(err); toast('Error al preparar el PDF: ' + (err.message || err)); }
   });
   function descargar(blob, nombre) { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = nombre; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500); }
   $('#btnPlantilla').addEventListener('click', async () => { descargar(await window.EXPORTAR.plantilla(), 'Plantilla_inventario_parcelas.xlsx'); });

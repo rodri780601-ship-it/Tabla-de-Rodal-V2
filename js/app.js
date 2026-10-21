@@ -645,7 +645,12 @@
     catch (err) { console.error(err); toast('Error al preparar el PDF: ' + (err.message || err)); }
   });
   function descargar(blob, nombre) { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = nombre; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500); }
-  $('#btnPlantilla').addEventListener('click', async () => { descargar(await window.EXPORTAR.plantilla(), 'Plantilla_inventario_parcelas.xlsx'); });
+  $('#btnPlantilla').addEventListener('click', () => {
+    // Misma plantilla usada en los ejemplos: listas desplegables (Tipo, Especie, Extraer), hoja Control, instrucciones y nómina D.S. 68
+    const bin = atob(window.PLANTILLA_XLSX_B64); const u8 = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+    descargar(new Blob([u8], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), 'Plantilla_inventario_parcelas.xlsx');
+  });
 
   /* ======================= Proyecto (JSON) ======================= */
   $('#btnGuardarProyecto').addEventListener('click', () => {

@@ -10,7 +10,7 @@
 
   /* ======================= Estado ======================= */
   const S = window.APP_STATE = {
-    config: { region: 'IX', area: 500, ancho: 5, inicio: '', muestreo: 'aleatorio', forma: 'circular', ancho_r: 20 },
+    config: { region: 'IX', area: 500, ancho: 5, inicio: '', muestreo: 'aleatorio', forma: 'circular', ancho_r: 20, crecimiento: 'monopodico', dmcSimp: 'individuo' },
     hojas: null, hojaSel: 0, filaEnc: 0, mapeo: {}, archivo: '',
     arboles: [], nombres: {}, funciones: {}, catOverride: {}, cfgRodal: {}, alturas: {},
     rodales: [], resultados: {}, especiesInfo: {}, tieneExtraer: false, avisos: []
@@ -72,6 +72,16 @@
     renderDims(); actualizarTextoParcela();
   }
   $('#cfgArea').addEventListener('change', e => { S.config.area = Number(e.target.value) > 0 ? Number(e.target.value) : 500; e.target.value = S.config.area; renderDims(); actualizarTextoParcela(); recalcular(); });
+  const TXT_CREC = {
+    monopodico: 'Cada registro del inventario es un individuo: cuenta en la densidad y aporta su área basal.',
+    simpodico: 'La densidad cuenta sólo individuos (cepas). El área basal suma todos sus vástagos o ramas, cada uno con su DAP. Los vástagos de una cepa se identifican con el mismo N° en la columna «Árbol». En la tabla de rodal, cada individuo se clasifica por su diámetro equivalente √(Σ d²).'
+  };
+  function hayMultiTallo(arb) { const c = {}; return arb.some(a => { if (a.arbol == null) return false; const k = a.rodal + '|' + a.parcela + '|' + a.arbol; c[k] = (c[k] || 0) + 1; return c[k] > 1; }); }
+  function esSimpodicoAlguno() { return S.config.crecimiento === 'simpodico' || Object.values(S.cfgRodal).some(c => c.crecimiento === 'simpodico'); }
+  function textoCrecimiento() { $('#boxDmcSimp').hidden = !esSimpodicoAlguno(); $('#cfgDmcSimp').value = S.config.dmcSimp || 'individuo'; $('#txtCrecimiento').textContent = TXT_CREC[S.config.crecimiento] + (S.config.crecimiento === 'simpodico' && S.arboles.length && !S.tieneArbol ? ' El inventario cargado no tiene columna «Árbol»: cada fila se contará como un individuo.' : ''); }
+  $('#cfgCrecimiento').value = S.config.crecimiento; textoCrecimiento();
+  $('#cfgDmcSimp').addEventListener('change', e => { S.config.dmcSimp = e.target.value; recalcular(); });
+  $('#cfgCrecimiento').addEventListener('change', e => { S.config.crecimiento = e.target.value; textoCrecimiento(); recalcular(); if (S.arboles.length) renderResumenCarga(); });
   $('#cfgMuestreo').addEventListener('change', e => { S.config.muestreo = e.target.value; actualizarTextoParcela(); recalcular(); });
   $('#cfgForma').addEventListener('change', e => { S.config.forma = e.target.value; if (S.config.forma === 'rectangular' && !(S.config.ancho_r > 0)) S.config.ancho_r = 20; renderDims(); recalcular(); });
   sincronizarParametros();
@@ -88,12 +98,13 @@
   const PATRONES = {
     rodal: /^(n[°ºo.]?\s*)?rodal|^stand|^unidad/i,
     parcela: /parcela|^plot|^n[°ºo.]?\s*parc|^unidad muestral|^um$/i,
+    arbol: /^(n[°ºo.]?\s*)?(árbol|arbol|cepa|individuo|ind\.?|n[°º] ?árbol)$/i,
     especie: /especie|^sp\.?$|species|^nombre/i,
     dap: /^d\.?a\.?p|^diam|^dap|^d130|^d1[.,]3|^dat/i,
     extraer: /extra|^corta|marca|cosech|^ralea|^elimin|^intervenci/i
   };
   const CAMPOS = [
-    { id: 'rodal', nombre: 'Rodal', req: true }, { id: 'parcela', nombre: 'Parcela', req: true }, { id: 'especie', nombre: 'Especie', req: true },
+    { id: 'rodal', nombre: 'Rodal', req: true }, { id: 'parcela', nombre: 'Parcela', req: true }, { id: 'arbol', nombre: 'Árbol / cepa (N°)', req: false }, { id: 'especie', nombre: 'Especie', req: true },
     { id: 'dap', nombre: 'Dap (cm)', req: true }, { id: 'extraer', nombre: 'Extraer (S/N)', req: false }
   ];
   function detectarEncabezado(rows) {
@@ -156,13 +167,14 @@
       const dap = num(r[m.dap]); const nombre = r[m.especie] == null ? '' : String(r[m.especie]).trim();
       if (!nombre && dap == null) return; // parcela sin árboles: se registra la parcela
       if (!(dap > 0)) { sinDap++; return; }
-      arboles.push({ fila: S.filaEnc + 2 + i, rodal: rid, parcela: pid, nombre, dap, extArchivo: m.extraer != null ? esSi(r[m.extraer]) : false });
+      arboles.push({ fila: S.filaEnc + 2 + i, rodal: rid, parcela: pid, arbol: m.arbol != null && r[m.arbol] != null && r[m.arbol] !== '' ? String(r[m.arbol]).trim() : null, nombre, dap, extArchivo: m.extraer != null ? esSi(r[m.extraer]) : false });
     });
     if (!arboles.length) { $('#msgArchivo').innerHTML = `<div class="aviso bad">No se encontraron árboles con DAP válido.</div>`; return; }
     // parcelas sin árboles (filas con rodal y parcela pero sin especie/DAP)
     S.parcelasVacias = [...parcelasVistas].filter(k => !arboles.some(a => a.rodal + '|' + a.parcela === k)).map(k => { const [r, p] = k.split('|'); return { rodal: r, parcela: p }; });
     if (sinDap) avisos.push({ t: 'warn', m: `${sinDap} fila(s) sin DAP válido fueron omitidas.` });
-    S.tieneExtraer = m.extraer != null;
+    S.tieneExtraer = m.extraer != null; S.tieneArbol = m.arbol != null && arboles.some(a => a.arbol != null);
+    if (S.tieneArbol && S.config.crecimiento !== 'simpodico' && hayMultiTallo(arboles)) avisos.push({ t: 'info', m: 'El inventario tiene varios registros con el mismo N° de árbol en una parcela. Si corresponden a vástagos de una misma cepa, seleccione «Simpódico» en Forma de crecimiento.' });
     cargarArboles(arboles, avisos);
   }
 
@@ -210,7 +222,7 @@
     const noRec = Object.entries(S.nombres).filter(([k, v]) => !v.key);
     const amb = Object.entries(S.nombres).filter(([k, v]) => v.ambiguo && v.auto);
     $('#kpisCarga').innerHTML = [
-      ['Rodales detectados', S.rodales.length], ['Parcelas', nP], ['Árboles', S.arboles.length], ['Especies', sp],
+      ['Rodales detectados', S.rodales.length], ['Parcelas', nP], ...(esSimpodicoAlguno() ? [['Individuos (cepas)', Object.values(S.resultados).reduce((t, r) => t + r.arboles.length, 0)], ['Vástagos medidos', S.arboles.length]] : [['Árboles', S.arboles.length]]), ['Especies', sp],
       ['Marcados para extraer', S.arboles.filter(a => a.extArchivo).length]
     ].map(([l, v]) => `<div class="kpi"><div class="v">${v.toLocaleString('es-CL')}</div><div class="l">${l}</div></div>`).join('');
     const av = S.avisos.slice();
@@ -224,7 +236,7 @@
 
   /* ======================= Recalcular ======================= */
   function ctx() {
-    return { parcelasExtra: (S.parcelasVacias || []).reduce((o, p) => { (o[p.rodal] = o[p.rodal] || []).push(String(p.parcela)); return o; }, {}), region: S.config.region, areaParcela: S.config.area, anchoClase: S.config.ancho, inicioClase: S.config.inicio, funciones: S.funciones, cfgRodal: S.cfgRodal, alturas: S.alturas, catOverride: S.catOverride, especiesInfo: S.especiesInfo };
+    return { crecimiento: S.config.crecimiento, dmcSimp: S.config.dmcSimp || 'individuo', parcelasExtra: (S.parcelasVacias || []).reduce((o, p) => { (o[p.rodal] = o[p.rodal] || []).push(String(p.parcela)); return o; }, {}), region: S.config.region, areaParcela: S.config.area, anchoClase: S.config.ancho, inicioClase: S.config.inicio, funciones: S.funciones, cfgRodal: S.cfgRodal, alturas: S.alturas, catOverride: S.catOverride, especiesInfo: S.especiesInfo };
   }
   function recalcular() {
     if (!S.arboles.length) return;
@@ -375,6 +387,7 @@
             <label class="chk"><input type="checkbox" data-b="snap" ${cfg.snap ? 'checked' : ''}> Dentro de un área del Sistema Nacional de Áreas Protegidas</label>
             <label class="chk"><input type="checkbox" data-b="ambienteUnico" ${cfg.ambienteUnico ? 'checked' : ''}> Ambiente único o representativo de la diversidad biológica</label>
             <div class="two">
+              <label>Forma de crecimiento<select data-f="crecimiento"><option value="" ${!cfg.crecimiento ? 'selected' : ''}>Según parámetro general (${S.config.crecimiento === 'simpodico' ? 'simpódico' : 'monopódico'})</option><option value="monopodico" ${cfg.crecimiento === 'monopodico' ? 'selected' : ''}>Monopódico</option><option value="simpodico" ${cfg.crecimiento === 'simpodico' ? 'selected' : ''}>Simpódico</option></select></label>
               <label>Estructura<select data-f="estructura"><option value="auto" ${cfg.estructura === 'auto' ? 'selected' : ''}>Automática</option><option value="regular" ${cfg.estructura === 'regular' ? 'selected' : ''}>Regular</option><option value="irregular" ${cfg.estructura === 'irregular' ? 'selected' : ''}>Irregular / no estructurado</option></select></label>
               <label>Categoría de bosque<select data-f="categoriaManual"><option value="">Automática (Ley 20.283)</option>${['Preservación', 'Conservación y protección', 'Uso múltiple'].map(c => `<option ${cfg.categoriaManual === c ? 'selected' : ''}>${c}</option>`).join('')}</select></label>
             </div>
@@ -414,6 +427,7 @@
     const root = $('#rodalCfg');
     $$('[data-f]', root).forEach(el => el.addEventListener('change', () => {
       cfg[el.dataset.f] = el.type === 'number' ? (el.value === '' ? '' : Number(el.value)) : el.value;
+      if (el.dataset.f === 'crecimiento') textoCrecimiento();
       if (el.dataset.f === 'actividad') { $('#boxMetodo').hidden = el.value !== 'C_REG'; renderInputsActividad(); }
       recalcular();
     }));
@@ -451,8 +465,8 @@
         <div class="res-item"><div class="l">Estado de desarrollo (Bases 2.5)</div><div class="v">${esc(r.estado.estado || 'Indeterminado')}</div><div class="d">${esc(r.estado.criterio)}</div></div>
         <div class="res-item"><div class="l">Categoría de bosque (Ley 20.283)</div><div class="v">${esc(r.categoria.cat)}</div><div class="d">${esc(r.categoria.art)}. ${esc(r.categoria.motivosP.concat(r.categoria.motivosCP).join(' ') || 'No cumple condiciones de preservación ni de conservación y protección.')}</div></div>
         <div class="res-item"><div class="l">Estructura</div><div class="v">${r.estructura === 'irregular' ? 'Irregular' : 'Regular'}</div><div class="d">${r.cfg.estructura === 'auto' || !r.cfg.estructura ? 'Sugerida por la distribución diamétrica' : 'Definida por el usuario'}</div></div>
-        <div class="res-item"><div class="l">DMC inicial → residual</div><div class="v">${fmt(r.DMCini)} → ${fmt(r.DMCres)} cm</div><div class="d">Altura media ${fmt(r.hProm)} m · ${r.nP} parcela(s) de ${fmt(r.area, 0)} m²</div></div>
-        <div class="res-item"><div class="l">Densidad inicial → residual</div><div class="v">${fmt(r.tot.ini.n, 0)} → ${fmt(r.tot.res.n, 0)} árb/ha</div><div class="d">Extracción ${fmt(r.tot.ext.n, 0)} árb/ha</div></div>
+        <div class="res-item"><div class="l">DMC inicial → residual${r.simpodico ? (r.dmcPorVastago ? ' (por vástago)' : ' (por individuo)') : ''}</div><div class="v">${fmt(r.DMCini)} → ${fmt(r.DMCres)} cm</div><div class="d">Altura media ${fmt(r.hProm)} m · ${r.nP} parcela(s) de ${fmt(r.area, 0)} m²</div></div>
+        <div class="res-item"><div class="l">Densidad inicial → residual${r.simpodico ? ' (individuos)' : ''}</div><div class="v">${fmt(r.tot.ini.n, 0)} → ${fmt(r.tot.res.n, 0)} árb/ha</div><div class="d">Extracción ${fmt(r.tot.ext.n, 0)} árb/ha${r.simpodico ? ` · Vástagos ${fmt(r.tot.ini.tallos, 0)} → ${fmt(r.tot.res.tallos, 0)} /ha (${fmt(r.tot.ini.n ? r.tot.ini.tallos / r.tot.ini.n : 0, 1)} por individuo)` : ''}</div></div>
         <div class="res-item"><div class="l">Área basal inicial → residual</div><div class="v">${fmt(r.tot.ini.g, 2)} → ${fmt(r.tot.res.g, 2)} m²/ha</div><div class="d">Extracción ${fmt(r.tot.ext.g, 2)} m²/ha (${fmt(r.tot.ini.g ? r.tot.ext.g / r.tot.ini.g * 100 : 0)} %)</div></div>
         <div class="res-item"><div class="l">Volumen inicial → residual</div><div class="v">${volTxt(r.tot.ini)} → ${volTxt(r.tot.res)} m³/ha</div><div class="d">${r.tot.ini.vCompleto ? 'Funciones del compendio' : '* Hay especies sin función o sin altura: volumen parcial'}</div></div>
       </div>
@@ -502,7 +516,7 @@
         <div class="titulo-plantilla">12.3.9 Tabla de rodal inicial y residual, después de la intervención inmediata</div>
         <p class="muted" style="margin-top:0">Rodal: <b>${esc(rodalTabla)}</b> · ${esc(r.tipo.nombre)} · ${esc(r.estado.estado || '')} · ${r.nP} parcela(s) · Las columnas sombreadas son residuales. La intervención se define en la pestaña 3.</p>
         <div class="table-wrap"><table class="rodal">${enc(['N (árb./ha)', 'G (m²/ha)'])}<tbody>${cuerpo('g', 2)}</tbody></table></div>
-        <p class="muted" style="font-size:12px">${otras ? `Otras: ${otras.map(e => esc(e.nombre)).join(', ')}. ` : ''}Densidad expresada en árboles enteros por hectárea: en cada especie los valores por clase se redondean de modo que sumen el total de la especie redondeado; Otras y Total suman esos enteros.</p>
+        <p class="muted" style="font-size:12px">${otras ? `Otras: ${otras.map(e => esc(e.nombre)).join(', ')}. ` : ''}${r.simpodico ? 'Bosque simpódico: N = individuos (cepas) por hectárea; G y V incluyen todos los vástagos; cada individuo se clasifica por su diámetro equivalente √(Σ d²). ' : ''}Densidad expresada en árboles enteros por hectárea: en cada especie los valores por clase se redondean de modo que sumen el total de la especie redondeado; Otras y Total suman esos enteros.</p>
       </div>
       <div class="card">
         <div class="titulo-plantilla">Volumen inicial y residual por clase diamétrica (funciones del compendio)</div>
@@ -607,17 +621,18 @@
 
   /* ======================= Proyecto (JSON) ======================= */
   $('#btnGuardarProyecto').addEventListener('click', () => {
-    const p = { version: 1, config: S.config, arboles: S.arboles.map(a => ({ rodal: a.rodal, parcela: a.parcela, nombre: a.nombre, dap: a.dap, extArchivo: a.extArchivo, fila: a.fila })), parcelasVacias: S.parcelasVacias || [], nombres: S.nombres, funciones: S.funciones, catOverride: S.catOverride, cfgRodal: S.cfgRodal, alturas: S.alturas, tieneExtraer: S.tieneExtraer, archivo: S.archivo };
+    const p = { version: 1, config: S.config, arboles: S.arboles.map(a => ({ rodal: a.rodal, parcela: a.parcela, arbol: a.arbol, nombre: a.nombre, dap: a.dap, extArchivo: a.extArchivo, fila: a.fila })), parcelasVacias: S.parcelasVacias || [], nombres: S.nombres, funciones: S.funciones, catOverride: S.catOverride, cfgRodal: S.cfgRodal, alturas: S.alturas, tieneExtraer: S.tieneExtraer, tieneArbol: S.tieneArbol, archivo: S.archivo };
     descargar(new Blob([JSON.stringify(p)], { type: 'application/json' }), 'proyecto_tabla_rodal.json');
   });
   $('#inpProyecto').addEventListener('change', async (e) => {
     const f = e.target.files[0]; e.target.value = ''; if (!f) return;
     try {
       const p = JSON.parse(await f.text());
-      Object.assign(S, { config: p.config, nombres: p.nombres || {}, funciones: p.funciones || {}, catOverride: p.catOverride || {}, cfgRodal: p.cfgRodal || {}, alturas: p.alturas || {}, tieneExtraer: p.tieneExtraer, tieneAltura: p.tieneAltura, archivo: p.archivo, parcelasVacias: p.parcelasVacias || [] });
+      Object.assign(S, { config: p.config, nombres: p.nombres || {}, funciones: p.funciones || {}, catOverride: p.catOverride || {}, cfgRodal: p.cfgRodal || {}, alturas: p.alturas || {}, tieneExtraer: p.tieneExtraer, tieneArbol: p.tieneArbol, tieneAltura: p.tieneAltura, archivo: p.archivo, parcelasVacias: p.parcelasVacias || [] });
       if (Object.values(S.alturas).some(v => v && typeof v === 'object')) { const g = {}; Object.values(S.alturas).forEach(o => { if (o && typeof o === 'object') Object.entries(o).forEach(([k, h]) => { if (h > 0 && g[k] == null) g[k] = h; }); }); S.alturas = g; }
       Object.keys(S.funciones).forEach(k => { if (S.funciones[k] === undefined) delete S.funciones[k]; });
-      S.config = Object.assign({ muestreo: 'aleatorio', forma: 'circular', ancho_r: 20 }, S.config);
+      S.config = Object.assign({ muestreo: 'aleatorio', forma: 'circular', ancho_r: 20, crecimiento: 'monopodico', dmcSimp: 'individuo' }, S.config);
+      $('#cfgCrecimiento').value = S.config.crecimiento; textoCrecimiento();
       $('#cfgRegion').value = S.config.region; $('#cfgAncho').value = S.config.ancho; $('#cfgInicio').value = S.config.inicio; sincronizarParametros();
       cargarArboles(p.arboles, [{ t: 'info', m: 'Proyecto abierto: ' + esc(f.name) }]);
       toast('Proyecto abierto.');

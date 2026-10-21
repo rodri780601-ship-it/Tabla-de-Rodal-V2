@@ -269,87 +269,125 @@
     const nP = parcelas.length || 1;
     const fe = FE / nP; // árboles/ha que representa cada árbol en la estimación del rodal
     const regionComp = (N.REGIONES.find(r => r.id === ctx.region) || {}).compendio;
-    const vivos = arboles.filter(a => a.dap > 0);
-    const dmin = vivos.length ? Math.min(...vivos.map(a => a.dap)) : 0, dmax = vivos.length ? Math.max(...vivos.map(a => a.dap)) : 0;
-    const CL = clases(dmin, dmax, Number(ctx.anchoClase) || 5, ctx.inicioClase);
-
-    // especies del rodal
-    const spKeys = [...new Set(vivos.map(a => a.key))];
+    // ---- Forma de crecimiento: monopódico (cada registro es un individuo) o simpódico (los vástagos de
+    //      una misma cepa, identificados por la columna "Árbol", forman un solo individuo) ----
+    const simpodico = (cfg.crecimiento || ctx.crecimiento) === 'simpodico';
+    const tallos = arboles.filter(a => a.dap > 0);
+    const spKeys = [...new Set(tallos.map(a => a.key))];
     // altura promedio por especie, ingresada por el usuario en la sección 2 (común a todos los rodales)
     const alt = {};
     spKeys.forEach(k => { const u = ctx.alturas[k]; alt[k] = (u != null && u !== '' && Number(u) > 0) ? Number(u) : null; });
+    const dmcTallos = tallos.length ? Math.sqrt(sum(tallos.map(a => a.dap * a.dap)) / tallos.length) : null;
+    const preferRenoval = dmcTallos != null ? dmcTallos < 30 : null;
 
-    // DMC inicial (para preferencia renoval/adulto en función por defecto)
-    const dmcIni = vivos.length ? Math.sqrt(sum(vivos.map(a => a.dap * a.dap)) / vivos.length) : null;
-    const preferRenoval = dmcIni != null ? dmcIni < 30 : null;
-
-    // Por árbol
-    vivos.forEach(a => {
-      a.g = Math.PI / 40000 * a.dap * a.dap;
-      a.cl = CL.idx(a.dap);
-      const fid = ctx.funciones[a.key] !== undefined ? ctx.funciones[a.key] : (a.key && !a.key.startsWith('X:') ? funcionPorDefecto(a.key, regionComp, preferRenoval) : null);
-      a.fid = fid;
-      const vraw = fid ? volumenArbol(fid, a.dap, alt[a.key]) : null;
-      a.vNeg = vraw != null && vraw < 0;
-      a.v = vraw == null ? null : Math.max(0, vraw);
-      a.cat = categoriaEspecie(a.key, ctx.region, ctx.catOverride[a.key]);
-      a.res = 1;
+    // Agrupación en individuos
+    const grupos = new Map();
+    tallos.forEach((t, i) => {
+      const id = simpodico && t.arbol != null && t.arbol !== '' ? `${t.parcela}|${t.arbol}` : `${t.parcela}|#${i}`;
+      if (!grupos.has(id)) grupos.set(id, []);
+      grupos.get(id).push(t);
     });
+    const vivos = [];
+    grupos.forEach((st, id) => {
+      const p0 = st[0];
+      const key = p0.key;
+      const fid = ctx.funciones[key] !== undefined ? ctx.funciones[key] : (key && !key.startsWith('X:') ? funcionPorDefecto(key, regionComp, preferRenoval) : null);
+      let vNull = false, vNeg = false;
+      st.forEach(t => {
+        t.g = Math.PI / 40000 * t.dap * t.dap;
+        const vraw = fid ? volumenArbol(fid, t.dap, alt[key]) : null;
+        if (vraw == null) vNull = true; else if (vraw < 0) vNeg = true;
+        t.v = vraw == null ? null : Math.max(0, vraw);
+        t.individuo = id;
+      });
+      const d2 = sum(st.map(t => t.dap * t.dap));
+      vivos.push({ id, parcela: p0.parcela, arbol: p0.arbol, key, nombre: p0.nombre, tallos: st, nTallos: st.length,
+        dap: Math.sqrt(d2), g: sum(st.map(t => t.g)), v: vNull ? null : sum(st.map(t => t.v)), vNeg, fid,
+        cat: categoriaEspecie(key, ctx.region, ctx.catOverride[key]), mezcla: new Set(st.map(t => t.key)).size > 1 });
+    });
+    const dmin = vivos.length ? Math.min(...vivos.map(a => a.dap)) : 0, dmax = vivos.length ? Math.max(...vivos.map(a => a.dap)) : 0;
+    const CL = clases(dmin, dmax, Number(ctx.anchoClase) || 5, ctx.inicioClase);
+    // estado residual por defecto (sin corta)
+    const setRes = (a, f) => { a.res = f; a.gRes = f * a.g; a.vRes = a.v == null ? null : f * a.v; a.dapRes = a.dap; a.clRes = a.cl; a.tallosRes = f * a.nTallos; a.tallos.forEach(t => { t.extraido = f === 0; }); };
+    vivos.forEach(a => { a.cl = CL.idx(a.dap); setRes(a, 1); });
 
     // ---- Extracción ----
     const ex = cfg.ext || { modo: 'ninguna' };
     const Gtot = sum(vivos.map(a => a.g));
-    if (ex.modo === 'archivo') vivos.forEach(a => { a.res = a.extArchivo ? 0 : 1; });
-    else if (ex.modo === 'regla') {
+    if (ex.modo === 'archivo') {
+      // En simpódico se pueden extraer vástagos de una cepa: el individuo permanece si queda al menos un vástago.
+      vivos.forEach(a => {
+        const quedan = a.tallos.filter(t => !t.extArchivo);
+        a.tallos.forEach(t => { t.extraido = !!t.extArchivo; });
+        a.res = quedan.length ? 1 : 0;
+        a.gRes = sum(quedan.map(t => t.g));
+        a.vRes = a.v == null ? null : sum(quedan.map(t => t.v));
+        a.dapRes = quedan.length ? Math.sqrt(sum(quedan.map(t => t.dap * t.dap))) : 0;
+        a.clRes = quedan.length ? CL.idx(a.dapRes) : a.cl;
+        a.tallosRes = quedan.length;
+      });
+    } else if (ex.modo === 'regla') {
       const elig = vivos.filter(a => (!ex.protegerAmenazadas || !a.cat.amenazada)
         && (!ex.especies || !ex.especies.length || ex.especies.includes(a.key))
         && (ex.dapMin == null || ex.dapMin === '' || a.dap >= Number(ex.dapMin))
         && (ex.dapMax == null || ex.dapMax === '' || a.dap < Number(ex.dapMax)));
       const objetivo = Gtot * (Number(ex.pctG) || 0) / 100;
       const Gel = sum(elig.map(a => a.g));
-      if (ex.criterio === 'proporcional') { const f = Gel > 0 ? Math.min(1, objetivo / Gel) : 0; elig.forEach(a => { a.res = 1 - f; }); }
+      if (ex.criterio === 'proporcional') { const f = Gel > 0 ? Math.min(1, objetivo / Gel) : 0; elig.forEach(a => setRes(a, 1 - f)); }
       else {
         const ord = elig.slice().sort((a, b) => ex.criterio === 'arriba' ? b.dap - a.dap : a.dap - b.dap);
         let acc = 0;
         for (const a of ord) {
           if (acc >= objetivo - 1e-12) break;
           const falta = objetivo - acc;
-          if (a.g <= falta) { a.res = 0; acc += a.g; } else { a.res = 1 - falta / a.g; acc = objetivo; }
+          if (a.g <= falta) { setRes(a, 0); acc += a.g; } else { setRes(a, 1 - falta / a.g); acc = objetivo; }
         }
       }
     }
 
-    // ---- Agregados ----
-    const agg = (filtro, peso) => {
-      let n = 0, g = 0, v = 0, vOk = true;
-      vivos.forEach(a => { if (!filtro(a)) return; const w = peso(a); n += w * fe; g += w * a.g * fe; if (a.v == null) { if (w > 0) vOk = false; } else v += w * a.v * fe; });
-      return { n, g, v: vOk ? v : (v || null), vCompleto: vOk };
+    // ---- Agregados (N = individuos; G y V = todos los vástagos) ----
+    const aggIni = (filtro) => {
+      let n = 0, g = 0, v = 0, t = 0, vOk = true;
+      vivos.forEach(a => { if (!filtro(a)) return; n += fe; t += a.nTallos * fe; g += a.g * fe; if (a.v == null) vOk = false; else v += a.v * fe; });
+      return { n, g, v: vOk ? v : (v || null), vCompleto: vOk, tallos: t };
     };
-    const ini = (a) => 1, res = (a) => a.res, ext = (a) => 1 - a.res;
+    const aggRes = (filtro) => {
+      let n = 0, g = 0, v = 0, t = 0, vOk = true;
+      vivos.forEach(a => { if (!filtro(a)) return; n += a.res * fe; t += a.tallosRes * fe; g += a.gRes * fe; if (a.vRes == null) { if (a.res > 0) vOk = false; } else v += a.vRes * fe; });
+      return { n, g, v: vOk ? v : (v || null), vCompleto: vOk, tallos: t };
+    };
+    const dif = (i, r) => ({ n: i.n - r.n, g: i.g - r.g, v: i.v == null || r.v == null ? null : i.v - r.v, vCompleto: i.vCompleto && r.vCompleto, tallos: i.tallos - r.tallos });
     const porEspecie = spKeys.map(k => {
-      const f = (a) => a.key === k;
-      const i = agg(f, ini), r = agg(f, res), e = agg(f, ext);
+      const i = aggIni(a => a.key === k), r = aggRes(a => a.key === k);
       const nombre = (ctx.especiesInfo[k] || {}).nombre || k;
-      return { key: k, nombre, ini: i, res: r, ext: e, h: alt[k], fid: (vivos.find(a => a.key === k) || {}).fid, cat: categoriaEspecie(k, ctx.region, ctx.catOverride[k]), nativa: !!CAT.especies[k] };
-    }).sort((a, b) => b.ini.g - a.ini.g);
-    const tot = { ini: agg(() => true, ini), res: agg(() => true, res), ext: agg(() => true, ext) };
+      return { key: k, nombre, ini: i, res: r, ext: dif(i, r), h: alt[k], fid: (vivos.find(a => a.key === k) || {}).fid, cat: categoriaEspecie(k, ctx.region, ctx.catOverride[k]), nativa: !!CAT.especies[k] };
+    }).filter(e => e.ini.n > 0).sort((a, b) => b.ini.g - a.ini.g);
+    const totIni = aggIni(() => true), totRes = aggRes(() => true);
+    const tot = { ini: totIni, res: totRes, ext: dif(totIni, totRes) };
     const tabla = CL.arr.map(c => ({
       clase: c,
-      sp: Object.fromEntries(spKeys.map(k => { const f = (a) => a.key === k && a.cl === c.i; return [k, { ini: agg(f, ini), res: agg(f, res) }]; })),
-      tot: { ini: agg(a => a.cl === c.i, ini), res: agg(a => a.cl === c.i, res) }
+      sp: Object.fromEntries(spKeys.map(k => [k, { ini: aggIni(a => a.key === k && a.cl === c.i), res: aggRes(a => a.key === k && a.clRes === c.i) }])),
+      tot: { ini: aggIni(a => a.cl === c.i), res: aggRes(a => a.clRes === c.i) }
     }));
-    const dmc = (peso) => { let s = 0, w = 0; vivos.forEach(a => { const p = peso(a); s += p * a.dap * a.dap; w += p; }); return w > 0 ? Math.sqrt(s / w) : null; };
-    const DMCini = dmc(ini), DMCres = dmc(res);
-    const hProm = (() => { let s = 0, w = 0; porEspecie.forEach(e => { if (e.h > 0) { s += e.h * e.ini.n; w += e.ini.n; } }); return w > 0 ? s / w : null; })();
-    const hPromRes = (() => { let s = 0, w = 0; porEspecie.forEach(e => { if (e.h > 0) { s += e.h * e.res.n; w += e.res.n; } }); return w > 0 ? s / w : null; })();
+    const dmcPorVastago = simpodico && ctx.dmcSimp === 'vastago';
+    const DMCini = dmcPorVastago ? (tallos.length ? Math.sqrt(sum(tallos.map(t => t.dap * t.dap)) / tallos.length) : null)
+      : (() => { const w = vivos.length; return w ? Math.sqrt(sum(vivos.map(a => a.dap * a.dap)) / w) : null; })();
+    const DMCres = (() => {
+      let s2 = 0, w = 0;
+      if (dmcPorVastago) vivos.forEach(a => a.tallos.forEach(t => { const p = ex.modo === 'archivo' ? (t.extraido ? 0 : 1) : a.res; s2 += p * t.dap * t.dap; w += p; }));
+      else vivos.forEach(a => { s2 += a.res * a.dapRes * a.dapRes; w += a.res; });
+      return w > 0 ? Math.sqrt(s2 / w) : null;
+    })();
+    const hProm = (() => { let s2 = 0, w = 0; porEspecie.forEach(e => { if (e.h > 0) { s2 += e.h * e.ini.n; w += e.ini.n; } }); return w > 0 ? s2 / w : null; })();
+    const hPromRes = (() => { let s2 = 0, w = 0; porEspecie.forEach(e => { if (e.h > 0) { s2 += e.h * e.res.n; w += e.res.n; } }); return w > 0 ? s2 / w : null; })();
 
     // ---- Estadísticos por parcela ----
     const porParcela = parcelas.map(p => {
       const ab = vivos.filter(a => String(a.parcela) === p);
       const vOk = ab.every(a => a.v != null);
       const cuenta = {}; ab.forEach(a => { cuenta[a.key] = (cuenta[a.key] || 0) + 1; });
-      return { parcela: p, n: ab.length * FE, g: sum(ab.map(a => a.g)) * FE, v: vOk ? sum(ab.map(a => a.v)) * FE : null, arboles: ab.length,
-        nRes: sum(ab.map(a => a.res)) * FE, gRes: sum(ab.map(a => a.res * a.g)) * FE, cuenta };
+      return { parcela: p, n: ab.length * FE, g: sum(ab.map(a => a.g)) * FE, v: vOk ? sum(ab.map(a => a.v)) * FE : null, arboles: ab.length, tallos: sum(ab.map(a => a.nTallos)),
+        nRes: sum(ab.map(a => a.res)) * FE, gRes: sum(ab.map(a => a.gRes)) * FE, cuenta };
     });
     const est = (arr) => {
       const n = arr.length; if (!n) return null;
@@ -357,13 +395,14 @@
       if (n < 2) return { n, media: m, var: null, s: null, cv: null, t: null, eAbs: null, ePct: null };
       const v = sum(arr.map(x => (x - m) ** 2)) / (n - 1);
       const t = tQuantil(0.975, n - 1);
-      const s = Math.sqrt(v);
-      const eAbs = t * s / Math.sqrt(n);
-      return { n, media: m, var: v, s, cv: m ? s / m * 100 : null, t, eAbs, ePct: m ? eAbs / m * 100 : null };
+      const s2 = Math.sqrt(v);
+      const eAbs = t * s2 / Math.sqrt(n);
+      return { n, media: m, var: v, s: s2, cv: m ? s2 / m * 100 : null, t, eAbs, ePct: m ? eAbs / m * 100 : null };
     };
     const stats = { nParcelas: nP, t: nP > 1 ? tQuantil(0.975, nP - 1) : null, N: est(porParcela.map(p => p.n)), G: est(porParcela.map(p => p.g)), V: porParcela.every(p => p.v != null) ? est(porParcela.map(p => p.v)) : null };
 
-    const r = { id: rid, cfg, area, FE, nP, parcelas: porParcela, arboles: vivos, CL, tabla, porEspecie, tot, DMCini, DMCres, hProm, hPromRes, stats, alt };
+    const r = { id: rid, cfg, area, FE, nP, parcelas: porParcela, arboles: vivos, tallos, simpodico, CL, tabla, porEspecie, tot, DMCini, DMCres, hProm, hPromRes, stats, alt,
+      dmcPorVastago, mezclas: vivos.filter(a => a.mezcla).length, multiTallo: vivos.filter(a => a.nTallos > 1).length };
     r.tipo = tipoForestal(r, cfg.tipoManual);
     const esc = r.tipo.id === 'ESC';
     r.estado = N.estadoDesarrollo(esc, DMCini, hProm);

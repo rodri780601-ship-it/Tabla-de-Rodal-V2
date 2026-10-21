@@ -75,9 +75,9 @@
           <tr><th>Tipo forestal (D.S. 259)</th><td><b>${esc(r.tipo.nombre)}</b> — ${esc(r.tipo.motivo)}${r.tipo.alternativas.length ? ' También cumple: ' + esc(r.tipo.alternativas.join(', ')) + '.' : ''}</td></tr>
           <tr><th>Estado de desarrollo (Bases 2.5)</th><td><b>${esc(r.estado.estado || 'Indeterminado')}</b> — ${esc(r.estado.criterio)}. Estado residual: ${esc(r.estadoRes.estado || '—')}.</td></tr>
           <tr><th>Categoría de bosque (Ley 20.283)</th><td><b>${esc(r.categoria.cat)}</b> — ${esc(r.categoria.art)}. ${esc(r.categoria.motivosP.concat(r.categoria.motivosCP).join(' ') || 'No presenta condiciones de preservación ni de conservación y protección.')}</td></tr>
-          <tr><th>Estructura</th><td>${r.estructura === 'irregular' ? 'Irregular' : 'Regular'}</td></tr>
+          <tr><th>Estructura / forma de crecimiento</th><td>${r.estructura === 'irregular' ? 'Irregular' : 'Regular'} · ${r.simpodico ? `Simpódico: densidad en individuos (cepas); área basal con todos los vástagos (${fmt(r.tot.ini.tallos, 0)} vástagos/ha, ${fmt(r.tot.ini.n ? r.tot.ini.tallos / r.tot.ini.n : 0, 1)} por individuo)` : 'Monopódico'}</td></tr>
           <tr><th>Superficie / pendiente</th><td>${r.cfg.superficie === '' ? '—' : fmt(Number(r.cfg.superficie), 2) + ' ha'} · ${r.cfg.pendiente === '' ? 'pendiente no informada' : 'pendiente ' + fmt(Number(r.cfg.pendiente), 0) + ' %'}</td></tr>
-          <tr><th>Existencias inicial → residual</th><td>N ${fmt(r.tot.ini.n, 0)} → ${fmt(r.tot.res.n, 0)} árb/ha · G ${fmt(r.tot.ini.g, 2)} → ${fmt(r.tot.res.g, 2)} m²/ha · V ${r.tot.ini.v == null ? '—' : fmt(r.tot.ini.v, 1) + ' → ' + fmt(r.tot.res.v, 1) + ' m³/ha'} · DMC ${fmt(r.DMCini)} → ${fmt(r.DMCres)} cm</td></tr>
+          <tr><th>Existencias inicial → residual</th><td>N ${fmt(r.tot.ini.n, 0)} → ${fmt(r.tot.res.n, 0)} árb/ha · G ${fmt(r.tot.ini.g, 2)} → ${fmt(r.tot.res.g, 2)} m²/ha · V ${r.tot.ini.v == null ? '—' : fmt(r.tot.ini.v, 1) + ' → ' + fmt(r.tot.res.v, 1) + ' m³/ha'} · DMC ${fmt(r.DMCini)} → ${fmt(r.DMCres)} cm${r.simpodico ? (r.dmcPorVastago ? ' (calculado por vástago)' : ' (calculado por individuo, diámetro equivalente)') : ''}</td></tr>
         </tbody></table>
         <h3>Criterios del tipo forestal (art. 19 D.S. 259)</h3>
         <table class="it"><thead><tr><th>Tipo</th><th>Cumple</th><th>Detalle</th></tr></thead><tbody>${r.tipo.criterios.map(c => `<tr><td>${esc(c.nombre)}</td><td>${c.cumple ? 'Sí' : 'No'}</td><td>${esc(c.detalle)}</td></tr>`).join('')}</tbody></table>
@@ -95,7 +95,7 @@
         <div class="bloque">${tablaRodal(r, 'g', 'G (m²/ha)', 2)}</div>
         <h3>Volumen inicial y residual por clase diamétrica (funciones del compendio)</h3>
         <div class="bloque">${tablaRodal(r, 'v', 'V (m³/ha)', 2)}</div>
-        <p class="nota">Densidad en árboles enteros por hectárea: en cada especie los valores por clase se redondean de modo que sumen el total de la especie redondeado. Columnas Res. = residual.${r.tot.ini.vCompleto ? '' : ' Hay especies sin función de volumen o sin altura: volumen parcial.'}</p>
+        <p class="nota">${r.simpodico ? 'Bosque simpódico: N = individuos (cepas)/ha; G y V incluyen todos los vástagos; clase según diámetro equivalente √(Σ d²). ' : ''}Densidad en árboles enteros por hectárea: en cada especie los valores por clase se redondean de modo que sumen el total de la especie redondeado. Columnas Res. = residual.${r.tot.ini.vCompleto ? '' : ' Hay especies sin función de volumen o sin altura: volumen parcial.'}</p>
       </section>`;
       // ---------- Gráficos (vertical) ----------
       h += `<section class="pg salto">

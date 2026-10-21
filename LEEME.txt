@@ -5,7 +5,7 @@ Uso: descomprima la carpeta y abra index.html en un navegador moderno (Chrome, E
 No requiere instalación ni conexión a internet.
 
 Contenido
-- Plantilla_inventario_parcelas.xlsx .. planilla para cargar el inventario (Rodal, Parcela, Especie, Dap, Extraer)
+- Plantilla_inventario_parcelas.xlsx .. planilla para cargar el inventario (Rodal, Parcela, Árbol, Especie, Dap, Extraer)
 - index.html ............ página principal
 - css/styles.css ........ estilos
 - js/app.js ............. interfaz
@@ -22,7 +22,9 @@ Contenido
 
 Flujo
 1. Inventario: defina región, tipo de muestreo, forma y superficie de la parcela, y cargue el Excel/CSV
-   (Rodal, Parcela, Especie, Dap; opcional Extraer).
+   (Rodal, Parcela, Especie, Dap; opcional Árbol y Extraer).
+   Forma de crecimiento: en bosque simpódico (p. ej. esclerófilo) registre una fila por vástago
+   con el mismo N° de árbol; la densidad cuenta individuos y el área basal suma todos los vástagos.
    Los rodales se detectan automáticamente.
 2. Especies y volumen: ingrese la altura promedio de cada especie y revise el reconocimiento según el
    D.S. 68, la categoría MMA y la función del compendio.

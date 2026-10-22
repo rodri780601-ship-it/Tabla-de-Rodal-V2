@@ -259,3 +259,8 @@ details.crit summary { cursor: pointer; font-weight: 600; font-size: 13px; color
 .dlg-pie { display: flex; gap: 8px; margin-top: 16px; align-items: center; flex-wrap: wrap; }
 @media print { .dlg { display: none !important; } }
 .dlg-prueba input { display: inline-block !important; width: 80px; margin: 0 4px; }
+
+.site-footer { text-align: center; padding: 16px; margin-top: 24px; border-top: 1px solid var(--line); font-size: 13px; }
+.site-footer a { color: var(--accent); text-decoration: none; }
+.site-footer a:hover { text-decoration: underline; }
+@media print { .site-footer { display: none; } }

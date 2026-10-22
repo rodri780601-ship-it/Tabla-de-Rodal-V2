@@ -10,7 +10,7 @@
 
   /* ======================= Estado ======================= */
   const S = window.APP_STATE = {
-    config: { region: 'IX', area: 500, ancho: 5, inicio: '', muestreo: 'aleatorio', forma: 'circular', ancho_r: 20, crecimiento: 'monopodico', dmcSimp: 'individuo' },
+    config: { region: 'IX', area: 500, ancho: 5, inicio: '5', muestreo: 'aleatorio', forma: 'circular', ancho_r: 20, crecimiento: 'monopodico', dmcSimp: 'individuo' },
     hojas: null, hojaSel: 0, filaEnc: 0, mapeo: {}, archivo: '',
     arboles: [], nombres: {}, funciones: {}, funcUsuario: {}, catOverride: {}, cfgRodal: {}, alturas: {},
     rodales: [], resultados: {}, especiesInfo: {}, tieneExtraer: false, avisos: []
@@ -763,7 +763,7 @@
       Object.entries(S.funcUsuario).forEach(([k, d]) => { if (!C.registrarFuncionUsuario(k, d).ok && S.funciones[k] === C.idUsuario(k)) delete S.funciones[k]; });
       S.config = Object.assign({ muestreo: 'aleatorio', forma: 'circular', ancho_r: 20, crecimiento: 'monopodico', dmcSimp: 'individuo' }, S.config);
       $('#cfgCrecimiento').value = S.config.crecimiento; textoCrecimiento();
-      $('#cfgRegion').value = S.config.region; $('#cfgAncho').value = S.config.ancho; $('#cfgInicio').value = S.config.inicio; sincronizarParametros();
+      $('#cfgRegion').value = S.config.region; $('#cfgAncho').value = S.config.ancho; if (S.config.inicio == null || S.config.inicio === '') S.config.inicio = '5'; $('#cfgInicio').value = S.config.inicio; sincronizarParametros();
       cargarArboles(p.arboles, [{ t: 'info', m: 'Proyecto abierto: ' + esc(f.name) }]);
       toast('Proyecto abierto.');
     } catch (err) { toast('No se pudo abrir el proyecto: ' + (err.message || err)); }

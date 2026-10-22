@@ -574,7 +574,7 @@
     const b = r.bases;
     const volTxt = (o) => o.v == null ? '—' : fmt(o.v, 1) + (o.vCompleto ? '' : ' *');
     $('#resRodal').innerHTML = `
-      <div class="card-head"><h2>Rodal ${esc(id)} · diagnóstico</h2>${b.actividad && b.actividad.id !== 'NINGUNA' ? `<span class="tag ${b.clase}">${esc(b.resultado)}</span>` : ''}</div>
+      <div class="card-head"><h2>Rodal ${esc(id)} · diagnóstico</h2>${b.actividad && b.actividad.id !== 'NINGUNA' && b.resultado !== 'Cumple, con observaciones' ? `<span class="tag ${b.clase}">${esc(b.resultado)}</span>` : ''}</div>
       <div class="res-grid">
         <div class="res-item"><div class="l">Tipo forestal (D.S. 259)</div><div class="v">${esc(r.tipo.nombre)}</div><div class="d">${esc(r.tipo.motivo)}${r.tipo.alternativas.length ? ' También cumple: ' + esc(r.tipo.alternativas.join(', ')) + '.' : ''}</div></div>
         <div class="res-item"><div class="l">Estado de desarrollo (Bases 2.5)</div><div class="v">${esc(r.estado.estado || 'Indeterminado')}</div><div class="d">${esc(r.estado.criterio)}</div></div>

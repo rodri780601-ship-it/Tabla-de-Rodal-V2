@@ -30,7 +30,7 @@
       $$('#ptPuntos button').forEach((b, k) => b.classList.toggle('activo', k === i));
     };
     const puntos = () => {
-      $('#ptPuntos').innerHTML = slides().map((s, k) => `<button type="button" aria-label="Imagen ${k + 1}: ${esc(s.querySelector('figcaption').textContent)}"></button>`).join('');
+      $('#ptPuntos').innerHTML = slides().map((s, k) => `<button type="button" aria-label="Imagen ${k + 1}: ${esc(s.querySelector('img').alt)}"></button>`).join('');
       $$('#ptPuntos button').forEach((b, k) => b.addEventListener('click', () => mostrar(k)));
       mostrar(i);
     };

@@ -1,23 +1,28 @@
+/* Esquema de colores de la portada (colores del logo Gobierno de Chile · CONAF), aplicado a toda la página */
 :root {
-  --bg: #f4f3ee;
+  color-scheme: light;
+  --verde: #398245;
+  --azul: #0064a9;
+  --rojo: #c4373b;
+  --bg: #f3f4f1;
   --surface: #ffffff;
-  --surface-2: #f8f7f3;
+  --surface-2: #f8f9f6;
   --ink: #1d2420;
   --ink-2: #4d5650;
   --muted: #6c746e;
   --line: #dcdcd3;
-  --line-2: #e9e8e1;
-  --accent: #2f5d3a;
+  --line-2: #e9e9e3;
+  --accent: var(--verde);
   --accent-ink: #ffffff;
-  --accent-soft: #e3ece2;
-  --ok: #1e6b35;
-  --ok-soft: #e2f0e5;
-  --bad: #b42318;
-  --bad-soft: #fbe7e5;
+  --accent-soft: #eef4ee;
+  --ok: #2e6b39;
+  --ok-soft: #e4f0e6;
+  --bad: var(--rojo);
+  --bad-soft: #f9e6e6;
   --warn: #9a6700;
   --warn-soft: #fbf0d6;
-  --info: #2c5c86;
-  --info-soft: #e3edf6;
+  --info: var(--azul);
+  --info-soft: #e5eff8;
   --radius: 10px;
   --shadow: 0 1px 2px rgba(20, 30, 20, .06), 0 2px 8px rgba(20, 30, 20, .04);
   --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
@@ -25,16 +30,6 @@
   --c-res: #2a78d6; --c-ext: #eb6834; --c-grid: #e1e0d9; --c-axis: #c3c2b7; --c-muted: #6c746e;
   --c-ramp: #cde2fb,#9ec5f4,#6da7ec,#3987e5,#256abf,#184f95,#0d366b;
   --sans: "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif;
-}
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #141814; --surface: #1c211d; --surface-2: #222823; --ink: #e7ebe6; --ink-2: #c3cac3; --muted: #939c94;
-    --line: #343b35; --line-2: #2a302b; --accent: #7fb08a; --accent-ink: #0f1a12; --accent-soft: #24352a;
-    --ok: #7cc68f; --ok-soft: #1f3324; --bad: #f08a80; --bad-soft: #3a2220; --warn: #e2b553; --warn-soft: #382f19;
-    --info: #8db8df; --info-soft: #1e2c39; --shadow: none;
-    --c-res: #3987e5; --c-ext: #d95926; --c-grid: #2c2c2a; --c-axis: #43493f; --c-muted: #939c94;
-    --c-ramp: #184f95,#1c5cab,#256abf,#2a78d6,#5598e7,#86b6ef,#cde2fb;
-  }
 }
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
@@ -61,7 +56,9 @@ b { font-weight: 650; }
 .tabs button:hover:not(:disabled) { color: var(--ink); }
 .tabs button.active { color: var(--accent); border-bottom-color: var(--accent); }
 .tabs button:disabled { color: var(--line); cursor: default; }
-@media (prefers-color-scheme: dark) { .tabs button:disabled { color: #48504a; } }
+/* franja azul-rojo-verde bajo el encabezado, como en la portada */
+.tabs { border-top: 6px solid; border-image: linear-gradient(to right, var(--azul) 0 33.34%, var(--rojo) 33.34% 66.67%, var(--verde) 66.67% 100%) 1; }
+.card h2 { color: var(--verde); }
 
 main { padding: 20px 24px 60px; max-width: 1500px; margin: 0 auto; }
 .panel { display: none; }
@@ -87,7 +84,7 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); ou
 .btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 7px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font: inherit; font-weight: 550; cursor: pointer; }
 .btn:hover:not(:disabled) { border-color: var(--accent); }
 .btn:disabled { opacity: .5; cursor: default; }
-.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.btn.primary { background: var(--azul); border-color: var(--azul); color: #fff; }
 .btn.primary:hover:not(:disabled) { filter: brightness(1.08); }
 .btn.ghost { background: transparent; }
 .btn.small { padding: 4px 10px; font-size: 12.5px; }
@@ -268,7 +265,7 @@ details.crit summary { cursor: pointer; font-weight: 600; font-size: 13px; color
 /* ======================= Portada (ingreso de usuario registrado) ======================= */
 body.con-portada > *:not(#portada) { display: none !important; }
 body:not(.con-portada) #portada { display: none; }
-.portada { --pt-verde: #398245; --pt-azul: #0064a9; --pt-rojo: #c4373b; min-height: 100vh; display: flex; flex-direction: column; background: #f3f4f1; color: #1d2420; }
+.portada { --pt-verde: var(--verde); --pt-azul: var(--azul); --pt-rojo: var(--rojo); min-height: 100vh; display: flex; flex-direction: column; background: var(--bg); color: var(--ink); }
 .pt-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; padding: 14px clamp(16px, 4vw, 48px); background: #fff; }
 .pt-logo { height: 64px; width: auto; }
 .pt-sistema { display: flex; flex-direction: column; align-items: flex-end; text-align: right; }

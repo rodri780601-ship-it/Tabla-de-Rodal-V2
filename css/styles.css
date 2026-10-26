@@ -264,3 +264,51 @@ details.crit summary { cursor: pointer; font-weight: 600; font-size: 13px; color
 .site-footer a { color: var(--accent); text-decoration: none; }
 .site-footer a:hover { text-decoration: underline; }
 @media print { .site-footer { display: none; } }
+
+/* ======================= Portada (ingreso de usuario registrado) ======================= */
+body.con-portada > *:not(#portada) { display: none !important; }
+body:not(.con-portada) #portada { display: none; }
+.portada { --pt-verde: #398245; --pt-azul: #0064a9; --pt-rojo: #c4373b; min-height: 100vh; display: flex; flex-direction: column; background: #f3f4f1; color: #1d2420; }
+.pt-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; padding: 14px clamp(16px, 4vw, 48px); background: #fff; }
+.pt-logo { height: 64px; width: auto; }
+.pt-sistema { display: flex; flex-direction: column; align-items: flex-end; text-align: right; }
+.pt-sistema-nom { font-size: 22px; font-weight: 700; color: var(--pt-verde); }
+.pt-sistema-sub { font-size: 13px; color: #555; }
+.pt-franja { display: flex; height: 6px; }
+.pt-franja span { flex: 1; }
+.pt-franja span:nth-child(1) { background: var(--pt-azul); }
+.pt-franja span:nth-child(2) { background: var(--pt-rojo); }
+.pt-franja span:nth-child(3) { background: var(--pt-verde); }
+.pt-main { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(280px, 1fr); gap: 24px; padding: 24px clamp(16px, 4vw, 48px); flex: 1; }
+.pt-carrusel { position: relative; border-radius: 10px; overflow: hidden; min-height: 360px; background: #2b3a2e; }
+.pt-slide { position: absolute; inset: 0; margin: 0; opacity: 0; transition: opacity .8s ease; }
+.pt-slide.activo { opacity: 1; }
+.pt-slide img { width: 100%; height: 100%; object-fit: cover; display: block; max-width: none; }
+.pt-slide figcaption { position: absolute; left: 0; bottom: 0; padding: 10px 18px; background: rgba(0, 0, 0, .55); color: #fff; font-weight: 600; border-top-right-radius: 8px; }
+.pt-puntos { position: absolute; right: 14px; bottom: 12px; display: flex; gap: 6px; }
+.pt-puntos button { width: 11px; height: 11px; padding: 0; border-radius: 50%; border: 2px solid #fff; background: transparent; cursor: pointer; }
+.pt-puntos button.activo { background: #fff; }
+.pt-ingreso { background: #fff; border-radius: 10px; padding: 22px 24px; box-shadow: 0 1px 3px rgba(0, 0, 0, .08); border-top: 5px solid var(--pt-verde); align-self: start; }
+.pt-ingreso h1 { margin: 0 0 16px; font-size: 16px; letter-spacing: .04em; text-transform: uppercase; color: var(--pt-verde); }
+.pt-ingreso form { display: grid; gap: 12px; }
+.pt-ingreso label { display: block; font-weight: 600; font-size: 13px; }
+.pt-ingreso input { display: block; width: 100%; box-sizing: border-box; margin-top: 4px; padding: 9px 10px; border: 1px solid #c9cdc6; border-radius: 6px; font: inherit; background: #fff; color: #1d2420; }
+.pt-btn { padding: 10px 14px; border: 0; border-radius: 6px; background: var(--pt-azul); color: #fff; font: inherit; font-weight: 700; cursor: pointer; }
+.pt-btn:hover { filter: brightness(1.08); }
+.pt-nota { font-size: 12px; color: #6c746e; margin: 10px 0 0; }
+.pt-importante { margin-top: 16px; padding: 12px 14px; background: #eef4ee; border-left: 4px solid var(--pt-verde); border-radius: 4px; font-size: 13px; }
+.pt-importante p { margin: 4px 0 0; }
+.pt-tarjetas { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; padding: 0 clamp(16px, 4vw, 48px) 24px; }
+.pt-tarjetas figure { position: relative; margin: 0; border-radius: 10px; overflow: hidden; aspect-ratio: 16 / 9; background: #dfe3dc; }
+.pt-tarjetas img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.pt-tarjetas figcaption { position: absolute; left: 0; right: 0; bottom: 0; padding: 8px 12px; background: rgba(0, 0, 0, .55); color: #fff; font-weight: 600; }
+.pt-tarjetas figure.sin-imagen { background: #e9dcc3; }
+.pt-pie { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; padding: 16px clamp(16px, 4vw, 48px); background: #fff; border-top: 1px solid #dcdcd3; font-size: 13px; }
+.pt-pie a { color: var(--pt-azul); }
+.pt-logo-pie { height: 44px; width: auto; }
+@media (max-width: 760px) {
+  .pt-main { grid-template-columns: 1fr; }
+  .pt-carrusel { min-height: 220px; }
+  .pt-tarjetas { grid-template-columns: 1fr; }
+  .pt-sistema { align-items: flex-start; text-align: left; }
+}

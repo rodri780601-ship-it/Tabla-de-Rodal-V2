@@ -7,7 +7,60 @@
   <meta name="description" content="Construye la tabla de rodal inicial y residual a partir del inventario de parcelas, y evalúa tipo forestal, estado de desarrollo, categoría de bosque y cumplimiento de las Bases Técnicas 2026.">
   <link rel="stylesheet" href="css/styles.css">
 </head>
-<body>
+<body class="con-portada">
+  <!-- ============ PORTADA: ingreso de usuario registrado ============ -->
+  <div id="portada" class="portada">
+    <header class="pt-head">
+      <img src="img/logo_conaf.svg" alt="Ministerio de Agricultura, Gobierno de Chile · Corporación Nacional Forestal (CONAF)" class="pt-logo">
+      <div class="pt-sistema">
+        <span class="pt-sistema-nom">Tabla de Rodal</span>
+        <span class="pt-sistema-sub">Bosque Nativo · Bases Técnicas 2026</span>
+      </div>
+    </header>
+    <div class="pt-franja" aria-hidden="true"><span></span><span></span><span></span></div>
+
+    <main class="pt-main">
+      <section class="pt-carrusel" aria-label="Recursos forestales de Chile">
+        <figure class="pt-slide activo"><img src="img/imagen1.jpg" alt="Bosque de araucarias frente al volcán Llaima"><figcaption>Bosque nativo</figcaption></figure>
+        <figure class="pt-slide"><img src="img/imagen2.jpg" alt="Interior de bosque nativo siempreverde"><figcaption>Bosque nativo</figcaption></figure>
+        <figure class="pt-slide"><img src="img/imagen3.jpg" alt="Plantaciones de pino y eucalipto en ladera"><figcaption>Plantaciones forestales</figcaption></figure>
+        <figure class="pt-slide"><img src="img/imagen6.jpg" alt="Bosque nativo caducifolio en otoño"><figcaption>Bosque nativo</figcaption></figure>
+        <figure class="pt-slide"><img src="img/imagen4.jpg" alt="Cosecha en plantación forestal"><figcaption>Plantaciones forestales</figcaption></figure>
+        <figure class="pt-slide"><img src="img/xerofitica.jpg" alt="Formación xerofítica" onerror="this.closest('figure').remove()"><figcaption>Formaciones xerofíticas</figcaption></figure>
+        <div class="pt-puntos" id="ptPuntos"></div>
+      </section>
+
+      <section class="pt-ingreso" aria-labelledby="ptTitulo">
+        <h1 id="ptTitulo">Ingreso usuario registrado</h1>
+        <form id="ptForm" autocomplete="off">
+          <label>RUT
+            <input type="text" id="ptRut" placeholder="12.345.678-9">
+          </label>
+          <label>Contraseña
+            <input type="password" id="ptClave">
+          </label>
+          <button type="submit" class="pt-btn">Ingresar</button>
+        </form>
+        <p class="pt-nota">Versión de prueba: el ingreso todavía no valida credenciales. Los datos ingresados no se guardan ni se envían.</p>
+        <div class="pt-importante">
+          <b>Importante</b>
+          <p>Herramienta de apoyo para construir la tabla de rodal inicial y residual a partir del inventario de parcelas, y evaluar tipo forestal, estado de desarrollo, categoría de bosque y cumplimiento de las Bases Técnicas 2026.</p>
+        </div>
+      </section>
+    </main>
+
+    <section class="pt-tarjetas" aria-label="Formaciones vegetales">
+      <figure><img src="img/imagen5.jpg" alt="Bosque nativo junto a un fiordo de Aysén"><figcaption>Bosque nativo</figcaption></figure>
+      <figure><img src="img/imagen3.jpg" alt="Plantaciones forestales"><figcaption>Plantaciones forestales</figcaption></figure>
+      <figure><img src="img/xerofitica.jpg" alt="Formación xerofítica" onerror="this.closest('figure').classList.add('sin-imagen'); this.remove()"><figcaption>Formaciones xerofíticas</figcaption></figure>
+    </section>
+
+    <footer class="pt-pie">
+      <img src="img/logo_conaf_negro.png" alt="Ministerio de Agricultura, Gobierno de Chile · CONAF" class="pt-logo-pie">
+      <div>Corporación Nacional Forestal · <a href="https://www.conaf.cl" target="_blank" rel="noopener">www.conaf.cl</a></div>
+    </footer>
+  </div>
+
   <header class="top">
     <div class="brand">
       <svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 3 7 16h5l-6 9h8v4h4v-4h8l-6-9h5z" fill="currentColor"/></svg>

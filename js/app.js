@@ -17,6 +17,32 @@
     rodales: [], resultados: {}, especiesInfo: {}, tieneExtraer: false, avisos: []
   };
 
+  /* ======================= Portada ======================= */
+  // Versión de prueba: el ingreso no valida credenciales (la app no tiene servidor); sólo da paso al inventario.
+  // Los datos del formulario no se guardan ni se envían.
+  (function portada() {
+    let i = 0, timer = null;
+    const slides = () => $$('#portada .pt-slide');
+    const mostrar = (n) => {
+      const s = slides(); if (!s.length) return;
+      i = (n + s.length) % s.length;
+      s.forEach((x, k) => x.classList.toggle('activo', k === i));
+      $$('#ptPuntos button').forEach((b, k) => b.classList.toggle('activo', k === i));
+    };
+    const puntos = () => {
+      $('#ptPuntos').innerHTML = slides().map((s, k) => `<button type="button" aria-label="Imagen ${k + 1}: ${esc(s.querySelector('figcaption').textContent)}"></button>`).join('');
+      $$('#ptPuntos button').forEach((b, k) => b.addEventListener('click', () => mostrar(k)));
+      mostrar(i);
+    };
+    window.addEventListener('load', puntos); // tras descartar imágenes que no cargaron
+    puntos();
+    timer = setInterval(() => mostrar(i + 1), 6000);
+    $('#ptForm').addEventListener('submit', (e) => {
+      e.preventDefault(); $('#ptClave').value = '';
+      document.body.classList.remove('con-portada'); clearInterval(timer); window.scrollTo({ top: 0 });
+    });
+  })();
+
   C.construirCatalogo();
   C.construirFunciones();
   C.cargarMMA(window.MMA_LISTADO);

@@ -84,7 +84,11 @@
     $('#antComuna').innerHTML = OPC_VACIA + (prov ? prov.comunas.map(c => `<option value="${esc(c)}" ${c === A.comuna ? 'selected' : ''}>${esc(c)}</option>`).join('') : '');
     $('#antComuna').disabled = !prov;
   }
-  ['predio', 'rol', 'propietario'].forEach(k => $('#ant' + k[0].toUpperCase() + k.slice(1)).addEventListener('input', e => { S.antecedentes[k] = e.target.value; }));
+  ['predio', 'rol', 'propietario'].forEach(k => {
+    const el = $('#ant' + k[0].toUpperCase() + k.slice(1));
+    el.addEventListener('input', e => { S.antecedentes[k] = e.target.value; });
+    el.addEventListener('change', () => cambioParametro());
+  });
   // La región de los antecedentes y la región del proyecto (parámetros generales) son el mismo dato.
   function ligarRegionDesdeProyecto() {
     const r = TERR.find(x => x.numero === S.config.region);
@@ -98,14 +102,17 @@
     S.config.region = (TERR.find(x => x.region === e.target.value) || {}).numero || '';
     selReg.value = S.config.region; cambioParametro();
   });
-  $('#antProvincia').addEventListener('change', e => { Object.assign(S.antecedentes, { provincia: e.target.value, comuna: '' }); sincronizarAntecedentes(); });
-  $('#antComuna').addEventListener('change', e => { S.antecedentes.comuna = e.target.value; });
+  $('#antProvincia').addEventListener('change', e => { Object.assign(S.antecedentes, { provincia: e.target.value, comuna: '' }); sincronizarAntecedentes(); cambioParametro(); });
+  $('#antComuna').addEventListener('change', e => { S.antecedentes.comuna = e.target.value; cambioParametro(); });
   sincronizarAntecedentes();
 
   /* ======================= Parámetros generales ======================= */
-  // Todos los parámetros parten en blanco; las etapas 2 a 6 quedan bloqueadas hasta completarlos.
+  // Regla: para pasar a la sección 2 (y a las siguientes) deben estar completos todos los antecedentes
+  // generales y todos los parámetros generales. Parten en blanco.
   function faltanParametros() {
-    const c = S.config, f = [];
+    const c = S.config, A = S.antecedentes, f = [];
+    [['predio', 'nombre del predio'], ['rol', 'rol de avalúo'], ['region', 'región'], ['provincia', 'provincia'], ['comuna', 'comuna'], ['propietario', 'propietario']]
+      .forEach(([k, nom]) => { if (!String(A[k] || '').trim()) f.push(nom); });
     if (!c.region) f.push('región del proyecto');
     if (!c.muestreo) f.push('tipo de muestreo');
     if (!c.crecimiento) f.push('forma de crecimiento');
@@ -113,12 +120,13 @@
     if (!c.forma) f.push('forma de la parcela');
     if (!(c.area > 0)) f.push('superficie de la parcela');
     if (!(c.ancho > 0)) f.push('amplitud de clase');
+    if (c.inicio == null || String(c.inicio).trim() === '' || isNaN(c.inicio)) f.push('límite inferior de la 1.ª clase');
     return f;
   }
   function avisoParametros() {
     const f = faltanParametros(), box = $('#avisoParametros');
     box.hidden = !f.length || !S.arboles.length;
-    box.textContent = f.length ? `Complete los parámetros generales para continuar. Falta: ${f.join(', ')}.` : '';
+    box.textContent = f.length ? `Complete los antecedentes generales y los parámetros generales para continuar a la sección 2. Falta: ${f.join(', ')}.` : '';
   }
   function cambioParametro() {
     avisoParametros();
@@ -349,7 +357,7 @@
     if (noRec.length) av.push({ t: 'warn', m: `Nombres no reconocidos en la nómina del D.S. 68/2009 (se tratarán como no nativos hasta que los asigne en la pestaña 2): ${noRec.map(([k]) => esc(k || '(vacío)')).join(', ')}.` });
     if (amb.length) av.push({ t: 'info', m: `Nombres comunes asignados a más de una especie en el D.S. 68; revise la asignación en la pestaña 2: ${amb.map(([k]) => esc(k)).join(', ')}.` });
     const faltan = faltanParametros();
-    if (faltan.length) av.push({ t: 'warn', m: `Complete los parámetros generales para continuar. Falta: ${faltan.map(esc).join(', ')}.` });
+    if (faltan.length) av.push({ t: 'warn', m: `Complete los antecedentes generales y los parámetros generales para continuar a la sección 2. Falta: ${faltan.map(esc).join(', ')}.` });
     $('#avisosCarga').innerHTML = av.map(a => `<div class="aviso ${a.t}">${a.m}</div>`).join('') + `<div class="row-btns"><button class="btn primary" id="btnIrEspecies" ${faltan.length ? 'disabled' : ''}>Continuar: especies y volumen →</button></div>`;
     $('#btnIrEspecies').addEventListener('click', () => irA('especies'));
   }
@@ -835,8 +843,8 @@
   function cargarEjemplo(k) {
     const E = window.EJEMPLOS[k];
     // parámetros generales del ejemplo
-    // (los ejemplos no traen amplitud de clase: se usa 5 cm, como en su tabla de rodal original)
-    Object.assign(S.config, { ancho: 5 }, E.config);
+    // (los ejemplos no traen amplitud ni límite inferior de clase: se usan 5 cm; los antecedentes generales los completa el usuario)
+    Object.assign(S.config, { ancho: 5, inicio: '5' }, E.config);
     sincronizarParametros(); ligarRegionDesdeProyecto();
     S.archivo = E.titulo; S.parcelasVacias = [];
     S.nombres = {}; S.funciones = {}; S.catOverride = {}; S.cfgRodal = {}; S.alturas = {};

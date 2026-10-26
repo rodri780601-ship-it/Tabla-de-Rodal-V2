@@ -10,7 +10,8 @@
 
   /* ======================= Estado ======================= */
   const S = window.APP_STATE = {
-    config: { region: 'IX', area: 500, ancho: 5, inicio: '5', muestreo: 'aleatorio', forma: 'circular', ancho_r: 20, crecimiento: 'monopodico', dmcSimp: 'individuo' },
+    config: { region: '', area: null, ancho: null, inicio: '', muestreo: '', forma: '', ancho_r: 20, crecimiento: '', dmcSimp: '' },
+    antecedentes: { predio: '', rol: '', region: '', provincia: '', comuna: '', propietario: '' },
     hojas: null, hojaSel: 0, filaEnc: 0, mapeo: {}, archivo: '',
     arboles: [], nombres: {}, funciones: {}, funcUsuario: {}, catOverride: {}, cfgRodal: {}, alturas: {},
     rodales: [], resultados: {}, especiesInfo: {}, tieneExtraer: false, avisos: []
@@ -34,6 +35,7 @@
   }
   $$('#tabs button').forEach(b => b.addEventListener('click', () => { if (!b.disabled) irA(b.dataset.tab); }));
   function habilitar(on) {
+    on = on && !faltanParametros().length;
     $$('#tabs button').forEach(b => { if (b.dataset.tab !== 'datos' && b.dataset.tab !== 'fuentes') b.disabled = !on; });
     $('#btnExportar').disabled = !on; $('#btnGuardarProyecto').disabled = !on; $('#btnPDF').disabled = !on;
     if (on) aplicarReglaFunciones();
@@ -68,11 +70,65 @@
     }
   }
 
+  /* ======================= Antecedentes generales ======================= */
+  const TERR = window.TERRITORIO_CHILE;
+  const OPC_VACIA = '<option value="">— Seleccione —</option>';
+  function sincronizarAntecedentes() {
+    const A = S.antecedentes;
+    ['predio', 'rol', 'propietario'].forEach(k => { $('#ant' + k[0].toUpperCase() + k.slice(1)).value = A[k] || ''; });
+    const reg = TERR.find(r => r.region === A.region);
+    const prov = reg && reg.provincias.find(p => p.provincia === A.provincia);
+    $('#antRegion').innerHTML = OPC_VACIA + TERR.map(r => `<option value="${esc(r.region)}" ${r === reg ? 'selected' : ''}>${esc(r.numero + ' · ' + r.region)}</option>`).join('');
+    $('#antProvincia').innerHTML = OPC_VACIA + (reg ? reg.provincias.map(p => `<option value="${esc(p.provincia)}" ${p === prov ? 'selected' : ''}>${esc(p.provincia)}</option>`).join('') : '');
+    $('#antProvincia').disabled = !reg;
+    $('#antComuna').innerHTML = OPC_VACIA + (prov ? prov.comunas.map(c => `<option value="${esc(c)}" ${c === A.comuna ? 'selected' : ''}>${esc(c)}</option>`).join('') : '');
+    $('#antComuna').disabled = !prov;
+  }
+  ['predio', 'rol', 'propietario'].forEach(k => $('#ant' + k[0].toUpperCase() + k.slice(1)).addEventListener('input', e => { S.antecedentes[k] = e.target.value; }));
+  // La región de los antecedentes y la región del proyecto (parámetros generales) son el mismo dato.
+  function ligarRegionDesdeProyecto() {
+    const r = TERR.find(x => x.numero === S.config.region);
+    const nombre = r ? r.region : '';
+    if (S.antecedentes.region !== nombre) Object.assign(S.antecedentes, { region: nombre, provincia: '', comuna: '' });
+    sincronizarAntecedentes();
+  }
+  $('#antRegion').addEventListener('change', e => {
+    Object.assign(S.antecedentes, { region: e.target.value, provincia: '', comuna: '' });
+    sincronizarAntecedentes();
+    S.config.region = (TERR.find(x => x.region === e.target.value) || {}).numero || '';
+    selReg.value = S.config.region; cambioParametro();
+  });
+  $('#antProvincia').addEventListener('change', e => { Object.assign(S.antecedentes, { provincia: e.target.value, comuna: '' }); sincronizarAntecedentes(); });
+  $('#antComuna').addEventListener('change', e => { S.antecedentes.comuna = e.target.value; });
+  sincronizarAntecedentes();
+
   /* ======================= Parámetros generales ======================= */
+  // Todos los parámetros parten en blanco; las etapas 2 a 6 quedan bloqueadas hasta completarlos.
+  function faltanParametros() {
+    const c = S.config, f = [];
+    if (!c.region) f.push('región del proyecto');
+    if (!c.muestreo) f.push('tipo de muestreo');
+    if (!c.crecimiento) f.push('forma de crecimiento');
+    if (esSimpodicoAlguno() && !c.dmcSimp) f.push('DMC en bosque simpódico');
+    if (!c.forma) f.push('forma de la parcela');
+    if (!(c.area > 0)) f.push('superficie de la parcela');
+    if (!(c.ancho > 0)) f.push('amplitud de clase');
+    return f;
+  }
+  function avisoParametros() {
+    const f = faltanParametros(), box = $('#avisoParametros');
+    box.hidden = !f.length || !S.arboles.length;
+    box.textContent = f.length ? `Complete los parámetros generales para continuar. Falta: ${f.join(', ')}.` : '';
+  }
+  function cambioParametro() {
+    avisoParametros();
+    recalcular();
+    if (S.arboles.length) { habilitar(true); renderResumenCarga(); }
+  }
   const selReg = $('#cfgRegion');
-  selReg.innerHTML = N.REGIONES.map(r => `<option value="${r.id}">${esc(r.id + ' · ' + r.nombre)}</option>`).join('');
+  selReg.innerHTML = OPC_VACIA + N.REGIONES.map(r => `<option value="${r.id}">${esc(r.id + ' · ' + r.nombre)}</option>`).join('');
   selReg.value = S.config.region;
-  selReg.addEventListener('change', () => { S.config.region = selReg.value; recalcular(); });
+  selReg.addEventListener('change', () => { S.config.region = selReg.value; ligarRegionDesdeProyecto(); cambioParametro(); });
   const TXT_MUESTREO = {
     aleatorio: 'Estimadores de muestreo aleatorio simple por rodal.',
     sistematico: 'Se usan los estimadores de muestreo aleatorio simple (aproximación habitual, en general conservadora para el error de muestreo).',
@@ -81,13 +137,13 @@
     dirigido: 'Muestreo no probabilístico: los estadísticos se muestran sólo como referencia y no permiten inferir el error de muestreo.'
   };
   function renderDims() {
-    const c = S.config, A = c.area;
+    const c = S.config, A = c.area, hayA = A > 0;
     let h = '';
-    if (c.forma === 'circular') h = `<label>Radio (m)<input type="number" step="any" min="0" id="dimR" value="${+Math.sqrt(A / Math.PI).toFixed(2)}"></label><div></div>`;
-    else if (c.forma === 'cuadrada') h = `<label>Lado (m)<input type="number" step="any" min="0" id="dimL" value="${+Math.sqrt(A).toFixed(2)}"></label><div></div>`;
-    else h = `<label>Ancho (m)<input type="number" step="any" min="0" id="dimA" value="${+c.ancho_r}"></label><label>Largo (m)<input type="number" step="any" min="0" id="dimB" value="${+(A / c.ancho_r).toFixed(2)}"></label>`;
+    if (c.forma === 'circular') h = `<label>Radio (m)<input type="number" step="any" min="0" id="dimR" value="${hayA ? +Math.sqrt(A / Math.PI).toFixed(2) : ''}"></label><div></div>`;
+    else if (c.forma === 'cuadrada') h = `<label>Lado (m)<input type="number" step="any" min="0" id="dimL" value="${hayA ? +Math.sqrt(A).toFixed(2) : ''}"></label><div></div>`;
+    else if (c.forma === 'rectangular') h = `<label>Ancho (m)<input type="number" step="any" min="0" id="dimA" value="${+c.ancho_r}"></label><label>Largo (m)<input type="number" step="any" min="0" id="dimB" value="${hayA ? +(A / c.ancho_r).toFixed(2) : ''}"></label>`;
     $('#boxDims').innerHTML = h;
-    const setA = (v) => { if (v > 0) { c.area = +v.toFixed(4); $('#cfgArea').value = +c.area.toFixed(2); actualizarTextoParcela(); renderDims(); recalcular(); } };
+    const setA = (v) => { if (v > 0) { c.area = +v.toFixed(4); $('#cfgArea').value = +c.area.toFixed(2); actualizarTextoParcela(); renderDims(); cambioParametro(); } };
     const r = $('#dimR'); if (r) r.addEventListener('change', () => setA(Math.PI * Number(r.value) ** 2));
     const l = $('#dimL'); if (l) l.addEventListener('change', () => setA(Number(l.value) ** 2));
     const da = $('#dimA'), db = $('#dimB');
@@ -95,14 +151,17 @@
     if (db) db.addEventListener('change', () => setA(c.ancho_r * Number(db.value)));
   }
   function actualizarTextoParcela() {
-    $('#txtFE').textContent = `Factor de expansión = 10.000 / ${fmt(S.config.area, 2)} m² = ${fmt(10000 / S.config.area, 2)} árb/ha por cada árbol medido. Se aplica a todas las parcelas.`;
-    $('#txtMuestreo').textContent = TXT_MUESTREO[S.config.muestreo];
+    $('#txtFE').textContent = S.config.area > 0 ? `Factor de expansión = 10.000 / ${fmt(S.config.area, 2)} m² = ${fmt(10000 / S.config.area, 2)} árb/ha por cada árbol medido. Se aplica a todas las parcelas.` : '';
+    $('#txtMuestreo').textContent = TXT_MUESTREO[S.config.muestreo] || '';
   }
   function sincronizarParametros() {
-    $('#cfgArea').value = S.config.area; $('#cfgMuestreo').value = S.config.muestreo || 'aleatorio'; $('#cfgForma').value = S.config.forma || 'circular';
-    renderDims(); actualizarTextoParcela();
+    const c = S.config;
+    selReg.value = c.region || ''; $('#cfgMuestreo').value = c.muestreo || ''; $('#cfgForma').value = c.forma || '';
+    $('#cfgArea').value = c.area > 0 ? c.area : ''; $('#cfgAncho').value = c.ancho > 0 ? c.ancho : ''; $('#cfgInicio').value = c.inicio == null ? '' : c.inicio;
+    $('#cfgCrecimiento').value = c.crecimiento || '';
+    renderDims(); actualizarTextoParcela(); textoCrecimiento();
   }
-  $('#cfgArea').addEventListener('change', e => { S.config.area = Number(e.target.value) > 0 ? Number(e.target.value) : 500; e.target.value = S.config.area; renderDims(); actualizarTextoParcela(); recalcular(); });
+  $('#cfgArea').addEventListener('change', e => { S.config.area = Number(e.target.value) > 0 ? Number(e.target.value) : null; e.target.value = S.config.area || ''; renderDims(); actualizarTextoParcela(); cambioParametro(); });
   const TXT_CREC = {
     monopodico: 'Cada registro del inventario es un individuo: cuenta en la densidad y aporta su área basal.',
     simpodico: 'La densidad cuenta sólo individuos (cepas). El área basal suma la cepa y todos sus vástagos o ramas, cada uno con su DAP. Los vástagos de una cepa se identifican con el mismo N° en la columna «Árbol» o, si ésta está vacía, con la columna «Tipo» (cada fila «Cepa» seguida de sus filas «Vástago»). En la tabla de rodal, cada individuo se clasifica por su diámetro equivalente √(Σ d²).'
@@ -135,15 +194,14 @@
   }
   function hayMultiTallo(arb) { if (arb.some(a => a.tipo === 'Vástago')) return true; const c = {}; return arb.some(a => { if (a.arbol == null) return false; const k = a.rodal + '|' + a.parcela + '|' + a.arbol; c[k] = (c[k] || 0) + 1; return c[k] > 1; }); }
   function esSimpodicoAlguno() { return S.config.crecimiento === 'simpodico' || Object.values(S.cfgRodal).some(c => c.crecimiento === 'simpodico'); }
-  function textoCrecimiento() { $('#boxDmcSimp').hidden = !esSimpodicoAlguno(); $('#cfgDmcSimp').value = S.config.dmcSimp || 'individuo'; $('#txtCrecimiento').textContent = TXT_CREC[S.config.crecimiento] + (S.config.crecimiento === 'simpodico' && S.arboles.length && !S.tieneArbol ? ' El inventario cargado no tiene columna «Árbol»: cada fila se contará como un individuo.' : ''); }
-  $('#cfgCrecimiento').value = S.config.crecimiento; textoCrecimiento();
-  $('#cfgDmcSimp').addEventListener('change', e => { S.config.dmcSimp = e.target.value; recalcular(); });
-  $('#cfgCrecimiento').addEventListener('change', e => { S.config.crecimiento = e.target.value; textoCrecimiento(); recalcular(); if (S.arboles.length) renderResumenCarga(); });
-  $('#cfgMuestreo').addEventListener('change', e => { S.config.muestreo = e.target.value; actualizarTextoParcela(); recalcular(); });
-  $('#cfgForma').addEventListener('change', e => { S.config.forma = e.target.value; if (S.config.forma === 'rectangular' && !(S.config.ancho_r > 0)) S.config.ancho_r = 20; renderDims(); recalcular(); });
+  function textoCrecimiento() { $('#boxDmcSimp').hidden = !esSimpodicoAlguno(); $('#cfgDmcSimp').value = S.config.dmcSimp || ''; $('#txtCrecimiento').textContent = (TXT_CREC[S.config.crecimiento] || '') + (S.config.crecimiento === 'simpodico' && S.arboles.length && !S.tieneArbol ? ' El inventario cargado no tiene columna «Árbol»: cada fila se contará como un individuo.' : ''); }
+  $('#cfgDmcSimp').addEventListener('change', e => { S.config.dmcSimp = e.target.value; cambioParametro(); });
+  $('#cfgCrecimiento').addEventListener('change', e => { S.config.crecimiento = e.target.value; textoCrecimiento(); cambioParametro(); });
+  $('#cfgMuestreo').addEventListener('change', e => { S.config.muestreo = e.target.value; actualizarTextoParcela(); cambioParametro(); });
+  $('#cfgForma').addEventListener('change', e => { S.config.forma = e.target.value; if (S.config.forma === 'rectangular' && !(S.config.ancho_r > 0)) S.config.ancho_r = 20; renderDims(); cambioParametro(); });
   sincronizarParametros();
-  $('#cfgAncho').addEventListener('change', e => { S.config.ancho = Math.max(0.5, Number(e.target.value) || 5); recalcular(); });
-  $('#cfgInicio').addEventListener('change', e => { S.config.inicio = e.target.value; recalcular(); });
+  $('#cfgAncho').addEventListener('change', e => { const v = Number(e.target.value); S.config.ancho = e.target.value === '' || !(v > 0) ? null : Math.max(0.5, v); e.target.value = S.config.ancho || ''; cambioParametro(); });
+  $('#cfgInicio').addEventListener('change', e => { S.config.inicio = e.target.value; cambioParametro(); });
   $('#txtFuenteMMA').textContent = window.MMA_LISTADO.fuente;
 
   /* ======================= Carga de archivo ======================= */
@@ -258,6 +316,7 @@
       if (!S.cfgRodal[id]) S.cfgRodal[id] = { superficie: '', pendiente: '', suelosFragiles: false, cercaAgua: false, snap: false, ambienteUnico: false, estructura: 'auto', actividad: 'NINGUNA', metodoRegen: '', ext: { modo: S.tieneExtraer ? 'archivo' : 'ninguna', pctG: 30, criterio: 'abajo', especies: [], dapMin: '', dapMax: '', protegerAmenazadas: true }, inputs: {}, especiesInteres: [] };
       delete S.cfgRodal[id].areaParcela;
     });
+    avisoParametros();
     recalcular();
     renderResumenCarga();
     habilitar(true);
@@ -289,7 +348,9 @@
     if ((S.parcelasVacias || []).length) av.push({ t: 'info', m: `${S.parcelasVacias.length} parcela(s) sin árboles se consideran en los estadísticos con valor cero.` });
     if (noRec.length) av.push({ t: 'warn', m: `Nombres no reconocidos en la nómina del D.S. 68/2009 (se tratarán como no nativos hasta que los asigne en la pestaña 2): ${noRec.map(([k]) => esc(k || '(vacío)')).join(', ')}.` });
     if (amb.length) av.push({ t: 'info', m: `Nombres comunes asignados a más de una especie en el D.S. 68; revise la asignación en la pestaña 2: ${amb.map(([k]) => esc(k)).join(', ')}.` });
-    $('#avisosCarga').innerHTML = av.map(a => `<div class="aviso ${a.t}">${a.m}</div>`).join('') + `<div class="row-btns"><button class="btn primary" id="btnIrEspecies">Continuar: especies y volumen →</button></div>`;
+    const faltan = faltanParametros();
+    if (faltan.length) av.push({ t: 'warn', m: `Complete los parámetros generales para continuar. Falta: ${faltan.map(esc).join(', ')}.` });
+    $('#avisosCarga').innerHTML = av.map(a => `<div class="aviso ${a.t}">${a.m}</div>`).join('') + `<div class="row-btns"><button class="btn primary" id="btnIrEspecies" ${faltan.length ? 'disabled' : ''}>Continuar: especies y volumen →</button></div>`;
     $('#btnIrEspecies').addEventListener('click', () => irA('especies'));
   }
 
@@ -299,6 +360,7 @@
   }
   function recalcular() {
     if (!S.arboles.length) return;
+    if (faltanParametros().length) { S.resultados = {}; return; }
     const cx = ctx();
     S.resultados = {};
     S.rodales.forEach(id => {
@@ -748,7 +810,7 @@
 
   /* ======================= Proyecto (JSON) ======================= */
   $('#btnGuardarProyecto').addEventListener('click', () => {
-    const p = { version: 1, config: S.config, arboles: S.arboles.map(a => ({ rodal: a.rodal, parcela: a.parcela, arbol: a.arbol, arbolAuto: a.arbolAuto, tipo: a.tipo, nombre: a.nombre, dap: a.dap, extArchivo: a.extArchivo, fila: a.fila })), parcelasVacias: S.parcelasVacias || [], nombres: S.nombres, funciones: S.funciones, funcUsuario: S.funcUsuario, catOverride: S.catOverride, cfgRodal: S.cfgRodal, alturas: S.alturas, tieneExtraer: S.tieneExtraer, tieneArbol: S.tieneArbol, archivo: S.archivo };
+    const p = { version: 1, config: S.config, antecedentes: S.antecedentes, arboles: S.arboles.map(a => ({ rodal: a.rodal, parcela: a.parcela, arbol: a.arbol, arbolAuto: a.arbolAuto, tipo: a.tipo, nombre: a.nombre, dap: a.dap, extArchivo: a.extArchivo, fila: a.fila })), parcelasVacias: S.parcelasVacias || [], nombres: S.nombres, funciones: S.funciones, funcUsuario: S.funcUsuario, catOverride: S.catOverride, cfgRodal: S.cfgRodal, alturas: S.alturas, tieneExtraer: S.tieneExtraer, tieneArbol: S.tieneArbol, archivo: S.archivo };
     descargar(new Blob([JSON.stringify(p)], { type: 'application/json' }), 'proyecto_tabla_rodal.json');
   });
   $('#inpProyecto').addEventListener('change', async (e) => {
@@ -762,8 +824,8 @@
       S.funcUsuario = p.funcUsuario || {};
       Object.entries(S.funcUsuario).forEach(([k, d]) => { if (!C.registrarFuncionUsuario(k, d).ok && S.funciones[k] === C.idUsuario(k)) delete S.funciones[k]; });
       S.config = Object.assign({ muestreo: 'aleatorio', forma: 'circular', ancho_r: 20, crecimiento: 'monopodico', dmcSimp: 'individuo' }, S.config);
-      $('#cfgCrecimiento').value = S.config.crecimiento; textoCrecimiento();
-      $('#cfgRegion').value = S.config.region; $('#cfgAncho').value = S.config.ancho; if (S.config.inicio == null || S.config.inicio === '') S.config.inicio = '5'; $('#cfgInicio').value = S.config.inicio; sincronizarParametros();
+      S.antecedentes = Object.assign({ predio: '', rol: '', region: '', provincia: '', comuna: '', propietario: '' }, p.antecedentes || {});
+      ligarRegionDesdeProyecto(); sincronizarParametros();
       cargarArboles(p.arboles, [{ t: 'info', m: 'Proyecto abierto: ' + esc(f.name) }]);
       toast('Proyecto abierto.');
     } catch (err) { toast('No se pudo abrir el proyecto: ' + (err.message || err)); }
@@ -773,9 +835,9 @@
   function cargarEjemplo(k) {
     const E = window.EJEMPLOS[k];
     // parámetros generales del ejemplo
-    Object.assign(S.config, E.config);
-    $('#cfgRegion').value = S.config.region; $('#cfgCrecimiento').value = S.config.crecimiento;
-    sincronizarParametros();
+    // (los ejemplos no traen amplitud de clase: se usa 5 cm, como en su tabla de rodal original)
+    Object.assign(S.config, { ancho: 5 }, E.config);
+    sincronizarParametros(); ligarRegionDesdeProyecto();
     S.archivo = E.titulo; S.parcelasVacias = [];
     S.nombres = {}; S.funciones = {}; S.catOverride = {}; S.cfgRodal = {}; S.alturas = {};
     const arboles = [], avisos = [{ t: 'info', m: esc(E.titulo) + '. Datos sintéticos generados para demostrar la aplicación; no corresponden a un predio real. El mismo inventario está disponible como archivo Excel (' + esc(E.archivo) + ').' }];

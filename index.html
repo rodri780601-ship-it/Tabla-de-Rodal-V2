@@ -59,15 +59,45 @@
           </div>
           <div id="msgArchivo"></div>
         </div>
+        <div>
+        <div class="card">
+          <h2>Antecedentes generales</h2>
+          <div class="form">
+            <div class="two">
+              <label>Nombre del predio
+                <input type="text" id="antPredio" autocomplete="off">
+              </label>
+              <label>Rol de avalúo
+                <input type="text" id="antRol" autocomplete="off" placeholder="Ej.: 123-45">
+              </label>
+            </div>
+            <label>Región
+              <select id="antRegion"></select>
+            </label>
+            <div class="two">
+              <label>Provincia
+                <select id="antProvincia" disabled></select>
+              </label>
+              <label>Comuna
+                <select id="antComuna" disabled></select>
+              </label>
+            </div>
+            <label>Propietario
+              <input type="text" id="antPropietario" autocomplete="off">
+            </label>
+          </div>
+        </div>
         <div class="card">
           <h2>Parámetros generales</h2>
+          <div class="aviso warn" id="avisoParametros" hidden></div>
           <div class="form">
             <label>Región del proyecto
               <select id="cfgRegion"></select>
-              <small>Define las funciones de volumen preferidas y la categoría de conservación regional del listado MMA.</small>
+              <small>Es la misma región de los antecedentes generales: al cambiar una se actualiza la otra. Define las funciones de volumen preferidas y la categoría de conservación regional del listado MMA.</small>
             </label>
             <label>Tipo de muestreo
               <select id="cfgMuestreo">
+                <option value="">— Seleccione —</option>
                 <option value="aleatorio">Aleatorio simple</option>
                 <option value="sistematico">Sistemático</option>
                 <option value="estratificado">Estratificado (cada rodal es un estrato)</option>
@@ -78,6 +108,7 @@
             </label>
             <label>Forma de crecimiento del bosque
               <select id="cfgCrecimiento">
+                <option value="">— Seleccione —</option>
                 <option value="monopodico">Monopódico (un fuste por individuo)</option>
                 <option value="simpodico">Simpódico (individuos con varios vástagos o ramas, p. ej. esclerófilo)</option>
               </select>
@@ -85,6 +116,7 @@
             </label>
             <label id="boxDmcSimp" hidden>DMC en bosque simpódico (define el estado de desarrollo)
               <select id="cfgDmcSimp">
+                <option value="">— Seleccione —</option>
                 <option value="individuo">Por individuo: diámetro equivalente √(Σ d²) de cada cepa</option>
                 <option value="vastago">Por vástago: promedio cuadrático de todos los vástagos</option>
               </select>
@@ -92,26 +124,29 @@
             <div class="two">
               <label>Forma de la parcela
                 <select id="cfgForma">
+                  <option value="">— Seleccione —</option>
                   <option value="circular">Circular</option>
                   <option value="cuadrada">Cuadrada</option>
                   <option value="rectangular">Rectangular</option>
                 </select>
               </label>
               <label>Superficie de la parcela (m²)
-                <input type="number" id="cfgArea" min="1" step="any" value="500">
+                <input type="number" id="cfgArea" min="1" step="any">
               </label>
             </div>
             <div class="two" id="boxDims"></div>
             <small id="txtFE"></small>
             <div class="two">
               <label>Amplitud de clase (cm)
-                <input type="number" id="cfgAncho" min="1" step="any" value="5">
+                <input type="number" id="cfgAncho" min="1" step="any">
               </label>
               <label>Límite inferior 1.ª clase (cm)
-                <input type="number" id="cfgInicio" step="any" value="5" placeholder="5">
+                <input type="number" id="cfgInicio" step="any">
+                <small>Si se deja en blanco, se calcula a partir del menor diámetro del inventario.</small>
               </label>
             </div>
           </div>
+        </div>
         </div>
       </div>
 
@@ -265,6 +300,7 @@
 
   <script src="lib/jszip.min.js"></script>
   <script src="lib/pdf-lib.min.js"></script>
+  <script src="js/data-territorio.js"></script>
   <script src="js/data-d68.js"></script>
   <script src="js/data-mma.js"></script>
   <script src="js/data-funciones.js"></script>

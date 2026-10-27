@@ -1,4 +1,4 @@
-/* Esquema de colores de la portada (colores del logo Gobierno de Chile · CONAF), aplicado a toda la página */
+﻿/* Esquema de colores de la portada (colores del logo Gobierno de Chile · CONAF), aplicado a toda la página */
 :root {
   color-scheme: light;
   --verde: #398245;
@@ -276,8 +276,9 @@ body:not(.con-portada) #portada { display: none; }
 .pt-franja span:nth-child(1) { background: var(--pt-azul); }
 .pt-franja span:nth-child(2) { background: var(--pt-rojo); }
 .pt-franja span:nth-child(3) { background: var(--pt-verde); }
-.pt-main { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(280px, 1fr); gap: 24px; padding: 24px clamp(16px, 4vw, 48px); flex: 1; }
-.pt-carrusel { position: relative; border-radius: 10px; overflow: hidden; min-height: 360px; background: #2b3a2e; }
+/* carrusel a todo el ancho de la pantalla; la ventana de ingreso va encima, a la izquierda */
+.pt-main { position: relative; flex: 1; display: flex; align-items: center; min-height: 72vh; max-width: none; margin: 0; padding: 32px clamp(16px, 5vw, 64px); }
+.pt-carrusel { position: absolute; inset: 0; overflow: hidden; background: #2b3a2e; }
 .pt-slide { position: absolute; inset: 0; margin: 0; opacity: 0; transition: opacity .8s ease; }
 .pt-slide.activo { opacity: 1; }
 .pt-slide img { width: 100%; height: 100%; object-fit: cover; display: block; max-width: none; }
@@ -285,7 +286,7 @@ body:not(.con-portada) #portada { display: none; }
 .pt-puntos { position: absolute; right: 14px; bottom: 12px; display: flex; gap: 6px; }
 .pt-puntos button { width: 11px; height: 11px; padding: 0; border-radius: 50%; border: 2px solid #fff; background: transparent; cursor: pointer; }
 .pt-puntos button.activo { background: #fff; }
-.pt-ingreso { background: #fff; border-radius: 10px; padding: 22px 24px; box-shadow: 0 1px 3px rgba(0, 0, 0, .08); border-top: 5px solid var(--pt-verde); align-self: start; }
+.pt-ingreso { position: relative; z-index: 1; width: min(380px, 100%); background: rgba(255, 255, 255, .96); border-radius: 10px; padding: 22px 24px; box-shadow: 0 6px 24px rgba(0, 0, 0, .28); border-top: 5px solid var(--pt-verde); }
 .pt-ingreso h1 { margin: 0 0 16px; font-size: 16px; letter-spacing: .04em; text-transform: uppercase; color: var(--pt-verde); }
 .pt-ingreso form { display: grid; gap: 12px; }
 .pt-ingreso label { display: block; font-weight: 600; font-size: 13px; }
@@ -295,17 +296,10 @@ body:not(.con-portada) #portada { display: none; }
 .pt-nota { font-size: 12px; color: #6c746e; margin: 10px 0 0; }
 .pt-importante { margin-top: 16px; padding: 12px 14px; background: #eef4ee; border-left: 4px solid var(--pt-verde); border-radius: 4px; font-size: 13px; }
 .pt-importante p { margin: 4px 0 0; }
-.pt-tarjetas { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; padding: 0 clamp(16px, 4vw, 48px) 24px; }
-.pt-tarjetas figure { position: relative; margin: 0; border-radius: 10px; overflow: hidden; aspect-ratio: 16 / 9; background: #dfe3dc; }
-.pt-tarjetas img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.pt-tarjetas figcaption { position: absolute; left: 0; right: 0; bottom: 0; padding: 8px 12px; background: rgba(0, 0, 0, .55); color: #fff; font-weight: 600; }
-.pt-tarjetas figure.sin-imagen { background: #e9dcc3; }
 .pt-pie { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; padding: 16px clamp(16px, 4vw, 48px); background: #fff; border-top: 1px solid #dcdcd3; font-size: 13px; }
 .pt-pie a { color: var(--pt-azul); }
 .pt-logo-pie { height: 44px; width: auto; }
 @media (max-width: 760px) {
-  .pt-main { grid-template-columns: 1fr; }
-  .pt-carrusel { min-height: 220px; }
-  .pt-tarjetas { grid-template-columns: 1fr; }
+  .pt-main { min-height: 0; }
   .pt-sistema { align-items: flex-start; text-align: left; }
 }

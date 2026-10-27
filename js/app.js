@@ -275,6 +275,16 @@
       hojas.forEach((h, i) => { const d = detectarEncabezado(h.rows); if (d.score > mejorScore) { mejorScore = d.score; mejor = i; } });
       S.hojaSel = mejor;
       mostrarMapeo();
+      const ficha = leerFichaPredial(hojas);
+      if (ficha) {
+        const msgs = [];
+        if (ficha.cargados.length) msgs.push(`<div class="aviso ok">Antecedentes generales tomados de la hoja «Ficha predial»: ${ficha.cargados.map(esc).join(', ')}. Revíselos en el cuadro de antecedentes.</div>`);
+        else msgs.push(`<div class="aviso info">La hoja «Ficha predial» está vacía: complete los antecedentes generales a mano.</div>`);
+        if (ficha.noReconocidos.length) msgs.push(`<div class="aviso warn">No se reconoció ${ficha.noReconocidos.map(esc).join(', ')} en la división político-administrativa de Chile: selecciónelo en los antecedentes generales.</div>`);
+        if (ficha.variosPredios) msgs.push(`<div class="aviso warn">La ficha predial trae más de un predio: se usó el primero (columna B).</div>`);
+        $('#msgArchivo').innerHTML = msgs.join('');
+        cambioParametro();
+      }
     } catch (err) {
       $('#msgArchivo').innerHTML = `<div class="aviso bad">${esc(err.message || err)}</div>`;
     }
@@ -831,12 +841,79 @@
     finally { b.textContent = txt; b.disabled = false; aplicarReglaFunciones(); }
   });
   function descargar(blob, nombre) { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = nombre; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500); }
-  $('#btnPlantilla').addEventListener('click', () => {
-    // Misma plantilla usada en los ejemplos: listas desplegables (Tipo, Especie, Extraer), hoja Control, instrucciones y nómina D.S. 68
-    const bin = atob(window.PLANTILLA_XLSX_B64); const u8 = new Uint8Array(bin.length);
-    for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
-    descargar(new Blob([u8], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), 'Plantilla_inventario_parcelas.xlsx');
+  // Plantilla de inventario de la app Capfor (Parcelas de Muestreo Forestal): la misma plantilla base (hoja "Inventario"
+  // con listas desplegables, hoja Control, instrucciones y nómina D.S. 68) más la hoja "Ficha predial" con los
+  // antecedentes del predio. Aquí la ficha va en blanco para que el usuario la complete.
+  const CAMPOS_FICHA = [['Nombre del predio', 'predio'], ['Rol de avalúo', 'rol'], ['Región', 'region'], ['Provincia', 'provincia'], ['Comuna', 'comuna'], ['Propietario', 'propietario']];
+  async function agregarHojaFicha(zip) {
+    const R = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships', WS = 'application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml';
+    // estilos de la hoja Control de la plantilla: 4 = título, 5 = encabezado verde, 6 = celda con borde, 9 = nota
+    const celda = (ref, s, v) => v === '' ? `<c r="${ref}" s="${s}"/>` : `<c r="${ref}" s="${s}" t="inlineStr"><is><t>${esc(v)}</t></is></c>`;
+    const fila = (n, celdas) => `<row r="${n}">${celdas.join('')}</row>`;
+    const filas = [
+      fila(1, [celda('A1', 4, 'Ficha predial')]),
+      fila(3, [celda('A3', 5, 'Campo'), celda('B3', 5, 'Valor')]),
+      ...CAMPOS_FICHA.map(([t], j) => fila(4 + j, [celda('A' + (4 + j), 6, t), celda('B' + (4 + j), 6, '')])),
+      fila(11, [celda('A11', 9, 'Complete los antecedentes del predio. Al cargar el inventario, la aplicación Tabla de Rodal los usa para llenar los antecedentes generales.')])
+    ];
+    zip.file('xl/worksheets/sheetFicha.xml', `<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><dimension ref="A1:B11"/><sheetViews><sheetView workbookViewId="0"/></sheetViews><sheetFormatPr defaultRowHeight="15"/>`
+      + `<cols><col min="1" max="1" width="24" customWidth="1"/><col min="2" max="2" width="44" customWidth="1"/></cols><sheetData>${filas.join('')}</sheetData>`
+      + `<pageMargins left="0.75" right="0.75" top="1" bottom="1" header="0.5" footer="0.5"/></worksheet>`);
+    const wb = await zip.file('xl/workbook.xml').async('string');
+    zip.file('xl/workbook.xml', wb.replace(/(<sheet [^>]*r:id="rId1"\/>)/, `$1<sheet xmlns:r="${R}" name="Ficha predial" sheetId="5" state="visible" r:id="rIdFicha"/>`));
+    const rels = await zip.file('xl/_rels/workbook.xml.rels').async('string');
+    zip.file('xl/_rels/workbook.xml.rels', rels.replace('</Relationships>', `<Relationship Type="${R}/worksheet" Target="/xl/worksheets/sheetFicha.xml" Id="rIdFicha"/></Relationships>`));
+    const ct = await zip.file('[Content_Types].xml').async('string');
+    zip.file('[Content_Types].xml', ct.replace('</Types>', `<Override PartName="/xl/worksheets/sheetFicha.xml" ContentType="${WS}"/></Types>`));
+  }
+  $('#btnPlantilla').addEventListener('click', async () => {
+    try {
+      const zip = await JSZip.loadAsync(window.PLANTILLA_XLSX_B64, { base64: true });
+      await agregarHojaFicha(zip);
+      const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      descargar(blob, 'Plantilla_inventario_parcelas.xlsx');
+    } catch (err) { toast('No se pudo generar la plantilla: ' + (err.message || err)); }
   });
+
+  /* Lee la hoja "Ficha predial" (plantilla Capfor) y completa los antecedentes generales presentes en ella.
+     Formato: columna A = campo, columna B = valor (si hay varios predios, B corresponde al primero). */
+  function leerFichaPredial(hojas) {
+    const h = hojas.find(x => C.norm(x.name) === 'ficha predial'); if (!h) return null;
+    const val = {};
+    let variosPredios = false;
+    h.rows.forEach(r => {
+      const etiqueta = C.norm(r && r[0]).replace(/^nombre del propietario$/, 'propietario');
+      const campo = CAMPOS_FICHA.find(([t]) => C.norm(t) === etiqueta);
+      if (!campo) return;
+      const v = r[1] == null ? '' : String(r[1]).trim();
+      if (v) val[campo[1]] = v;
+      if (r.slice(2).some(x => x != null && String(x).trim() !== '')) variosPredios = true;
+    });
+    if (!Object.keys(val).length) return { cargados: [], noReconocidos: [], variosPredios };
+    // Región, provincia y comuna deben coincidir con la división político-administrativa (sin distinguir tildes ni mayúsculas)
+    const n = (s) => C.norm(String(s).replace(/^\s*regi[oó]n\s+(de(l)?\s+)?/i, ''));
+    const unico = (arr) => arr.length === 1 ? arr[0] : null;
+    const buscarRegion = (t) => { const x = n(t); return unico(TERR.filter(r => n(r.region) === x || C.norm(r.numero) === x)) || unico(TERR.filter(r => n(r.region).includes(x) || x.includes(n(r.region)))); };
+    const A = { predio: val.predio, rol: val.rol, propietario: val.propietario };
+    const noReconocidos = [];
+    let reg = val.region ? buscarRegion(val.region) : null;
+    if (val.region && !reg) noReconocidos.push(`región «${val.region}»`);
+    const provs = (reg ? [reg] : TERR).flatMap(r => r.provincias.map(p => ({ r, p })));
+    let prov = val.provincia ? unico(provs.filter(x => C.norm(x.p.provincia) === C.norm(val.provincia))) : null;
+    if (val.provincia && !prov) noReconocidos.push(`provincia «${val.provincia}»`);
+    const coms = (prov ? [prov] : provs).flatMap(x => x.p.comunas.map(c => ({ r: x.r, p: x.p, c })));
+    const com = val.comuna ? unico(coms.filter(x => C.norm(x.c) === C.norm(val.comuna))) : null;
+    if (val.comuna && !com) noReconocidos.push(`comuna «${val.comuna}»`);
+    // la comuna o la provincia reconocidas completan la provincia y la región si faltaban
+    if (com) { reg = reg || com.r; prov = prov || { r: com.r, p: com.p }; A.comuna = com.c; }
+    if (prov) { reg = reg || prov.r; A.provincia = prov.p.provincia; }
+    if (reg) A.region = reg.region;
+    const cargados = CAMPOS_FICHA.filter(([, k]) => A[k]).map(([t]) => t);
+    Object.entries(A).forEach(([k, v]) => { if (v) S.antecedentes[k] = v; });
+    if (A.region) { if (!A.provincia) S.antecedentes.provincia = ''; if (!A.comuna) S.antecedentes.comuna = ''; regionDesdePredio(); }
+    sincronizarAntecedentes();
+    return { cargados, noReconocidos, variosPredios };
+  }
 
   /* ======================= Proyecto (JSON) ======================= */
   $('#btnGuardarProyecto').addEventListener('click', () => {

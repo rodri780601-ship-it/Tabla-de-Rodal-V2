@@ -677,8 +677,7 @@
         <div class="res-item"><div class="l">Densidad inicial → residual${r.simpodico ? ' (individuos)' : ''}</div><div class="v">${fmt(r.tot.ini.n, 0)} → ${fmt(r.tot.res.n, 0)} árb/ha</div><div class="d">Extracción ${fmt(r.tot.ext.n, 0)} árb/ha${r.simpodico ? ` · Vástagos ${fmt(r.tot.ini.tallos, 0)} → ${fmt(r.tot.res.tallos, 0)} /ha (${fmt(r.tot.ini.n ? r.tot.ini.tallos / r.tot.ini.n : 0, 1)} por individuo)` : ''}</div></div>
         <div class="res-item"><div class="l">Área basal inicial → residual</div><div class="v">${fmt(r.tot.ini.g, 2)} → ${fmt(r.tot.res.g, 2)} m²/ha</div><div class="d">Extracción ${fmt(r.tot.ext.g, 2)} m²/ha (${fmt(r.tot.ini.g ? r.tot.ext.g / r.tot.ini.g * 100 : 0)} %)</div></div>
         <div class="res-item"><div class="l">Volumen inicial → residual</div><div class="v">${volTxt(r.tot.ini)} → ${volTxt(r.tot.res)} m³/ha</div><div class="d">${r.tot.ini.vCompleto ? (r.porEspecie.some(e => (C.FN[e.fid] || {}).usuario) ? 'Funciones del compendio y definidas por el usuario' : 'Funciones del compendio') : '* Hay especies sin función o sin altura: volumen parcial'}</div></div>
-      </div>
-      <details class="crit"><summary>Criterios del tipo forestal (art. 19 D.S. 259)</summary><ul class="checks">${r.tipo.criterios.map(c => `<li><span class="tag ${c.cumple ? 'ok' : 'neutral'}">${c.cumple ? 'Cumple' : 'No cumple'}</span><div><b>${esc(c.nombre)}</b> · ${esc(c.detalle)}</div></li>`).join('')}</ul></details>`;
+      </div>`;
   }
 
   /* ======================= 4. Tabla de rodal ======================= */

@@ -115,7 +115,10 @@
     el.addEventListener('input', e => { S.antecedentes[k] = e.target.value; });
     el.addEventListener('change', () => cambioParametro());
   });
-  // La región de los antecedentes y la región del proyecto (parámetros generales) son el mismo dato.
+  // La región del predio (antecedentes generales) define S.config.region, que se usa para elegir la función
+  // de volumen y la categoría de conservación regional. No hay un campo aparte de región del proyecto.
+  function regionDesdePredio() { S.config.region = (TERR.find(x => x.region === S.antecedentes.region) || {}).numero || ''; }
+  // Ejemplos y proyectos antiguos traen sólo S.config.region: se copia a la región del predio.
   function ligarRegionDesdeProyecto() {
     const r = TERR.find(x => x.numero === S.config.region);
     const nombre = r ? r.region : '';
@@ -125,8 +128,7 @@
   $('#antRegion').addEventListener('change', e => {
     Object.assign(S.antecedentes, { region: e.target.value, provincia: '', comuna: '' });
     sincronizarAntecedentes();
-    S.config.region = (TERR.find(x => x.region === e.target.value) || {}).numero || '';
-    selReg.value = S.config.region; cambioParametro();
+    regionDesdePredio(); cambioParametro();
   });
   $('#antProvincia').addEventListener('change', e => { Object.assign(S.antecedentes, { provincia: e.target.value, comuna: '' }); sincronizarAntecedentes(); cambioParametro(); });
   $('#antComuna').addEventListener('change', e => { S.antecedentes.comuna = e.target.value; cambioParametro(); });
@@ -139,7 +141,6 @@
     const c = S.config, A = S.antecedentes, f = [];
     [['predio', 'nombre del predio'], ['rol', 'rol de avalúo'], ['region', 'región'], ['provincia', 'provincia'], ['comuna', 'comuna'], ['propietario', 'propietario']]
       .forEach(([k, nom]) => { if (!String(A[k] || '').trim()) f.push(nom); });
-    if (!c.region) f.push('región del proyecto');
     if (!c.muestreo) f.push('tipo de muestreo');
     if (!c.crecimiento) f.push('forma de crecimiento');
     if (esSimpodicoAlguno() && !c.dmcSimp) f.push('DMC en bosque simpódico');
@@ -159,10 +160,6 @@
     recalcular();
     if (S.arboles.length) { habilitar(true); renderResumenCarga(); }
   }
-  const selReg = $('#cfgRegion');
-  selReg.innerHTML = OPC_VACIA + N.REGIONES.map(r => `<option value="${r.id}">${esc(r.id + ' · ' + r.nombre)}</option>`).join('');
-  selReg.value = S.config.region;
-  selReg.addEventListener('change', () => { S.config.region = selReg.value; ligarRegionDesdeProyecto(); cambioParametro(); });
   const TXT_MUESTREO = {
     aleatorio: 'Estimadores de muestreo aleatorio simple por rodal.',
     sistematico: 'Se usan los estimadores de muestreo aleatorio simple (aproximación habitual, en general conservadora para el error de muestreo).',
@@ -190,7 +187,7 @@
   }
   function sincronizarParametros() {
     const c = S.config;
-    selReg.value = c.region || ''; $('#cfgMuestreo').value = c.muestreo || ''; $('#cfgForma').value = c.forma || '';
+    $('#cfgMuestreo').value = c.muestreo || ''; $('#cfgForma').value = c.forma || '';
     $('#cfgArea').value = c.area > 0 ? c.area : ''; $('#cfgAncho').value = c.ancho > 0 ? c.ancho : ''; $('#cfgInicio').value = c.inicio == null ? '' : c.inicio;
     $('#cfgCrecimiento').value = c.crecimiento || '';
     renderDims(); actualizarTextoParcela(); textoCrecimiento();
@@ -859,7 +856,8 @@
       Object.entries(S.funcUsuario).forEach(([k, d]) => { if (!C.registrarFuncionUsuario(k, d).ok && S.funciones[k] === C.idUsuario(k)) delete S.funciones[k]; });
       S.config = Object.assign({ muestreo: 'aleatorio', forma: 'circular', ancho_r: 20, crecimiento: 'monopodico', dmcSimp: 'individuo' }, S.config);
       S.antecedentes = Object.assign({ predio: '', rol: '', region: '', provincia: '', comuna: '', propietario: '' }, p.antecedentes || {});
-      ligarRegionDesdeProyecto(); sincronizarParametros();
+      if (S.antecedentes.region) { regionDesdePredio(); sincronizarAntecedentes(); } else ligarRegionDesdeProyecto();
+      sincronizarParametros();
       cargarArboles(p.arboles, [{ t: 'info', m: 'Proyecto abierto: ' + esc(f.name) }]);
       toast('Proyecto abierto.');
     } catch (err) { toast('No se pudo abrir el proyecto: ' + (err.message || err)); }

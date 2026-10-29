@@ -964,12 +964,18 @@
   });
 
   /* ======================= Datos de ejemplo ======================= */
+  // Antecedentes generales FICTICIOS de los ejemplos (no corresponden a predios ni personas reales)
+  const ANTECEDENTES_EJEMPLO = {
+    mono: { predio: 'Fundo Los Coigües (ejemplo ficticio)', rol: '1234-56', region: 'La Araucanía', provincia: 'Cautín', comuna: 'Cunco', propietario: 'Propietario de ejemplo' },
+    simp: { predio: 'Hijuela El Peumal (ejemplo ficticio)', rol: '789-12', region: 'Valparaíso', provincia: 'Quillota', comuna: 'Hijuelas', propietario: 'Propietaria de ejemplo' }
+  };
   function cargarEjemplo(k) {
     const E = window.EJEMPLOS[k];
     // parámetros generales del ejemplo
-    // (los ejemplos no traen amplitud ni límite inferior de clase: se usan 5 cm; los antecedentes generales los completa el usuario)
+    // (los ejemplos no traen amplitud ni límite inferior de clase: se usan 5 cm)
     Object.assign(S.config, { ancho: 5, inicio: '5' }, E.config);
-    sincronizarParametros(); ligarRegionDesdeProyecto();
+    S.antecedentes = Object.assign({}, ANTECEDENTES_EJEMPLO[k]);
+    regionDesdePredio(); sincronizarAntecedentes(); sincronizarParametros();
     S.archivo = E.titulo; S.parcelasVacias = [];
     S.nombres = {}; S.funciones = {}; S.catOverride = {}; S.cfgRodal = {}; S.alturas = {};
     const arboles = [], avisos = [{ t: 'info', m: esc(E.titulo) + '. Datos sintéticos generados para demostrar la aplicación; no corresponden a un predio real. El mismo inventario está disponible como archivo Excel (' + esc(E.archivo) + ').' }];

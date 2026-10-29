@@ -20,7 +20,7 @@
   /* ======================= Portada ======================= */
   // Versión de prueba: el ingreso no valida credenciales (la app no tiene servidor); sólo da paso al inventario.
   // Los datos del formulario no se guardan ni se envían.
-  (function portada() {
+  const PORTADA = (function portada() {
     let i = 0, timer = null;
     const slides = () => $$('#portada .pt-slide');
     const mostrar = (n) => {
@@ -41,6 +41,14 @@
       e.preventDefault(); $('#ptClave').value = '';
       document.body.classList.remove('con-portada'); clearInterval(timer); window.scrollTo({ top: 0 });
     });
+    // Cerrar sesión: vuelve a la portada (los datos cargados se conservan mientras la página siga abierta)
+    return {
+      abrir() {
+        $('#ptRut').value = ''; $('#ptClave').value = '';
+        document.body.classList.add('con-portada'); window.scrollTo({ top: 0 });
+        clearInterval(timer); timer = setInterval(() => mostrar(i + 1), 6000);
+      }
+    };
   })();
 
   C.construirCatalogo();
@@ -48,8 +56,15 @@
   C.cargarMMA(window.MMA_LISTADO);
 
   /* ======================= Pestañas ======================= */
-  function irA(tab) {
+  // Historial de secciones visitadas para el botón «Volver»
+  const historial = [];
+  const seccionActual = () => { const b = $('#tabs button.active'); return b ? b.dataset.tab : 'datos'; };
+  function actualizarVolver() { $('#btnVolver').disabled = !historial.length; }
+  function irA(tab, desdeVolver) {
     if (ETAPAS_POSTERIORES.includes(tab) && S.arboles.length && especiesSinFuncion().length) { tab = 'especies'; toast('Asigne una función de volumen a todas las especies antes de continuar.'); }
+    const previa = seccionActual();
+    if (!desdeVolver && previa !== tab) { historial.push(previa); if (historial.length > 50) historial.shift(); }
+    actualizarVolver();
     $$('#tabs button').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
     $$('.panel').forEach(p => p.classList.toggle('active', p.id === 'tab-' + tab));
     if (tab === 'tabla') renderTabla();
@@ -60,6 +75,15 @@
     window.scrollTo({ top: 0 });
   }
   $$('#tabs button').forEach(b => b.addEventListener('click', () => { if (!b.disabled) irA(b.dataset.tab); }));
+  $('#btnVolver').addEventListener('click', () => {
+    // vuelve a la última sección visitada que siga habilitada
+    while (historial.length) {
+      const t = historial.pop(), b = $(`#tabs button[data-tab="${t}"]`);
+      if (b && !b.disabled && t !== seccionActual()) { irA(t, true); return; }
+    }
+    actualizarVolver();
+  });
+  $('#btnCerrarSesion').addEventListener('click', () => { historial.length = 0; irA('datos', true); PORTADA.abrir(); });
   function habilitar(on) {
     on = on && !faltanParametros().length;
     $$('#tabs button').forEach(b => { if (b.dataset.tab !== 'datos' && b.dataset.tab !== 'fuentes') b.disabled = !on; });

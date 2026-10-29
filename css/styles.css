@@ -303,3 +303,4 @@ body:not(.con-portada) #portada { display: none; }
   .pt-main { min-height: 0; }
   .pt-sistema { align-items: flex-start; text-align: left; }
 }
+.pt-maqueta { padding: 10px clamp(16px, 5vw, 64px); background: var(--warn-soft); color: #5c3d00; border-bottom: 1px solid #e8d29a; font-size: 14px; text-align: center; }

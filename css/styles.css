@@ -1,4 +1,4 @@
-﻿/* Esquema de colores de la portada (colores del logo Gobierno de Chile · CONAF), aplicado a toda la página */
+/* Esquema de colores de la portada (colores del logo Gobierno de Chile · CONAF), aplicado a toda la página */
 :root {
   color-scheme: light;
   --verde: #398245;
@@ -304,3 +304,13 @@ body:not(.con-portada) #portada { display: none; }
   .pt-sistema { align-items: flex-start; text-align: left; }
 }
 .pt-maqueta { padding: 10px clamp(16px, 5vw, 64px); background: var(--warn-soft); color: #5c3d00; border-bottom: 1px solid #e8d29a; font-size: 14px; text-align: center; }
+/* ---------- Sección 1: carga compacta y ventana de ejemplos ---------- */
+details.formato { margin: 0 0 10px; font-size: 13px; }
+details.formato summary { cursor: pointer; color: var(--accent); font-weight: 600; }
+details.formato p { margin: 6px 0 0; }
+.drop.compacta { padding: 12px 14px; }
+.drop.compacta .drop-inner { flex-direction: row; justify-content: center; gap: 10px; }
+.drop.compacta svg { width: 22px; height: 22px; }
+.ejemplos { display: grid; gap: 8px; }
+.ejemplo { display: flex; align-items: center; justify-content: space-between; gap: 6px 12px; flex-wrap: wrap; padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-2); font-size: 13px; }
+.ejemplo .row-btns { margin-top: 0; }

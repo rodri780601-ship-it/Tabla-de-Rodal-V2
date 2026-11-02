@@ -89,10 +89,15 @@
     <!-- ============ 1. INVENTARIO ============ -->
     <section class="panel active" id="tab-datos">
       <div class="grid2">
+        <div>
         <div class="card">
           <h2>Cargar inventario de parcelas</h2>
-          <p class="muted">Archivo Excel (.xlsx) o CSV con una fila por árbol. Columnas mínimas: <b>Rodal</b>, <b>Parcela</b>, <b>Especie</b> y <b>Dap</b> (cm), como la hoja 2 de la plantilla. Columnas opcionales: <b>Árbol</b> (N° del individuo en la parcela), <b>Tipo</b> (Cepa / Vástago: en bosque simpódico, cada cepa con sus vástagos forma un individuo) y <b>Extraer</b> (S/N). La superficie de la parcela se define en los parámetros generales y la altura promedio de cada especie en la sección 2. Si el archivo trae la hoja <b>Ficha predial</b> (plantilla de la app Parcelas de Muestreo Forestal), sus datos completan los antecedentes generales.</p>
-          <div class="drop" id="drop">
+          <p class="muted" style="margin-top:0">Cargue el inventario de parcelas en Excel (.xlsx) o CSV, con una fila por árbol y las columnas <b>Rodal</b>, <b>Parcela</b>, <b>Especie</b> y <b>Dap</b> (cm). Puede agregar <b>Árbol</b>, <b>Tipo</b> (Cepa / Vástago) y <b>Extraer</b> (S/N). Lo más simple es usar la plantilla: si incluye la hoja «Ficha predial», también completa los antecedentes generales.</p>
+          <details class="formato">
+            <summary>Formato del archivo</summary>
+            <p class="muted">Columnas mínimas: <b>Rodal</b>, <b>Parcela</b>, <b>Especie</b> y <b>Dap</b> (cm), como la hoja «Inventario» de la plantilla. Columnas opcionales: <b>Árbol</b> (N° del individuo en la parcela), <b>Tipo</b> (Cepa / Vástago: en bosque simpódico, cada cepa con sus vástagos forma un individuo) y <b>Extraer</b> (S/N). La superficie de la parcela se define en los parámetros generales y la altura promedio de cada especie en la sección 2. Si el archivo trae la hoja <b>Ficha predial</b> (plantilla de la app Parcelas de Muestreo Forestal), sus datos completan los antecedentes generales.</p>
+          </details>
+          <div class="drop compacta" id="drop">
             <input type="file" id="inpArchivo" accept=".xlsx,.csv,.txt">
             <div class="drop-inner">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0-12-4 4m4-4 4 4M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -101,14 +106,29 @@
           </div>
           <div class="row-btns">
             <button class="btn" id="btnPlantilla">Descargar plantilla</button>
-            <button class="btn ghost" id="btnEjemploMono" title="Roble-raulí-coigüe y siempreverde, Región de La Araucanía">Ejemplo monopódico</button>
-            <button class="btn ghost" id="btnEjemploSimp" title="Esclerófilo con cepas y vástagos, Región de Valparaíso">Ejemplo simpódico</button>
-          </div>
-          <div class="row-btns">
-            <a class="btn ghost small" href="ejemplos/Ejemplo_monopodico.xlsx" download style="text-decoration:none">Descargar ejemplo monopódico (Excel)</a>
-            <a class="btn ghost small" href="ejemplos/Ejemplo_simpodico.xlsx" download style="text-decoration:none">Descargar ejemplo simpódico (Excel)</a>
           </div>
           <div id="msgArchivo"></div>
+        </div>
+        <div class="card">
+          <h2>Ejemplos</h2>
+          <p class="muted" style="margin-top:0">Inventarios sintéticos con antecedentes ficticios, para conocer la aplicación.</p>
+          <div class="ejemplos">
+            <div class="ejemplo">
+              <div><b>Monopódico</b> <span class="muted">· Roble-raulí-coigüe y siempreverde, La Araucanía</span></div>
+              <div class="row-btns">
+                <button class="btn ghost small" id="btnEjemploMono">Cargar</button>
+                <a class="btn ghost small" href="ejemplos/Ejemplo_monopodico.xlsx" download style="text-decoration:none">Descargar Excel</a>
+              </div>
+            </div>
+            <div class="ejemplo">
+              <div><b>Simpódico</b> <span class="muted">· Esclerófilo con cepas y vástagos, Valparaíso</span></div>
+              <div class="row-btns">
+                <button class="btn ghost small" id="btnEjemploSimp">Cargar</button>
+                <a class="btn ghost small" href="ejemplos/Ejemplo_simpodico.xlsx" download style="text-decoration:none">Descargar Excel</a>
+              </div>
+            </div>
+          </div>
+        </div>
         </div>
         <div>
         <div class="card">
@@ -207,6 +227,7 @@
         <div class="kpis" id="kpisCarga"></div>
         <div id="avisosCarga"></div>
       </div>
+
     </section>
 
     <!-- ============ 2. ESPECIES ============ -->

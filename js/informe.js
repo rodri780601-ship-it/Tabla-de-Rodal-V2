@@ -1,6 +1,7 @@
 /* Informe imprimible / PDF en papel oficio (216 × 330 mm).
    Usa la impresión del navegador ("Guardar como PDF"): @page define tamaño y márgenes,
-   y las clases .salto / .pg-h controlan los saltos de página y la orientación. */
+   y la clase .pg-h define las hojas horizontales. No se fuerzan saltos de página entre secciones:
+   sólo se cambia de hoja cuando el contenido siguiente no cabe o cambia la orientación. */
 (function () {
   'use strict';
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -69,7 +70,7 @@
       const { figs, datos } = window.GRAFICOS.figurasRodal(r);
       const F = Object.fromEntries(figs.map(f => [f.id, f]));
       // ---------- Diagnóstico (vertical) ----------
-      h += `<section class="pg salto">
+      h += `<section class="pg">
         <h2 class="rodal">Rodal ${esc(r.id)} · Diagnóstico</h2>
         <table class="kv"><tbody>
           <tr><th>Tipo forestal (D.S. 259)</th><td><b>${esc(r.tipo.nombre)}</b> — ${esc(r.tipo.motivo)}${r.tipo.alternativas.length ? ' También cumple: ' + esc(r.tipo.alternativas.join(', ')) + '.' : ''}</td></tr>
@@ -83,7 +84,8 @@
         <table class="it"><thead><tr><th>Especie</th><th>Nombre científico</th><th>Categoría</th><th>N ini/res</th><th>G ini/res</th><th>V ini/res</th><th>Altura (m)</th><th>Función</th></tr></thead><tbody>${r.porEspecie.map(e => `<tr><td>${esc(e.nombre)}</td><td><i>${esc((S.especiesInfo[e.key] || {}).sci || 'No figura en D.S. 68')}</i></td><td>${esc(e.cat.code)}</td><td class="n">${fmt(e.ini.n, 0)} / ${fmt(e.res.n, 0)}</td><td class="n">${fmt(e.ini.g, 2)} / ${fmt(e.res.g, 2)}</td><td class="n">${e.ini.v == null ? '—' : fmt(e.ini.v, 1) + ' / ' + fmt(e.res.v, 1)}</td><td class="n">${fmt(e.h, 1)}</td><td>${esc(window.CALC.etiquetaFid(e.fid))}</td></tr>`).join('')}</tbody></table>
       </section>`;
       // ---------- Tablas de rodal (oficio horizontal) ----------
-      h += `<section class="pg-h salto">
+      // (hoja vertical, igual que el resto: las tablas caben a lo ancho y se evita el salto por cambio de orientación)
+      h += `<section class="pg">
         <h2 class="rodal">Rodal ${esc(r.id)} · 12.3.9 Tabla de rodal inicial y residual, después de la intervención inmediata</h2>
         <div class="bloque">${tablaRodal(r, 'g', 'G (m²/ha)', 2)}</div>
         <h3>Volumen inicial y residual por clase diamétrica (funciones del compendio${r.porEspecie.some(e => (window.CALC.FN[e.fid] || {}).usuario) ? ' y definidas por el usuario' : ''})</h3>
@@ -91,28 +93,26 @@
         <p class="nota">${r.simpodico ? 'Bosque simpódico: N = individuos (cepas)/ha; G y V incluyen todos los vástagos; clase según diámetro equivalente √(Σ d²). ' : ''}Densidad en árboles enteros por hectárea: en cada especie los valores por clase se redondean de modo que sumen el total de la especie redondeado. Columnas Res. = residual.${r.tot.ini.vCompleto ? '' : ' Hay especies sin función de volumen o sin altura: volumen parcial.'}</p>
       </section>`;
       // ---------- Gráficos (vertical) ----------
-      h += `<section class="pg salto">
-        <h2 class="rodal">Rodal ${esc(r.id)} · Efectos de la intervención</h2>
-        ${figura(F.dd)}
-        ${figura(F.np)}
-        ${figura(F.gp)}
+      // Gráficos 1, 2a, 2b, 3a y 3b en una sola grilla de dos columnas (sin huecos entre secciones);
+      // la tabla de estructura por especie, compacta, ocupa la media columna que queda junto al 3b.
+      h += `<section class="pg">
+        <h2 class="rodal">Rodal ${esc(r.id)} · Efectos de la intervención y sobre la estructura por especie</h2>
+        <div class="cols2">${figura(F.dd, true)}${figura(F.np, true)}${figura(F.gp, true)}${figura(F.ne, true)}${figura(F.ge, true)}
+          <figure class="if mitad"><figcaption>3c. Estructura por especie</figcaption>
+            <table class="it compacta"><thead><tr><th>Especie</th><th>N ini %</th><th>N res %</th><th>G ini %</th><th>G res %</th><th>DMC ini (cm)</th><th>DMC res (cm)</th></tr></thead><tbody>${datos.estructura.map(e => `<tr><td>${esc(e.nombre)}</td><td class="n">${fmt(e.nIni)}</td><td class="n">${fmt(e.nRes)}</td><td class="n">${fmt(e.gIni)}</td><td class="n">${fmt(e.gRes)}</td><td class="n">${fmt(e.dmcIni)}</td><td class="n">${fmt(e.dmcRes)}</td></tr>`).join('')}</tbody></table>
+          </figure>
+        </div>
       </section>
-      <section class="pg salto">
-        <h2 class="rodal">Rodal ${esc(r.id)} · Efectos sobre la estructura por especie</h2>
-        ${figura(F.ne)}
-        ${figura(F.ge)}
-        <table class="it bloque"><thead><tr><th>Especie</th><th>N ini (%)</th><th>N res (%)</th><th>G ini (%)</th><th>G res (%)</th><th>DMC ini (cm)</th><th>DMC res (cm)</th></tr></thead><tbody>${datos.estructura.map(e => `<tr><td>${esc(e.nombre)}</td><td class="n">${fmt(e.nIni)}</td><td class="n">${fmt(e.nRes)}</td><td class="n">${fmt(e.gIni)}</td><td class="n">${fmt(e.gRes)}</td><td class="n">${fmt(e.dmcIni)}</td><td class="n">${fmt(e.dmcRes)}</td></tr>`).join('')}</tbody></table>
-      </section>
-      <section class="pg salto">
+      <section class="pg">
         <h2 class="rodal">Rodal ${esc(r.id)} · Distribución espacial por especie</h2>
-        ${figura(F.esp)}
+        <div class="cols2">${figura(F.esp, true)}</div>
         <table class="it bloque"><thead><tr><th>Especie</th><th>Árboles</th><th>Frecuencia (%)</th><th>Media/parcela</th><th>Varianza</th><th>S²/x̄</th><th>Morisita</th><th>χ² (límites 95 %)</th><th>Distribución</th></tr></thead><tbody>${datos.disp.map(({ nombre, d }) => `<tr><td>${esc(nombre)}</td><td class="n">${d.Nt}</td><td class="n">${d.presencia == null ? '—' : fmt(d.presencia, 0)}</td><td class="n">${d.media == null ? '—' : fmt(d.media, 2)}</td><td class="n">${d.var == null ? '—' : fmt(d.var, 2)}</td><td class="n">${d.id == null ? '—' : fmt(d.id, 2)}</td><td class="n">${d.mor == null ? '—' : fmt(d.mor, 2)}</td><td class="n">${d.chi == null ? '—' : fmt(d.chi, 2) + ' (' + fmt(d.lo, 1) + '–' + fmt(d.hi, 1) + ')'}</td><td>${esc(d.patron)}</td></tr>`).join('')}</tbody></table>
         <p class="nota">Distribución de los individuos entre las parcelas del rodal (el inventario no registra coordenadas). Prueba χ² del índice de dispersión al 95 %: sobre el límite superior, agregada; bajo el inferior, regular; entre ambos, aleatoria.</p>
       </section>`;
     });
     // ---------- Fuentes ----------
     const usadas = new Map(); rs.forEach(r => r.porEspecie.forEach(e => { if (e.fid) { const u = usadas.get(e.fid) || new Set(); u.add(e.nombre); usadas.set(e.fid, u); } }));
-    h += `<section class="pg salto"><h2>Funciones de volumen utilizadas</h2>
+    h += `<section class="pg"><h2>Funciones de volumen utilizadas</h2>
       <table class="it"><thead><tr><th>N°</th><th>Especies de la función</th><th>Aplicada a</th><th>Región</th><th>Ecuación</th><th>Variable</th><th>Fuente</th></tr></thead><tbody>
       ${[...usadas.keys()].sort(window.CALC.ordenFid).map(id => { const f = window.CALC.FN[id]; return `<tr><td>${f.usuario ? 'Usuario' : f.id}</td><td>${esc(f.especies.join(' - '))}</td><td>${esc([...usadas.get(id)].join(', '))}</td><td>${esc(f.regiones.join(' - '))}</td><td class="eq">${esc(f.eq)}</td><td>${esc(f.variable)}</td><td>${esc(f.fuente)} (${esc(f.anio)})</td></tr>`; }).join('')}
       </tbody></table>
@@ -134,10 +134,12 @@
 #informe .pg { page: auto; }
 #informe .pg-h { page: horizontal; }
 #informe .salto { break-before: page; }
-#informe h1 { font-size: 16pt; margin: 0 0 4pt; color: #1f3d27; }
-#informe h2 { font-size: 12pt; margin: 12pt 0 5pt; color: #1f3d27; break-after: avoid; }
-#informe h2.rodal { margin-top: 0; border-bottom: 1.5pt solid #2f5d3a; padding-bottom: 3pt; }
-#informe h3 { font-size: 10pt; margin: 10pt 0 4pt; break-after: avoid; }
+#informe h1 { font-size: 14pt; margin: 0 0 4pt; color: #1f3d27; }
+/* Un solo tamaño (10 pt, negrita) para títulos de secciones, de tablas y de gráficos */
+#informe h2, #informe h3, #informe figure.if figcaption { font-size: 10pt; font-weight: bold; color: #1f3d27; letter-spacing: 0; }
+#informe h2 { margin: 14pt 0 6pt; break-after: avoid; }
+#informe h2.rodal { margin-top: 0; border-bottom: 1.2pt solid #2f5d3a; padding-bottom: 3pt; margin-bottom: 8pt; }
+#informe h3 { margin: 12pt 0 5pt; break-after: avoid; }
 #informe .ihead { border-bottom: 2pt solid #2f5d3a; padding-bottom: 6pt; margin-bottom: 8pt; }
 #informe .ihead p { margin: 2pt 0; }
 #informe table { border-collapse: collapse; width: 100%; }
@@ -157,10 +159,18 @@
 #informe table.tr tr.tot td:first-child { text-align: center; }
 #informe .nota { font-size: 7.8pt; color: #444; margin: 3pt 0; }
 #informe figure.if { margin: 6pt 0 10pt; }
-#informe figure.if figcaption { font-weight: bold; font-size: 9.5pt; }
+#informe figure.if figcaption { margin-bottom: 2pt; }
 #informe .svgbox svg { width: 100%; height: auto; display: block; }
 #informe .par { display: flex; gap: 8mm; }
 #informe .par figure.mitad { flex: 1 1 0; min-width: 0; }
+#informe .cols2 { display: grid; grid-template-columns: 1fr 1fr; gap: 4mm 6mm; align-items: start; }
+#informe .cols2 figure.if { margin: 0; min-width: 0; }
+#informe .cols2 .ley { font-size: 7pt; gap: 6pt; flex-wrap: wrap; }
+#informe .cols2 + table, #informe .cols2 + .bloque { margin-top: 10pt; }
+#informe table.it.compacta { font-size: 7.5pt; }
+#informe table.it.compacta th, #informe table.it.compacta td { padding: 1.2pt 3pt; }
+#informe .cols2 figure table.it { font-size: 7pt; margin-top: 4pt; }
+#informe .cols2 figure table.it th { white-space: normal; text-align: center; }
 #informe .ley { display: flex; gap: 10pt; font-size: 8pt; color: #444; margin: 2pt 0; }
 #informe .ley i { display: inline-block; width: 8pt; height: 8pt; border-radius: 2pt; margin-right: 3pt; vertical-align: -1pt; }
 #informe .st-no, #informe .res-bad { color: #b42318; font-weight: bold; }
@@ -169,7 +179,12 @@
 #informe ul.fuentes { padding-left: 14pt; }
 #informe .hoja { background: #fff; overflow: hidden; position: relative; box-sizing: border-box; }
 #informe .hoja > section { margin: 0; }
-#informe .hoja > section > :first-child { margin-top: 0; }`;
+#informe .hoja > section > :first-child { margin-top: 0; }
+#informe .hoja > section + section { margin-top: 20pt; }`;
+  // Las mismas reglas deben regir al medir las hojas (compaginar, en el documento) y al dibujarlas (rasterizar):
+  // si no, la compaginación se calcula con otro diseño (p. ej. gráficos apilados en vez de dos columnas) y quedan huecos.
+  // También rigen la impresión con el diálogo del navegador.
+  (function () { const st = document.createElement('style'); st.id = 'css-informe'; st.textContent = CSS_INFORME; document.head.appendChild(st); })();
   const MM = 96 / 25.4, PT = 72 / 25.4;
   const FORMATOS = {
     v: { pagW: 216, pagH: 330, mT: 16, mR: 14, mB: 16, mL: 14 },
@@ -180,10 +195,12 @@
 
   function compaginar(raiz, secciones) {
     const hojas = [];
+    // La hoja en curso se comparte entre secciones: una sección sigue en la misma hoja que la anterior
+    // (sin salto de página) mientras quepa y tenga la misma orientación.
+    let hoja, cont, colocados, fmtPrev = null;
     secciones.forEach(sec => {
       const fmtKey = sec.classList.contains('pg-h') ? 'h' : 'v';
       const F = FORMATOS[fmtKey], W = anchoPx(F), H = altoPx(F);
-      let hoja, cont, colocados;
       const nueva = (ruta) => {
         hoja = document.createElement('div'); hoja.className = 'hoja';
         hoja.style.width = W + 'px'; hoja.style.height = H + 'px';
@@ -194,6 +211,16 @@
       const desborda = () => hoja.scrollHeight > H + 1;
       const rutaDe = (c) => { const r = []; let x = c; while (x && x !== hoja) { r.unshift(x); x = x.parentNode; } return r; };
       const esTitulo = (e) => e && e.nodeType === 1 && /^H[1-4]$/.test(e.tagName);
+      // pasa a una hoja nueva sin dejar un título solo al pie de la hoja anterior
+      function saltar() {
+        const prev = cont.lastElementChild, ruta = rutaDe(cont);
+        if (esTitulo(prev) && cont.children.length > 1) { cont.removeChild(prev); nueva(ruta); cont.appendChild(prev); }
+        else if (esTitulo(prev) && cont.children.length === 1 && cont.parentNode === hoja && hoja.children.length > 1) {
+          // la sección recién empezada sólo tiene su título: se lleva completa a la hoja nueva
+          const s = cont; hoja.removeChild(s); nueva([]); hoja.appendChild(s); cont = s;
+        }
+        else nueva(ruta);
+      }
       function colocar(nodo) {
         cont.appendChild(nodo);
         if (!desborda()) { if (nodo.nodeType === 1 || nodo.textContent.trim()) colocados++; return; }
@@ -208,9 +235,7 @@
         }
         if (colocados > 0) {
           // mantener los títulos junto al contenido siguiente
-          const prev = cont.lastElementChild; const ruta = rutaDe(cont);
-          if (esTitulo(prev) && cont.children.length > 1) { cont.removeChild(prev); nueva(ruta); cont.appendChild(prev); }
-          else nueva(ruta);
+          saltar();
           cont.appendChild(nodo);
           if (!desborda()) { colocados++; return; }
           cont.removeChild(nodo);
@@ -236,15 +261,19 @@
           t.tBodies[0].appendChild(fila);
           if (!desborda()) return;
           t.tBodies[0].removeChild(fila);
-          if (!t.tBodies[0].rows.length) { cont.removeChild(t); const prev = cont.lastElementChild; const ruta = rutaDe(cont); if (esTitulo(prev) && cont.children.length > 1) { cont.removeChild(prev); nueva(ruta); cont.appendChild(prev); } else nueva(ruta); }
+          if (!t.tBodies[0].rows.length) { cont.removeChild(t); saltar(); }
           else nueva(rutaDe(cont));
           t = nuevaCasco(); t.tBodies[0].appendChild(fila);
         });
         colocados++;
       }
-      nueva([]);
+      // salto de página sólo al cambiar de orientación (o en la primera sección)
+      // tampoco se empieza una sección al pie de una hoja (con menos de 1/5 de hoja libre): se pasa a la siguiente
+      const usado = () => { const u = hoja && hoja.lastElementChild; return u ? u.getBoundingClientRect().bottom - hoja.getBoundingClientRect().top : 0; };
+      const seguir = hoja && fmtPrev === fmtKey && H - usado() >= H * 0.2;
+      fmtPrev = fmtKey;
+      if (!seguir) nueva([]);
       const casco = sec.cloneNode(false); hoja.appendChild(casco); cont = casco;
-      // si la sección excede la hoja en poco (≤ 18 %), se reduce levemente para no dejar una hoja casi vacía
       [...sec.childNodes].forEach(n => casco.appendChild(n));
       // tablas o figuras más anchas que la hoja: se reducen para respetar los márgenes
       casco.querySelectorAll('table, .par, figure').forEach(el => {
@@ -254,9 +283,23 @@
       });
       const alto = hoja.scrollHeight;
       if (alto <= H + 1) return;
-      if (alto <= H * 1.18) { casco.style.zoom = (H / alto - 0.005).toFixed(4); if (hoja.scrollHeight <= H + 1) return; casco.style.zoom = ''; }
+      // si la sección, sola en su hoja, la excede en poco (≤ 18 %), se reduce levemente para no dejar una hoja casi vacía
+      if (!seguir && alto <= H * 1.18) { casco.style.zoom = (H / alto - 0.005).toFixed(4); if (hoja.scrollHeight <= H + 1) return; casco.style.zoom = ''; }
+      // si la sección continúa en una hoja compartida y no cabe en el espacio restante, se intenta que quepa completa:
+      // primero se compactan sus tablas y, si aún falta poco, se reduce la sección hasta un 85 %
+      if (seguir) {
+        const tablas = [...casco.children].filter(el => el.tagName === 'TABLE');
+        tablas.forEach(t => t.classList.add('compacta'));
+        if (hoja.scrollHeight <= H + 1) return;
+        const libre = H - (casco.getBoundingClientRect().top - hoja.getBoundingClientRect().top), hS = casco.getBoundingClientRect().height;
+        const z = hS > 0 ? libre / hS - 0.005 : 0;
+        if (z >= 0.85) { casco.style.zoom = z.toFixed(4); if (hoja.scrollHeight <= H + 1) return; casco.style.zoom = ''; }
+        tablas.forEach(t => t.classList.remove('compacta'));
+      }
       const hijos = [...casco.childNodes]; hijos.forEach(n => casco.removeChild(n));
       hijos.forEach(colocar);
+      // si la sección no alcanzó a poner nada en la hoja compartida, se quita su casco vacío
+      if (casco.parentNode && !casco.childNodes.length) casco.remove();
     });
     // quitar hojas vacías
     return hojas.filter(h => h.el.textContent.trim() || h.el.querySelector('svg,img'));

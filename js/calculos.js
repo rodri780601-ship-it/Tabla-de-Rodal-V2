@@ -491,7 +491,7 @@
     // Los estados de desarrollo (Bases 2.5, Cuadro 2) se definen para bosques regulares: en un rodal de estructura
     // irregular o indefinida el estado de desarrollo (inicial y residual) es «No aplica».
     if (r.estructura === 'irregular') {
-      r.estado = r.estadoRes = { estado: 'No aplica', noAplica: true, criterio: 'Rodal de estructura irregular o indefinida: los estados de desarrollo del Cuadro 2 (Bases 2.5) se definen para bosques de estructura regular' };
+      r.estado = r.estadoRes = { estado: 'No aplica', noAplica: true, criterio: 'Rodal de estructura irregular o indefinida: los estados de desarrollo se definen para bosques de estructura regular' };
     }
     r.categoria = categoriaBosque(r, cfg);
     r.exoticas = (() => { const g = sum(porEspecie.filter(e => !e.nativa).map(e => e.ini.g)); return { g, pct: tot.ini.g ? g / tot.ini.g * 100 : 0, especies: porEspecie.filter(e => !e.nativa).map(e => e.nombre) }; })();
@@ -646,13 +646,13 @@
     }
     const refCob = escPal ? 'D.S. 82 art. 7' : 'D.S. 82 art. 8';
     if (min == null) add('Cobertura residual mínima', 'pend', 'Seleccione la pendiente predominante del rodal para determinar la cobertura arbórea y arbustiva mínima que debe quedar.', refCob);
-    else if (cob == null) add(`Cobertura residual mínima (${min} %)`, 'pend', `${regla}: debe quedar una cobertura arbórea y arbustiva de al menos ${min} %. Ingrese la cobertura residual estimada en la sección 3.`, refCob);
+    else if (cob == null) add(`Cobertura residual mínima (${min} %)`, 'pend', `${regla}: debe quedar una cobertura arbórea y arbustiva de al menos ${min} %. Ingrese la cobertura residual estimada en la sección 4 (Intervención propuesta).`, refCob);
     else add(`Cobertura residual mínima (${min} %)`, cob >= min ? 'si' : 'no', `${regla}: cobertura arbórea y arbustiva residual estimada ${cob} % (mínimo ${min} %).`, refCob);
     add('Residuos leñosos', 'obs', 'Los residuos leñosos de diámetro inferior a 3 cm no pueden retirarse del área afecta.', refCob);
     // Profundidad de suelo (art. 9)
     const prof = cfg.profSuelo === '' || cfg.profSuelo == null ? null : Number(cfg.profSuelo);
     const lim = reg === 'XII' ? 10 : 20;
-    if (prof == null) add(`Profundidad del suelo (≥ ${lim} cm)`, 'pend', `Ingrese la profundidad del suelo en «Suelo y clima» (sección 6): se prohíbe la corta de bosque nativo en suelos de menos de ${lim} cm${reg === 'XII' ? ' (Región de Magallanes)' : ''}.`, 'D.S. 82 art. 9');
+    if (prof == null) add(`Profundidad del suelo (≥ ${lim} cm)`, 'pend', `Ingrese la profundidad del suelo en «Suelo y clima» (sección 7): se prohíbe la corta de bosque nativo en suelos de menos de ${lim} cm${reg === 'XII' ? ' (Región de Magallanes)' : ''}.`, 'D.S. 82 art. 9');
     else add(`Profundidad del suelo (≥ ${lim} cm)`, prof >= lim ? 'si' : 'no', `Profundidad del suelo ${prof} cm${prof < lim ? ': se prohíbe la corta de bosque nativo' : ''}.`, 'D.S. 82 art. 9');
     if (reg === 'XII' && (r.tipo.id === 'LEN' || r.tipo.id === 'CM') && r.hProm != null && r.hProm <= 8) {
       const adulto = ['Fustal joven', 'Fustal', 'Sobremaduro'].includes(r.estado.estado);

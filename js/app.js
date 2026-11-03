@@ -75,6 +75,7 @@
     if (tab === 'estadisticos') renderEstadisticos();
     if (tab === 'cumplimiento') renderCumplimiento();
     if (tab === 'rodales') renderRodalCfg();
+    if (tab === 'intervencion') renderIntervencion();
     if (tab === 'especies') renderEspecies();
     window.scrollTo({ top: 0 });
   }
@@ -99,7 +100,7 @@
   const ordenTabs = $$('#tabs button').map(b => b.dataset.tab);
   ordenTabs.forEach((tab, i) => {
     const sig = ordenTabs[i + 1], panel = $('#tab-' + tab);
-    if (!sig || !panel || ['cumplimiento', 'fuentes', 'ejemplos'].includes(tab)) return; // la sección 6, Fuentes y Ejemplos no llevan botón
+    if (!sig || !panel || ['cumplimiento', 'fuentes', 'ejemplos'].includes(tab)) return; // la sección 7, Fuentes y Ejemplos no llevan botón
     const nombre = $(`#tabs button[data-tab="${sig}"]`).textContent.trim();
     const caja = document.createElement('div'); caja.className = 'row-btns fin-seccion';
     caja.innerHTML = `<button class="btn primary" data-siguiente="${sig}">Continuar a ${esc(nombre)} →</button>`;
@@ -122,8 +123,8 @@
     if (on) aplicarReglaFunciones();
   }
   /* Regla: todas las especies del inventario deben tener una función de volumen asignada
-     (del compendio o definida por el usuario) para avanzar a las etapas 3 a 6, exportar o generar el PDF. */
-  const ETAPAS_POSTERIORES = ['rodales', 'tabla', 'estadisticos', 'cumplimiento'];
+     (del compendio o definida por el usuario) para avanzar a las etapas 3 a 7, exportar o generar el PDF. */
+  const ETAPAS_POSTERIORES = ['rodales', 'intervencion', 'tabla', 'estadisticos', 'cumplimiento'];
   function funcionAsignada(key, info) {
     const sel = S.funciones[key];
     const fid = sel !== undefined ? sel : (info.key ? C.funcionPorDefecto(info.key, regionComp(), null) : null);
@@ -145,7 +146,7 @@
     if (box) {
       box.className = 'aviso ' + (bloq ? 'bad' : 'ok');
       box.innerHTML = bloq
-        ? `<b>No puede avanzar a la etapa 3.</b> Falta asignar función de volumen a ${faltan.length === 1 ? 'la especie' : 'las especies'}: <b>${faltan.map(esc).join(', ')}</b>. Elija una función del compendio o "Definida por el usuario…" en la columna "Función de volumen". Mientras tanto, las etapas 3 a 6, la exportación a Excel y el PDF quedan bloqueados.`
+        ? `<b>No puede avanzar a la etapa 3.</b> Falta asignar función de volumen a ${faltan.length === 1 ? 'la especie' : 'las especies'}: <b>${faltan.map(esc).join(', ')}</b>. Elija una función del compendio o "Definida por el usuario…" en la columna "Función de volumen". Mientras tanto, las etapas 3 a 7, la exportación a Excel y el PDF quedan bloqueados.`
         : `Todas las especies tienen función de volumen asignada.`;
     }
   }
@@ -467,6 +468,7 @@
     // refrescar vistas visibles
     const act = ($('#tabs button.active') || {}).dataset;
     if (act && act.tab === 'rodales') refrescarResultadosRodal();
+    if (act && act.tab === 'intervencion') refrescarResultadoIntervencion();
     if (act && act.tab === 'tabla') renderTabla();
     if (act && act.tab === 'estadisticos') renderEstadisticos();
     if (act && act.tab === 'cumplimiento') renderCumplimiento();
@@ -682,7 +684,6 @@
           </div>
       </div>
       <div class="card" id="resRodal"></div>
-      <div class="grid2">
         <div class="card">
           <h2>Ajuste manual de parámetros</h2>
           <p class="muted" style="margin-top:0">Estos ajustes reemplazan los valores que la aplicación calcula a partir del inventario y deben justificarse en el estudio técnico respectivo.</p>
@@ -693,14 +694,38 @@
             </div>
             <div class="two">
               <label>Tipo forestal<select data-f="tipoManual"><option value="">Automático (D.S. 259)</option>${N.TIPOS_FORESTALES.map(t => `<option value="${t.id}" ${cfg.tipoManual === t.id ? 'selected' : ''}>${esc(t.nombre)}</option>`).join('')}</select></label>
-              <label>Estado de desarrollo<select data-f="estadoManual"><option value="">Automático (Bases 2.5)</option>${N.ESTADOS.map(e => `<option ${cfg.estadoManual === e ? 'selected' : ''}>${e}</option>`).join('')}</select></label>
+              <label>Estado de desarrollo<select data-f="estadoManual"><option value="">Automático</option>${N.ESTADOS.map(e => `<option ${cfg.estadoManual === e ? 'selected' : ''}>${e}</option>`).join('')}</select></label>
             </div>
           </div>
         </div>
+`;
+    // eventos
+    const root = $('#rodalCfg');
+    $$('[data-f]', root).forEach(el => el.addEventListener('change', () => { cfg[el.dataset.f] = el.type === 'number' ? (el.value === '' ? '' : Number(el.value)) : el.value; recalcular(); }));
+    $$('[data-b]', root).forEach(el => el.addEventListener('change', () => { cfg[el.dataset.b] = el.checked; recalcular(); }));
+    refrescarResultadosRodal();
+  }
+
+  /* ======================= 4. Intervención propuesta ======================= */
+  // Comparte el rodal seleccionado con la sección 3.
+  function renderIntervencion() {
+    if (!S.rodales.length) return;
+    if (!rodalActual || !S.rodales.includes(rodalActual)) rodalActual = S.rodales[0];
+    const sel = $('#selRodalInt'); sel.innerHTML = opcionesRodal(rodalActual);
+    sel.onchange = () => { rodalActual = sel.value; renderIntervencion(); };
+    const id = rodalActual, cfg = S.cfgRodal[id], r = S.resultados[id];
+    const actOpts = ['-', 'A', 'B', 'C', 'Incendios'].map(l => {
+      const acts = N.ACTIVIDADES.filter(a => a.literal === l);
+      const lab = { '-': 'General', A: 'Literal a) · Bosque nativo de preservación', B: 'Literal b) · Productos no madereros', C: 'Literal c) · Producción maderera', Incendios: 'Bosques afectados por incendios' }[l];
+      return `<optgroup label="${lab}">${acts.map(a => `<option value="${a.id}" ${cfg.actividad === a.id ? 'selected' : ''}>${esc(a.nombre)}</option>`).join('')}</optgroup>`;
+    }).join('');
+    const chkSp = (name, arr) => r.porEspecie.map(e => `<label class="chk"><input type="checkbox" data-${name}="${esc(e.key)}" ${arr.includes(e.key) ? 'checked' : ''}> ${esc(e.nombre)}</label>`).join('<br>');
+    $('#intervencionCfg').innerHTML = `
+      <div class="grid2">
         <div class="card">
-          <h2>Intervención propuesta</h2>
+          <h2>Intervención propuesta · Rodal ${esc(id)}</h2>
           <div class="form">
-            <label>Actividad a postular<select data-f="actividad">${actOpts}</select></label>
+            <label>Actividad inmediata a ejecutar<select data-f="actividad">${actOpts}</select></label>
             <div id="boxMetodo" ${cfg.actividad === 'C_REG' ? '' : 'hidden'}><label>Método de corta de regeneración (D.S. 259)<select data-f="metodoRegen"><option value="">— seleccione —</option>${N.METODOS_CORTA.map(m => `<option value="${m.id}" ${cfg.metodoRegen === m.id ? 'selected' : ''}>${esc(m.nombre)}</option>`).join('')}</select></label></div>
             <div id="boxInputs"></div>
             <label>Cobertura arbórea y arbustiva residual estimada (%)<input type="number" step="any" min="0" max="100" data-f="coberturaRes" value="${esc(cfg.coberturaRes == null ? '' : cfg.coberturaRes)}"><small>Cobertura de copas que quedará después de la intervención. Se compara con el mínimo de los arts. 7 y 8 del D.S. 82.</small></label>
@@ -722,22 +747,35 @@
             </div>
           </div>
         </div>
+        <div class="card" id="resIntervencion"></div>
       </div>
 `;
-    // eventos
-    const root = $('#rodalCfg');
+    const root = $('#intervencionCfg');
     $$('[data-f]', root).forEach(el => el.addEventListener('change', () => {
       cfg[el.dataset.f] = el.type === 'number' ? (el.value === '' ? '' : Number(el.value)) : el.value;
       if (el.dataset.f === 'actividad') { $('#boxMetodo').hidden = el.value !== 'C_REG'; renderInputsActividad(); }
       recalcular();
     }));
-    $$('[data-b]', root).forEach(el => el.addEventListener('change', () => { cfg[el.dataset.b] = el.checked; recalcular(); }));
     $$('input[name=modoExt]', root).forEach(el => el.addEventListener('change', () => { cfg.ext.modo = el.value; $('#boxRegla').hidden = el.value !== 'regla'; recalcular(); }));
     $$('[data-e]', root).forEach(el => el.addEventListener('change', () => { cfg.ext[el.dataset.e] = el.type === 'number' ? (el.value === '' ? '' : Number(el.value)) : el.value; recalcular(); }));
     $$('[data-eb]', root).forEach(el => el.addEventListener('change', () => { cfg.ext[el.dataset.eb] = el.checked; recalcular(); }));
     $$('[data-extsp]', root).forEach(el => el.addEventListener('change', () => { cfg.ext.especies = $$('[data-extsp]', root).filter(x => x.checked).map(x => x.dataset.extsp); recalcular(); }));
     renderInputsActividad();
-    refrescarResultadosRodal();
+    refrescarResultadoIntervencion();
+  }
+  // Efecto de la intervención en el rodal (se actualiza al cambiar la extracción)
+  function refrescarResultadoIntervencion() {
+    const box = $('#resIntervencion'); if (!box || !rodalActual) return;
+    const r = S.resultados[rodalActual], t = r.tot, pct = (a, b) => b ? fmt(a / b * 100) + ' %' : '—';
+    const vol = (o) => o.v == null ? '—' : fmt(o.v, 1);
+    box.innerHTML = `<h2>Efecto de la intervención</h2>
+      <div class="table-wrap"><table class="data"><thead><tr><th></th><th class="num">Inicial</th><th class="num">Extracción</th><th class="num">Residual</th><th class="num">Extracción (%)</th></tr></thead><tbody>
+        <tr><td>Densidad (árb/ha)</td><td class="num">${fmt(t.ini.n, 0)}</td><td class="num">${fmt(t.ext.n, 0)}</td><td class="num">${fmt(t.res.n, 0)}</td><td class="num">${pct(t.ext.n, t.ini.n)}</td></tr>
+        <tr><td>Área basal (m²/ha)</td><td class="num">${fmt(t.ini.g, 2)}</td><td class="num">${fmt(t.ext.g, 2)}</td><td class="num">${fmt(t.res.g, 2)}</td><td class="num">${pct(t.ext.g, t.ini.g)}</td></tr>
+        <tr><td>Volumen (m³/ha)</td><td class="num">${vol(t.ini)}</td><td class="num">${t.ext.v == null ? '—' : fmt(t.ext.v, 1)}</td><td class="num">${vol(t.res)}</td><td class="num">${t.ini.v && t.ext.v != null ? pct(t.ext.v, t.ini.v) : '—'}</td></tr>
+        <tr><td>DMC (cm)</td><td class="num">${fmt(r.DMCini)}</td><td class="num">—</td><td class="num">${fmt(r.DMCres)}</td><td class="num">—</td></tr>
+      </tbody></table></div>
+      <p class="muted" style="font-size:12px">Estado de desarrollo residual: ${esc(r.estadoRes.estado || '—')}. La verificación de requisitos de la actividad está en la sección 7 · Cumplimiento.</p>`;
   }
   function renderInputsActividad() {
     const id = rodalActual, cfg = S.cfgRodal[id]; const act = N.ACTIVIDADES.find(a => a.id === cfg.actividad) || {};
@@ -762,7 +800,7 @@
       <div class="card-head"><h2>Rodal ${esc(id)} · diagnóstico</h2>${b.actividad && b.actividad.id !== 'NINGUNA' && b.resultado !== 'Cumple, con observaciones' ? `<span class="tag ${b.clase}">${esc(b.resultado)}</span>` : ''}</div>
       <div class="res-grid">
         <div class="res-item"><div class="l">Tipo forestal (D.S. 259)</div><div class="v">${esc(r.tipo.nombre)}</div><div class="d">${esc(r.tipo.motivo)}${r.tipo.alternativas.length ? ' También cumple: ' + esc(r.tipo.alternativas.join(', ')) + '.' : ''}</div></div>
-        <div class="res-item"><div class="l">Estado de desarrollo (Bases 2.5)</div><div class="v">${esc(r.estado.estado || 'Indeterminado')}</div><div class="d">${esc(r.estado.criterio)}</div></div>
+        <div class="res-item"><div class="l">Estado de desarrollo</div><div class="v">${esc(r.estado.estado || 'Indeterminado')}</div><div class="d">${esc(r.estado.criterio)}</div></div>
         <div class="res-item"><div class="l">Categoría de bosque (Ley 20.283)</div><div class="v">${esc(r.categoria.cat)}</div><div class="d">${esc(r.categoria.art)}. ${esc(r.categoria.motivosP.concat(r.categoria.motivosCP).join(' ') || 'No cumple condiciones de preservación ni de conservación y protección.')}</div></div>
         <div class="res-item"><div class="l">Estructura</div><div class="v">${r.estructura === 'irregular' ? 'Irregular' : 'Regular'}</div><div class="d">${r.cfg.estructura === 'auto' || !r.cfg.estructura ? 'Sugerida por la distribución diamétrica' : 'Definida por el usuario'}</div></div>
         <div class="res-item"><div class="l">DMC inicial → residual${r.simpodico ? (r.dmcPorVastago ? ' (por vástago)' : ' (por individuo)') : ''}</div><div class="v">${fmt(r.DMCini)} → ${fmt(r.DMCres)} cm</div><div class="d">Altura media ${fmt(r.hProm)} m · ${r.nP} parcela(s) de ${fmt(r.area, 0)} m²</div></div>
@@ -815,7 +853,7 @@
     $('#tablaRodal').innerHTML = `
       <div class="card">
         <div class="titulo-plantilla">12.3.9 Tabla de rodal inicial y residual, después de la intervención inmediata</div>
-        <p class="muted" style="margin-top:0">Rodal: <b>${esc(rodalTabla)}</b> · ${esc(r.tipo.nombre)} · ${esc(r.estado.estado || '')} · ${r.nP} parcela(s) · Las columnas sombreadas son residuales. La intervención se define en la pestaña 3.</p>
+        <p class="muted" style="margin-top:0">Rodal: <b>${esc(rodalTabla)}</b> · ${esc(r.tipo.nombre)} · ${esc(r.estado.estado || '')} · ${r.nP} parcela(s) · Las columnas sombreadas son residuales. La intervención se define en la pestaña 4.</p>
         <div class="table-wrap"><table class="rodal">${enc(['N (árb./ha)', 'G (m²/ha)'])}<tbody>${cuerpo('g', 2)}</tbody></table></div>
         <p class="muted" style="font-size:12px">${otras ? `Otras: ${otras.map(e => esc(e.nombre)).join(', ')}. ` : ''}${r.simpodico ? 'Bosque simpódico: N = individuos (cepas) por hectárea; G y V incluyen todos los vástagos; cada individuo se clasifica por su diámetro equivalente √(Σ d²). ' : ''}Densidad expresada en árboles enteros por hectárea: en cada especie los valores por clase se redondean de modo que sumen el total de la especie redondeado; Otras y Total suman esos enteros.</p>
       </div>
@@ -908,7 +946,7 @@
     $('#detalleCumplimiento').innerHTML = rs.map(r => `
       <div class="card">
         <div class="card-head"><h2>Rodal ${esc(r.id)} · ${esc(r.bases.actividad ? r.bases.actividad.nombre : 'Sin actividad')}</h2><span class="tag ${r.bases.clase}">${esc(r.bases.resultado)}</span></div>
-        ${r.bases.checks.length ? `<ul class="checks">${r.bases.checks.map(c => `<li><span class="tag ${lblEstado[c.estado][0]}">${lblEstado[c.estado][1]}</span><div><b>${esc(c.item)}</b> · ${esc(c.detalle)} <span class="ref">${esc(c.ref)}</span></div></li>`).join('')}</ul>` : `<p class="muted">Seleccione la actividad a postular en la pestaña 3 para verificar las Bases Técnicas.</p>`}
+        ${r.bases.checks.length ? `<ul class="checks">${r.bases.checks.map(c => `<li><span class="tag ${lblEstado[c.estado][0]}">${lblEstado[c.estado][1]}</span><div><b>${esc(c.item)}</b> · ${esc(c.detalle)} <span class="ref">${esc(c.ref)}</span></div></li>`).join('')}</ul>` : `<p class="muted">Seleccione la actividad inmediata a ejecutar en la pestaña 4 para verificar las Bases Técnicas.</p>`}
         <h3>Restricciones de los métodos de corta para el tipo ${esc(r.tipo.nombre)} (D.S. 259)</h3>
         ${r.metodos.especial ? `<div class="aviso bad">${esc(r.metodos.especial)}</div>` : ''}
         <div class="table-wrap"><table class="data"><thead><tr><th>Método</th><th>Aplicable</th><th>Requisitos de regeneración</th><th>Restricciones y observaciones</th></tr></thead><tbody>

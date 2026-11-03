@@ -74,7 +74,7 @@
         <h2 class="rodal">Rodal ${esc(r.id)} · Diagnóstico</h2>
         <table class="kv"><tbody>
           <tr><th>Tipo forestal (D.S. 259)</th><td><b>${esc(r.tipo.nombre)}</b> — ${esc(r.tipo.motivo)}${r.tipo.alternativas.length ? ' También cumple: ' + esc(r.tipo.alternativas.join(', ')) + '.' : ''}</td></tr>
-          <tr><th>Estado de desarrollo (Bases 2.5)</th><td><b>${esc(r.estado.estado || 'Indeterminado')}</b> — ${esc(r.estado.criterio)}. Estado residual: ${esc(r.estadoRes.estado || '—')}.</td></tr>
+          <tr><th>Estado de desarrollo</th><td><b>${esc(r.estado.estado || 'Indeterminado')}</b> — ${esc(r.estado.criterio)}. Estado residual: ${esc(r.estadoRes.estado || '—')}.</td></tr>
           <tr><th>Categoría de bosque (Ley 20.283)</th><td><b>${esc(r.categoria.cat)}</b> — ${esc(r.categoria.art)}. ${esc(r.categoria.motivosP.concat(r.categoria.motivosCP).join(' ') || 'No presenta condiciones de preservación ni de conservación y protección.')}</td></tr>
           <tr><th>Estructura / forma de crecimiento</th><td>${r.estructura === 'irregular' ? 'Irregular' : 'Regular'} · ${r.simpodico ? `Simpódico: densidad en individuos (cepas); área basal con todos los vástagos (${fmt(r.tot.ini.tallos, 0)} vástagos/ha, ${fmt(r.tot.ini.n ? r.tot.ini.tallos / r.tot.ini.n : 0, 1)} por individuo)` : 'Monopódico'}</td></tr>
           <tr><th>Superficie / pendiente</th><td>${r.cfg.superficie === '' ? '—' : fmt(Number(r.cfg.superficie), 2) + ' ha'} · ${window.CALC.rangoPendiente(r.cfg.pendiente) ? 'pendiente predominante ' + window.CALC.PENDIENTES[window.CALC.rangoPendiente(r.cfg.pendiente)] : 'pendiente predominante no informada'}</td></tr>

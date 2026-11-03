@@ -91,9 +91,10 @@
     <button role="tab" data-tab="datos">1 · Inventario</button>
     <button role="tab" data-tab="especies" disabled>2 · Especies y volumen</button>
     <button role="tab" data-tab="rodales" disabled>3 · Rodales</button>
-    <button role="tab" data-tab="tabla" disabled>4 · Tabla de rodal</button>
-    <button role="tab" data-tab="estadisticos" disabled>5 · Estadísticos</button>
-    <button role="tab" data-tab="cumplimiento" disabled>6 · Cumplimiento</button>
+    <button role="tab" data-tab="intervencion" disabled>4 · Intervención propuesta</button>
+    <button role="tab" data-tab="tabla" disabled>5 · Tabla de rodal</button>
+    <button role="tab" data-tab="estadisticos" disabled>6 · Estadísticos</button>
+    <button role="tab" data-tab="cumplimiento" disabled>7 · Cumplimiento</button>
     <button role="tab" data-tab="fuentes">Fuentes</button>
     <button role="tab" data-tab="ejemplos">Ejemplos</button>
   </nav>
@@ -114,10 +115,11 @@
         <ol class="pasos">
           <li><b>1 · Inventario.</b> Complete los antecedentes generales del predio y los parámetros del muestreo, y cargue el inventario (Excel o CSV) con la plantilla. Si la plantilla trae la hoja «Ficha predial», los antecedentes se completan solos.</li>
           <li><b>2 · Especies y volumen.</b> Revise el reconocimiento de cada especie según el D.S. 68/2009, su categoría de conservación (listado MMA), la altura promedio y la función de volumen.</li>
-          <li><b>3 · Rodales.</b> Indique superficie, pendiente y actividad de cada rodal, y defina la extracción. Obtiene tipo forestal, estado de desarrollo y categoría de bosque.</li>
-          <li><b>4 · Tabla de rodal.</b> Tabla inicial y residual por clase diamétrica y especie: densidad, área basal y volumen.</li>
-          <li><b>5 · Estadísticos.</b> Error de muestreo por rodal, valores por parcela y gráficos de los efectos de la intervención.</li>
-          <li><b>6 · Cumplimiento.</b> Resumen por rodal y verificación de los requisitos de la actividad.</li>
+          <li><b>3 · Rodales.</b> Indique superficie, pendiente y condiciones de cada rodal. Obtiene tipo forestal, estado de desarrollo y categoría de bosque.</li>
+          <li><b>4 · Intervención propuesta.</b> Elija la actividad inmediata a ejecutar y defina los árboles a extraer, que determinan la tabla residual.</li>
+          <li><b>5 · Tabla de rodal.</b> Tabla inicial y residual por clase diamétrica y especie: densidad, área basal y volumen.</li>
+          <li><b>6 · Estadísticos.</b> Error de muestreo por rodal, valores por parcela y gráficos de los efectos de la intervención.</li>
+          <li><b>7 · Cumplimiento.</b> Resumen por rodal y verificación de los requisitos de la actividad.</li>
         </ol>
         <p class="muted">Los resultados se pueden exportar a Excel, guardar como informe PDF y guardar como proyecto (.json) para continuar después. En <b>Ejemplos</b> hay dos inventarios de prueba y en <b>Fuentes</b>, la normativa y los criterios usados.</p>
       </div>
@@ -296,6 +298,13 @@
       <div id="rodalCfg"></div>
     </section>
 
+    <!-- ============ 4. INTERVENCIÓN PROPUESTA ============ -->
+    <section class="panel" id="tab-intervencion">
+      <div class="rodal-bar">
+        <label>Rodal <select id="selRodalInt"></select></label>
+      </div>
+      <div id="intervencionCfg"></div>
+    </section>
     <!-- ============ 4. TABLA DE RODAL ============ -->
     <section class="panel" id="tab-tabla">
       <div class="rodal-bar">

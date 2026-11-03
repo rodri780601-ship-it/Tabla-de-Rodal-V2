@@ -857,15 +857,13 @@
         ${item('Volumen inicial → residual', `${volTxt(r.tot.ini)} → ${volTxt(r.tot.res)} m³/ha`, r.tot.ini.vCompleto ? (r.porEspecie.some(e => (C.FN[e.fid] || {}).usuario) ? 'Funciones del compendio y definidas por el usuario' : 'Funciones del compendio') : '* Hay especies sin función o sin altura: volumen parcial')}
       </div>`;
   }
-  const htmlRSAH = (r) => (r.tot.ext.n > 0.0001 || (r.bases.actividad && r.bases.actividad.corta)) ? `<h3>Restricciones del Reglamento de Suelos, Aguas y Humedales (D.S. 82/2010)</h3>
-      <ul class="checks">${r.rsah.map(c => `<li><span class="tag ${lblEstado[c.estado][0]}">${lblEstado[c.estado][1]}</span><div><b>${esc(c.item)}</b> · ${esc(c.detalle)} <span class="ref">${esc(c.ref)}</span></div></li>`).join('')}</ul>` : '';
   function refrescarResultadosRodal() {
     const id = rodalActual; if (!id || !$('#resRodal')) return;
     const r = S.resultados[id], b = r.bases;
     const tagBases = b.actividad && b.actividad.id !== 'NINGUNA' && b.resultado !== 'Cumple, con observaciones' ? `<span class="tag ${b.clase}">${esc(b.resultado)}</span>` : '';
     const ajuste = hayAjusteManual(r.cfg), boxAj = $('#resRodalAjustado');
     if (!ajuste) {
-      $('#resRodal').innerHTML = `<div class="card-head"><h2>Rodal ${esc(id)} · diagnóstico</h2>${tagBases}</div>${htmlDiagnostico(r)}${htmlRSAH(r)}`;
+      $('#resRodal').innerHTML = `<div class="card-head"><h2>Rodal ${esc(id)} · diagnóstico</h2>${tagBases}</div>${htmlDiagnostico(r)}`;
       boxAj.hidden = true; boxAj.innerHTML = ''; return;
     }
     // con ajustes manuales: el diagnóstico calculado arriba y, bajo los ajustes, el diagnóstico ajustado (el que rige)
@@ -874,7 +872,7 @@
       <p class="muted" style="margin-top:0">Resultado obtenido a partir del inventario, sin los ajustes manuales. El diagnóstico que se usa en las secciones siguientes es el ajustado, más abajo.</p>${htmlDiagnostico(auto)}`;
     boxAj.hidden = false;
     boxAj.innerHTML = `<div class="card-head"><h2>Rodal ${esc(id)} · diagnóstico con ajustes manuales</h2>${tagBases}</div>
-      <p class="muted" style="margin-top:0">Se resaltan los valores que cambian respecto del diagnóstico calculado. Este es el diagnóstico que rige para la tabla de rodal, el cumplimiento, el Excel y el PDF.</p>${htmlDiagnostico(r, auto)}${htmlRSAH(r)}`;
+      <p class="muted" style="margin-top:0">Se resaltan los valores que cambian respecto del diagnóstico calculado. Este es el diagnóstico que rige para la tabla de rodal, el cumplimiento, el Excel y el PDF.</p>${htmlDiagnostico(r, auto)}`;
   }
 
   /* ======================= 4. Tabla de rodal ======================= */

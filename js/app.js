@@ -86,7 +86,7 @@
   $('#btnCerrarSesion').addEventListener('click', () => { historial.length = 0; irA('datos', true); PORTADA.abrir(); });
   function habilitar(on) {
     on = on && !faltanParametros().length;
-    $$('#tabs button').forEach(b => { if (b.dataset.tab !== 'datos' && b.dataset.tab !== 'fuentes') b.disabled = !on; });
+    $$('#tabs button').forEach(b => { if (!['datos', 'fuentes', 'ejemplos'].includes(b.dataset.tab)) b.disabled = !on; });
     $('#btnExportar').disabled = !on; $('#btnGuardarProyecto').disabled = !on; $('#btnPDF').disabled = !on;
     if (on) aplicarReglaFunciones();
   }
@@ -997,6 +997,7 @@
     });
     textoCrecimiento();
     recalcular(); renderResumenCarga();
+    irA('datos'); // el ejemplo se revisa en la sección 1 (antecedentes, parámetros y resumen del inventario)
     toast(E.titulo + ': ' + S.rodales.length + ' rodales cargados.');
   }
   $('#btnEjemploMono').addEventListener('click', () => cargarEjemplo('mono'));

@@ -83,10 +83,11 @@
     }
     actualizarVolver();
   });
-  $('#btnCerrarSesion').addEventListener('click', () => { historial.length = 0; irA('datos', true); PORTADA.abrir(); });
+  $('#btnCerrarSesion').addEventListener('click', () => { historial.length = 0; irA('inicio', true); PORTADA.abrir(); });
+  $('#btnComenzar').addEventListener('click', () => irA('datos'));
   function habilitar(on) {
     on = on && !faltanParametros().length;
-    $$('#tabs button').forEach(b => { if (!['datos', 'fuentes', 'ejemplos'].includes(b.dataset.tab)) b.disabled = !on; });
+    $$('#tabs button').forEach(b => { if (!['inicio', 'datos', 'fuentes', 'ejemplos'].includes(b.dataset.tab)) b.disabled = !on; });
     $('#btnExportar').disabled = !on; $('#btnGuardarProyecto').disabled = !on; $('#btnPDF').disabled = !on;
     if (on) aplicarReglaFunciones();
   }
@@ -890,14 +891,15 @@
     const ct = await zip.file('[Content_Types].xml').async('string');
     zip.file('[Content_Types].xml', ct.replace('</Types>', `<Override PartName="/xl/worksheets/sheetFicha.xml" ContentType="${WS}"/></Types>`));
   }
-  $('#btnPlantilla').addEventListener('click', async () => {
+  // botón de la sección 1 y botón de la sección Inicio
+  $$('#btnPlantilla, [data-plantilla]').forEach(b => b.addEventListener('click', async () => {
     try {
       const zip = await JSZip.loadAsync(window.PLANTILLA_XLSX_B64, { base64: true });
       await agregarHojaFicha(zip);
       const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
       descargar(blob, 'Plantilla_inventario_parcelas.xlsx');
     } catch (err) { toast('No se pudo generar la plantilla: ' + (err.message || err)); }
-  });
+  }));
 
   /* Lee la hoja "Ficha predial" (plantilla Capfor) y completa los antecedentes generales presentes en ella.
      Formato: columna A = campo, columna B = valor (si hay varios predios, B corresponde al primero). */

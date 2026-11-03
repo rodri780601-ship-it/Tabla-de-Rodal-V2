@@ -129,6 +129,22 @@
     return { name: 'Estadísticos', landscape: true, rows, merges, cols: [22, 11, 11, 13, 13, 13, 13, 12, 12, 12, 12, 11, 12, 12], freeze: [2, 1] };
   }
 
+  // Coordenadas UTM de las parcelas y parámetros parciales (pauta CONAF del plan de manejo, 12.1.2)
+  function hojaCoordenadas(S) {
+    const s = ST(), U = S.utm || { huso: '', parcelas: {} };
+    const rows = [[{ v: 'Coordenadas UTM de las parcelas de muestreo', s: s.title }],
+      [{ v: `Datum WGS 84 · Huso ${U.huso ? U.huso + ' S' : 'no informado'}`, s: s.note }], [],
+      ['Rodal', 'Parcela', 'Árboles', 'N (árb/ha)', 'G (m²/ha)', 'Este (m)', 'Norte (m)'].map(v => ({ v, s: s.header }))];
+    const num = (v) => v === '' || v == null ? null : Number(v);
+    S.rodales.forEach(id => S.resultados[id].parcelas.forEach(p => {
+      const c = U.parcelas[id + '|' + p.parcela] || {};
+      rows.push([{ v: isNaN(Number(id)) ? id : Number(id), s: s.text }, { v: isNaN(Number(p.parcela)) ? p.parcela : Number(p.parcela), s: s.text }, { v: p.arboles, s: s.int }, { v: r2(p.n, 2), s: s.dec1 }, { v: r2(p.g), s: s.dec2 }, { v: num(c.e), s: s.int }, { v: num(c.n), s: s.int }]);
+    }));
+    rows.push([]);
+    rows.push([{ v: 'Densidad y área basal por parcela, de carácter referencial, para apoyar el análisis de la homogeneidad del rodal.', s: s.note }]);
+    return { name: 'Parcelas UTM', rows, cols: [10, 10, 10, 12, 12, 14, 14], freeze: [4, 0] };
+  }
+
   function hojaEspecies(S) {
     const s = ST(); const rows = [[{ v: 'Especies por rodal, categoría de conservación y función de volumen', s: s.title }], []];
     const H = ['Rodal', 'Especie', 'Nombre científico (D.S. 68)', 'Categoría (región)', 'Texto del listado MMA', 'Fuente/decreto', 'N ini (árb/ha)', 'N res', 'G ini (m²/ha)', 'G res', 'V ini (m³/ha)', 'V res', 'Altura promedio (m)', 'Función N°', 'Variable de volumen'];
@@ -260,7 +276,7 @@
       sheets.push(hojaTablaRodal(r, 'v', 'V (m³/ha)', `Volumen rodal ${id}`, 'Tabla de volumen inicial y residual, después de la intervención inmediata'));
     });
     sheets.push(await hojaGraficos(S));
-    sheets.push(hojaInventario(S), hojaEstadisticos(S), hojaEspecies(S), hojaTipoForestal(S), hojaCumplimiento(S), hojaFunciones(S), hojaFuentes());
+    sheets.push(hojaInventario(S), hojaEstadisticos(S), hojaCoordenadas(S), hojaEspecies(S), hojaTipoForestal(S), hojaCumplimiento(S), hojaFunciones(S), hojaFuentes());
     return window.XLSXIO.writeXlsx(sheets);
   }
 

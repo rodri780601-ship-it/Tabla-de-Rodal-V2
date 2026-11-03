@@ -26,7 +26,8 @@
     antecedentes: { predio: '', rol: '', region: '', provincia: '', comuna: '', propietario: '' },
     hojas: null, hojaSel: 0, filaEnc: 0, mapeo: {}, archivo: '',
     arboles: [], nombres: {}, funciones: {}, funcUsuario: {}, catOverride: {}, cfgRodal: {}, alturas: {},
-    rodales: [], resultados: {}, especiesInfo: {}, tieneExtraer: false, avisos: []
+    rodales: [], resultados: {}, especiesInfo: {}, tieneExtraer: false, avisos: [],
+    utm: { huso: '', parcelas: {} } // coordenadas UTM por parcela: parcelas['rodal|parcela'] = { e, n }
   };
 
   /* ======================= Portada ======================= */
@@ -431,7 +432,37 @@
     });
   }
 
+  /* ---- Parcelas por rodal y coordenadas UTM (Datum WGS 84). El inventario no trae coordenadas: se ingresan aquí. ---- */
+  const miles = (v) => v === '' || v == null || isNaN(Number(v)) ? '' : Number(v).toLocaleString('es-CL', { maximumFractionDigits: 0 });
+  function renderCoordenadas() {
+    const card = $('#cardCoordenadas');
+    card.hidden = !S.arboles.length; if (card.hidden) return;
+    const U = S.utm = S.utm || { huso: '', parcelas: {} };
+    $('#cfgHuso').value = U.huso || '';
+    const conteo = {};
+    S.arboles.forEach(a => { const k = a.rodal + '|' + a.parcela; conteo[k] = (conteo[k] || 0) + 1; });
+    (S.parcelasVacias || []).forEach(p => { const k = p.rodal + '|' + p.parcela; if (!conteo[k]) conteo[k] = 0; });
+    const nat = (x, y) => String(x).localeCompare(String(y), 'es', { numeric: true });
+    const claves = Object.keys(conteo).sort((x, y) => { const [ra, pa] = x.split('|'), [rb, pb] = y.split('|'); return (S.rodales.indexOf(ra) - S.rodales.indexOf(rb)) || nat(pa, pb); });
+    const fueraRango = (c) => c && ((c.e !== '' && c.e != null && (c.e < 100000 || c.e > 900000)) || (c.n !== '' && c.n != null && (c.n < 1000000 || c.n > 10000000)));
+    const faltan = claves.filter(k => { const c = U.parcelas[k]; return !c || c.e === '' || c.e == null || c.n === '' || c.n == null; }).length;
+    $('#tblCoordenadas').innerHTML = `<table class="data"><thead><tr><th>Rodal</th><th>Parcela</th><th class="num">Árboles</th><th>Este (m)</th><th>Norte (m)</th></tr></thead><tbody>` +
+      claves.map(k => { const [r, p] = k.split('|'), c = U.parcelas[k] || {}; return `<tr${fueraRango(c) ? ' class="fila-amenazada"' : ''}><td>${esc(r)}</td><td>${esc(p)}</td><td class="num">${conteo[k]}</td>
+        <td><input type="text" inputmode="numeric" data-utm="${esc(k)}" data-eje="e" value="${esc(miles(c.e))}" placeholder="Ej.: 712.345" style="width:120px;text-align:right"></td>
+        <td><input type="text" inputmode="numeric" data-utm="${esc(k)}" data-eje="n" value="${esc(miles(c.n))}" placeholder="Ej.: 5.712.345" style="width:130px;text-align:right"></td></tr>`; }).join('') + '</tbody></table>' +
+      `<p class="muted" style="font-size:12px;margin:8px 0 0">${S.rodales.length} rodal(es) · ${claves.length} parcela(s)${faltan ? ` · ${faltan} sin coordenadas` : ' · todas con coordenadas'}${U.huso ? '' : ' · falta indicar el huso'}. Las coordenadas se guardan con el proyecto.${claves.some(k => fueraRango(U.parcelas[k])) ? ' <b>Hay coordenadas fuera del rango UTM esperado (Este 100.000–900.000 m, Norte 1.000.000–10.000.000 m): revise las filas marcadas.</b>' : ''}</p>`;
+    $$('[data-utm]', $('#tblCoordenadas')).forEach(el => el.addEventListener('change', () => {
+      const c = U.parcelas[el.dataset.utm] = U.parcelas[el.dataset.utm] || {};
+      // se aceptan puntos de miles y coma decimal: 712.345 · 712345 · 712.345,6
+      const t = el.value.replace(/\s|\./g, '').replace(',', '.');
+      c[el.dataset.eje] = t === '' || isNaN(Number(t)) ? '' : Math.round(Number(t));
+      renderCoordenadas();
+    }));
+  }
+  $('#cfgHuso').addEventListener('change', e => { S.utm.huso = e.target.value; renderCoordenadas(); });
+
   function renderResumenCarga() {
+    renderCoordenadas();
     $('#cardResumenCarga').hidden = false;
     const nP = new Set(S.arboles.map(a => a.rodal + '|' + a.parcela)).size + (S.parcelasVacias || []).length;
     const sp = Object.keys(S.especiesInfo).length;
@@ -1061,14 +1092,14 @@
 
   /* ======================= Proyecto (JSON) ======================= */
   $('#btnGuardarProyecto').addEventListener('click', () => {
-    const p = { version: 1, config: S.config, antecedentes: S.antecedentes, arboles: S.arboles.map(a => ({ rodal: a.rodal, parcela: a.parcela, arbol: a.arbol, arbolAuto: a.arbolAuto, tipo: a.tipo, nombre: a.nombre, dap: a.dap, extArchivo: a.extArchivo, fila: a.fila })), parcelasVacias: S.parcelasVacias || [], nombres: S.nombres, funciones: S.funciones, funcUsuario: S.funcUsuario, catOverride: S.catOverride, cfgRodal: S.cfgRodal, alturas: S.alturas, tieneExtraer: S.tieneExtraer, tieneArbol: S.tieneArbol, archivo: S.archivo };
+    const p = { version: 1, config: S.config, antecedentes: S.antecedentes, arboles: S.arboles.map(a => ({ rodal: a.rodal, parcela: a.parcela, arbol: a.arbol, arbolAuto: a.arbolAuto, tipo: a.tipo, nombre: a.nombre, dap: a.dap, extArchivo: a.extArchivo, fila: a.fila })), parcelasVacias: S.parcelasVacias || [], nombres: S.nombres, funciones: S.funciones, funcUsuario: S.funcUsuario, catOverride: S.catOverride, cfgRodal: S.cfgRodal, alturas: S.alturas, utm: S.utm, tieneExtraer: S.tieneExtraer, tieneArbol: S.tieneArbol, archivo: S.archivo };
     descargar(new Blob([JSON.stringify(p)], { type: 'application/json' }), 'proyecto_tabla_rodal.json');
   });
   $('#inpProyecto').addEventListener('change', async (e) => {
     const f = e.target.files[0]; e.target.value = ''; if (!f) return;
     try {
       const p = JSON.parse(await f.text());
-      Object.assign(S, { config: p.config, nombres: p.nombres || {}, funciones: p.funciones || {}, catOverride: p.catOverride || {}, cfgRodal: p.cfgRodal || {}, alturas: p.alturas || {}, tieneExtraer: p.tieneExtraer, tieneArbol: p.tieneArbol, tieneAltura: p.tieneAltura, archivo: p.archivo, parcelasVacias: p.parcelasVacias || [] });
+      Object.assign(S, { config: p.config, nombres: p.nombres || {}, funciones: p.funciones || {}, catOverride: p.catOverride || {}, cfgRodal: p.cfgRodal || {}, alturas: p.alturas || {}, utm: Object.assign({ huso: '', parcelas: {} }, p.utm || {}), tieneExtraer: p.tieneExtraer, tieneArbol: p.tieneArbol, tieneAltura: p.tieneAltura, archivo: p.archivo, parcelasVacias: p.parcelasVacias || [] });
       if (Object.values(S.alturas).some(v => v && typeof v === 'object')) { const g = {}; Object.values(S.alturas).forEach(o => { if (o && typeof o === 'object') Object.entries(o).forEach(([k, h]) => { if (h > 0 && g[k] == null) g[k] = h; }); }); S.alturas = g; }
       Object.keys(S.funciones).forEach(k => { if (S.funciones[k] === undefined) delete S.funciones[k]; });
       Object.keys(S.funcUsuario || {}).forEach(k => C.eliminarFuncionUsuario(k));
@@ -1085,6 +1116,20 @@
 
   /* ======================= Datos de ejemplo ======================= */
   // Antecedentes generales FICTICIOS de los ejemplos (no corresponden a predios ni personas reales)
+  /* Coordenadas UTM FICTICIAS de las parcelas de los ejemplos (WGS 84), cerca de la comuna de cada ejemplo:
+     Cunco (huso 18) y Hijuelas (huso 19). Cada rodal es una grilla de parcelas a unos 150 m, con un leve
+     desplazamiento fijo (no aleatorio) para que el ejemplo sea siempre igual. */
+  const UTM_EJEMPLO = { mono: { huso: '18', e: 757200, n: 5689400 }, simp: { huso: '19', e: 300150, n: 6369800 } };
+  function coordenadasEjemplo(k) {
+    const base = UTM_EJEMPLO[k]; S.utm = { huso: base.huso, parcelas: {} };
+    const parcelas = [...new Set(S.arboles.map(a => a.rodal + '|' + a.parcela).concat((S.parcelasVacias || []).map(p => p.rodal + '|' + p.parcela)))];
+    S.rodales.forEach((rid, ir) => {
+      parcelas.filter(x => x.split('|')[0] === rid).sort((a, b) => a.localeCompare(b, 'es', { numeric: true })).forEach((x, i) => {
+        const col = i % 4, fila = Math.floor(i / 4), j = (i * 37 + ir * 11) % 23 - 11;
+        S.utm.parcelas[x] = { e: base.e + ir * 900 + col * 150 + j * 3, n: base.n - ir * 600 - fila * 150 + j * 2 };
+      });
+    });
+  }
   const ANTECEDENTES_EJEMPLO = {
     mono: { predio: 'Fundo Los Coigües (ejemplo ficticio)', rol: '1234-56', region: 'La Araucanía', provincia: 'Cautín', comuna: 'Cunco', propietario: 'Interesado de ejemplo' },
     simp: { predio: 'Hijuela El Peumal (ejemplo ficticio)', rol: '789-12', region: 'Valparaíso', provincia: 'Quillota', comuna: 'Hijuelas', propietario: 'Interesada de ejemplo' }
@@ -1098,7 +1143,7 @@
     S.antecedentes = Object.assign({}, ANTECEDENTES_EJEMPLO[k]);
     regionDesdePredio(); sincronizarAntecedentes(); sincronizarParametros();
     S.archivo = E.titulo; S.parcelasVacias = [];
-    S.nombres = {}; S.funciones = {}; S.catOverride = {}; S.cfgRodal = {}; S.alturas = {};
+    S.nombres = {}; S.funciones = {}; S.catOverride = {}; S.cfgRodal = {}; S.alturas = {}; S.utm = { huso: '', parcelas: {} };
     const arboles = [], avisos = [{ t: 'info', m: esc(E.titulo) + '. Datos sintéticos generados para demostrar la aplicación; no corresponden a un predio real. El mismo inventario está disponible como archivo Excel (' + esc(E.archivo) + ').' }];
     E.filas.forEach((f, i) => {
       const [rodal, parcela, arbol, tipo, nombre, dap, ext] = f;
@@ -1118,6 +1163,7 @@
       Object.assign(cfg.ext, c.ext);
     });
     textoCrecimiento();
+    coordenadasEjemplo(k);
     recalcular(); renderResumenCarga();
     irA('datos'); // el ejemplo se revisa en la sección 1 (antecedentes, parámetros y resumen del inventario)
     toast(E.titulo + ': ' + S.rodales.length + ' rodales cargados.');

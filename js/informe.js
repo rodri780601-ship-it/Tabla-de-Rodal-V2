@@ -65,6 +65,16 @@
       </tbody></table>
       <p class="nota">Error de muestreo = t(0,975; n−1) × S / √n, en porcentaje de la media. Intensidad de muestreo = superficie muestreada / superficie del rodal.</p>
     </section>`;
+    // ---------- Coordenadas UTM de las parcelas y parámetros parciales (pauta CONAF, 12.1.2) ----------
+    const U = S.utm || { huso: '', parcelas: {} };
+    h += `<section class="pg">
+      <h2>Coordenadas UTM de las parcelas de muestreo</h2>
+      <p>Datum WGS 84 · Huso ${U.huso ? esc(U.huso) + ' S' : 'no informado'}</p>
+      <table class="it"><thead><tr><th>Rodal</th><th>Parcela</th><th>Árboles</th><th>N (árb/ha)</th><th>G (m²/ha)</th><th>Este (m)</th><th>Norte (m)</th></tr></thead><tbody>
+      ${rs.map(r => r.parcelas.map(p => { const c = U.parcelas[r.id + '|' + p.parcela] || {}; const co = (v) => v === '' || v == null ? '—' : fmt(Number(v), 0); return `<tr><td>${esc(r.id)}</td><td>${esc(p.parcela)}</td><td class="n">${p.arboles}</td><td class="n">${fmt(p.n, 0)}</td><td class="n">${fmt(p.g, 2)}</td><td class="n">${co(c.e)}</td><td class="n">${co(c.n)}</td></tr>`; }).join('')).join('')}
+      </tbody></table>
+      <p class="nota">Densidad y área basal por parcela, de carácter referencial, para apoyar el análisis de la homogeneidad del rodal.</p>
+    </section>`;
 
     rs.forEach(r => {
       const { figs, datos } = window.GRAFICOS.figurasRodal(r);

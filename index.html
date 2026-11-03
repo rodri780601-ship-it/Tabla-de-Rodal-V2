@@ -145,6 +145,20 @@
           </div>
           <div id="msgArchivo"></div>
         </div>
+        <div class="card" id="cardCoordenadas" hidden>
+          <h2>Parcelas por rodal y coordenadas UTM</h2>
+          <p class="muted" style="margin-top:0">Coordenadas del centro (parcelas circulares) o de un vértice de cada parcela, en metros, Datum WGS 84.</p>
+          <label style="max-width:220px">Huso
+            <select id="cfgHuso">
+              <option value="">— Seleccione —</option>
+              <option value="18">18 S</option>
+              <option value="19">19 S</option>
+              <option value="17">17 S (Juan Fernández)</option>
+              <option value="12">12 S (Isla de Pascua)</option>
+            </select>
+          </label>
+          <div class="table-wrap" id="tblCoordenadas" style="margin-top:10px"></div>
+        </div>
         </div>
         <div>
         <div class="card">

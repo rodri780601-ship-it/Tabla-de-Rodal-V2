@@ -574,8 +574,8 @@
     if (amen.length) motivosP.push('Presencia de especies clasificadas (art. 37 Ley 19.300) en categoría ' + amen.map(e => `${e.nombre} (${e.cat.code})`).join(', ') + ': el rodal constituye hábitat de dichas especies.');
     if (cfg.snap) motivosP.push('El bosque se encuentra en un área del Sistema Nacional de Áreas Protegidas.');
     if (cfg.ambienteUnico) motivosP.push('Corresponde a un ambiente único o representativo de la diversidad biológica natural del país.');
-    const pend = Number(cfg.pendiente);
-    if (cfg.pendiente !== '' && cfg.pendiente != null && pend >= 45) motivosCP.push(`Pendiente ${pend} % (≥ 45 %).`);
+    const rp = rangoPendiente(cfg.pendiente);
+    if (rp === '45a60' || rp === 'ge60') motivosCP.push(`Pendiente predominante ${PENDIENTES[rp]} (≥ 45 %).`);
     if (cfg.suelosFragiles) motivosCP.push('Ubicado en suelos frágiles.');
     if (cfg.cercaAgua) motivosCP.push('A menos de 200 m de manantiales, cuerpos o cursos de agua naturales.');
     let cat, art;
@@ -586,22 +586,32 @@
     return { cat, art, motivosP, motivosCP, amenazadas: amen };
   }
 
+  /* ---------- Pendiente predominante: rangos del formulario del Plan de Manejo (CONAF, sección 5.3.1) ---------- */
+  const PENDIENTES = { lt30: '< 30 %', '30a45': '≥ 30 % y < 45 %', '45a60': '≥ 45 % y < 60 %', ge60: '≥ 60 %' };
+  // Acepta el código del rango o, en proyectos y ejemplos anteriores, la pendiente en % (se asigna a su rango).
+  function rangoPendiente(v) {
+    if (v == null || v === '') return null;
+    if (PENDIENTES[v]) return v;
+    const p = Number(v); if (isNaN(p)) return null;
+    return p < 30 ? 'lt30' : p < 45 ? '30a45' : p < 60 ? '45a60' : 'ge60';
+  }
+
   /* ---------- Restricciones de los métodos de corta (D.S. 259) ---------- */
   function restriccionesMetodos(r, cfg) {
-    const pend = cfg.pendiente === '' || cfg.pendiente == null ? null : Number(cfg.pendiente);
+    const rp = rangoPendiente(cfg.pendiente);
     const tipo = r.tipo.id;
     const out = N.METODOS_CORTA.map(m => {
       const obs = [];
       let aplica = tipo ? m.tipos.includes(tipo) : null;
       if (aplica === false) obs.push(`No aplicable al tipo forestal ${r.tipo.nombre} (art. ${m.art.split(' y ').pop()}).`);
-      if (pend != null) {
-        if (pend > 60 && m.id !== 'SE') { aplica = false; obs.push('Pendiente > 60 %: sólo se permite corta selectiva.'); }
-        else if (pend > 45 && (m.id === 'TR' || m.id === 'AS')) { aplica = false; obs.push('Pendiente > 45 %: prohibido este método.'); }
-        else if (pend >= 30 && pend <= 45 && (m.id === 'TR' || m.id === 'AS')) {
-          obs.push('Pendiente entre 30 % y 45 %: sectores de corta ≤ 20 ha con fajas boscosas de ≥ 100 m entre sectores.');
+      if (rp) {
+        if (rp === 'ge60' && m.id !== 'SE') { aplica = false; obs.push('Pendiente predominante ≥ 60 %: sólo se permite corta selectiva.'); }
+        else if ((rp === '45a60' || rp === 'ge60') && (m.id === 'TR' || m.id === 'AS')) { aplica = false; obs.push('Pendiente predominante ≥ 45 %: prohibido este método.'); }
+        else if (rp === '30a45' && (m.id === 'TR' || m.id === 'AS')) {
+          obs.push('Pendiente predominante ≥ 30 % y < 45 %: sectores de corta ≤ 20 ha con fajas boscosas de ≥ 100 m entre sectores.');
           if (Number(cfg.superficie) > 20) obs.push(`El rodal tiene ${cfg.superficie} ha: debe dividirse en sectores de corta de hasta 20 ha.`);
         }
-      } else if (m.id !== 'SE') obs.push('Ingrese la pendiente del rodal para evaluar las restricciones del art. 18.');
+      } else if (m.id !== 'SE') obs.push('Seleccione la pendiente predominante del rodal para evaluar las restricciones del art. 18.');
       return { id: m.id, nombre: m.nombre, art: m.art, aplica, requisitos: m.reforestacion, definicion: m.definicion, obs, maxG: m.maxExtraccionG, minSemilleros: m.minSemilleros, nota: m.nota };
     });
     const especial = (tipo === 'ALE' || tipo === 'ARA') ? 'Los tipos forestales Alerce y Araucaria se rigen por los decretos N° 29 y N° 490 de 1976 del Ministerio de Agricultura (art. 30 del D.S. 259); además, ambas especies están clasificadas como amenazadas, por lo que rige la prohibición del art. 19 de la Ley 20.283.' : null;
@@ -763,6 +773,6 @@
 
   window.CALC = { densidadEntera,
     norm, construirCatalogo, reconocerEspecie, CAT, cargarMMA, categoriaEspecie, categoriaRegional, buscarMMA, getMMA: () => MMA,
-    construirFunciones, FN, funcionesDeEspecie, compilarEcuacion, registrarFuncionUsuario, eliminarFuncionUsuario, idUsuario, etiquetaFid, ordenFid, funcionPorDefecto, puntajeFuncion, volumenArbol, calcularRodal, tQuantil, COMPENDIO_SP
+    construirFunciones, FN, funcionesDeEspecie, compilarEcuacion, registrarFuncionUsuario, eliminarFuncionUsuario, idUsuario, etiquetaFid, ordenFid, funcionPorDefecto, puntajeFuncion, volumenArbol, calcularRodal, tQuantil, COMPENDIO_SP, PENDIENTES, rangoPendiente
   };
 })();

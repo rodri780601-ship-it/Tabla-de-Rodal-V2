@@ -675,7 +675,7 @@
           <h2>Antecedentes del rodal ${esc(id)}</h2>
           <div class="form">
             <label>Superficie del rodal (ha)<input type="number" step="any" min="0" data-f="superficie" value="${esc(cfg.superficie)}"><small>Se usa para la intensidad de muestreo, el muestreo estratificado y las restricciones del art. 18 del D.S. 259.</small></label>
-            <label>Pendiente media (%)<input type="number" step="any" min="0" data-f="pendiente" value="${esc(cfg.pendiente)}"><small>Se usa para la categoría de conservación y protección (≥ 45 %) y las restricciones del art. 18 del D.S. 259.</small></label>
+            <label>Pendiente predominante<select data-f="pendiente"><option value="">— Seleccione —</option>${Object.entries(C.PENDIENTES).map(([k, t]) => `<option value="${k}" ${C.rangoPendiente(cfg.pendiente) === k ? 'selected' : ''}>${t}</option>`).join('')}</select><small>Rangos del formulario del Plan de Manejo de Bosque Nativo (CONAF). Se usa para la categoría de conservación y protección (≥ 45 %) y las restricciones del art. 18 del D.S. 259.</small></label>
             <div class="fl">Condiciones para la Ley 20.283</div>
             <label class="chk"><input type="checkbox" data-b="suelosFragiles" ${cfg.suelosFragiles ? 'checked' : ''}> Ubicado en suelos frágiles</label>
             <label class="chk"><input type="checkbox" data-b="cercaAgua" ${cfg.cercaAgua ? 'checked' : ''}> A menos de 200 m de manantiales, cuerpos o cursos de agua naturales</label>

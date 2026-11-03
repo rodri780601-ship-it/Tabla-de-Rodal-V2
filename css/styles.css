@@ -357,3 +357,6 @@ ol.pasos { margin: 4px 0 10px; padding-left: 20px; display: grid; gap: 8px; max-
 .portada .pie-legal { margin-top: 8px; padding-top: 6px; font-size: 11px; }
 /* pantallas bajas (notebooks): se ocultan los textos secundarios de la ventana de ingreso */
 @media (max-height: 720px) { .portada .pt-importante { display: none; } }
+/* enlace de descarga del manual de usuario, en la ventana de ingreso de la portada */
+.pt-manual { display: block; margin-top: 10px; padding: 8px 12px; border: 1px solid var(--verde); border-radius: 6px; color: var(--verde); font-weight: 600; text-align: center; text-decoration: none; font-size: 13px; }
+.pt-manual:hover { background: var(--accent-soft); }

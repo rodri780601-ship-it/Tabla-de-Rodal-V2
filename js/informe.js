@@ -51,7 +51,7 @@
     // ---------- Portada y resumen (oficio vertical) ----------
     h += `<section class="pg">
       <header class="ihead"><h1>Tabla de rodal y diagnóstico del bosque</h1>
-      <p>Región: <b>${esc(reg)}</b> · Tipo de muestreo: <b>${esc(MUESTREO[S.config.muestreo] || '')}</b> · Parcela ${esc(S.config.forma)} de ${fmt(S.config.area, 2)} m² (${esc(window.APP_descDims())}) · Factor de expansión ${fmt(10000 / S.config.area, 2)}</p>
+      <p>Región: <b>${esc(reg)}</b> · Tipo de muestreo: <b>${esc(MUESTREO[S.config.muestreo] || '')}</b>${S.config.fecha ? ` · Fecha de muestreo: <b>${esc(S.config.fecha.split('-').reverse().join('-'))}</b>` : ''} · Parcela ${esc(S.config.forma)} de ${fmt(S.config.area, 2)} m² (${esc(window.APP_descDims())}) · Factor de expansión ${fmt(10000 / S.config.area, 2)}</p>
       <p>Inventario: ${esc(S.archivo || '')} · ${S.rodales.length} rodal(es) · ${S.arboles.length.toLocaleString('es-CL')} árboles · Emitido el ${esc(hoy)}</p></header>
       <h2>Resumen por rodal</h2>
       <table class="it"><thead><tr><th>Rodal</th><th>Sup. (ha)</th><th>Tipo forestal</th><th>Estado de desarrollo</th><th>Categoría (Ley 20.283)</th><th>DMC ini/res (cm)</th><th>N ini/res (árb/ha)</th><th>G ini/res (m²/ha)</th><th>V ini/res (m³/ha)</th><th>Actividad</th><th>Bases 2026</th></tr></thead><tbody>

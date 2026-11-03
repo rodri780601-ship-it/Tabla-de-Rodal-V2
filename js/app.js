@@ -10,7 +10,7 @@
 
   /* ======================= Estado ======================= */
   const S = window.APP_STATE = {
-    config: { region: '', area: null, ancho: null, inicio: '', muestreo: '', forma: '', ancho_r: 20, crecimiento: '', dmcSimp: '' },
+    config: { region: '', area: null, ancho: null, inicio: '', muestreo: '', fecha: '', forma: '', ancho_r: 20, crecimiento: '', dmcSimp: '' },
     antecedentes: { predio: '', rol: '', region: '', provincia: '', comuna: '', propietario: '' },
     hojas: null, hojaSel: 0, filaEnc: 0, mapeo: {}, archivo: '',
     arboles: [], nombres: {}, funciones: {}, funcUsuario: {}, catOverride: {}, cfgRodal: {}, alturas: {},
@@ -167,6 +167,7 @@
     [['predio', 'nombre del predio'], ['rol', 'rol de avalúo'], ['region', 'región'], ['provincia', 'provincia'], ['comuna', 'comuna'], ['propietario', 'propietario']]
       .forEach(([k, nom]) => { if (!String(A[k] || '').trim()) f.push(nom); });
     if (!c.muestreo) f.push('tipo de muestreo');
+    if (!c.fecha) f.push('fecha de muestreo');
     if (!c.crecimiento) f.push('forma de crecimiento');
     if (esSimpodicoAlguno() && !c.dmcSimp) f.push('DMC en bosque simpódico');
     if (!c.forma) f.push('forma de la parcela');
@@ -212,7 +213,7 @@
   }
   function sincronizarParametros() {
     const c = S.config;
-    $('#cfgMuestreo').value = c.muestreo || ''; $('#cfgForma').value = c.forma || '';
+    $('#cfgMuestreo').value = c.muestreo || ''; $('#cfgFecha').value = c.fecha || ''; $('#cfgForma').value = c.forma || '';
     $('#cfgArea').value = c.area > 0 ? c.area : ''; $('#cfgAncho').value = c.ancho > 0 ? c.ancho : ''; $('#cfgInicio').value = c.inicio == null ? '' : c.inicio;
     $('#cfgCrecimiento').value = c.crecimiento || '';
     renderDims(); actualizarTextoParcela(); textoCrecimiento();
@@ -254,6 +255,7 @@
   $('#cfgDmcSimp').addEventListener('change', e => { S.config.dmcSimp = e.target.value; cambioParametro(); });
   $('#cfgCrecimiento').addEventListener('change', e => { S.config.crecimiento = e.target.value; textoCrecimiento(); cambioParametro(); });
   $('#cfgMuestreo').addEventListener('change', e => { S.config.muestreo = e.target.value; actualizarTextoParcela(); cambioParametro(); });
+  $('#cfgFecha').addEventListener('change', e => { S.config.fecha = e.target.value; cambioParametro(); });
   $('#cfgForma').addEventListener('change', e => { S.config.forma = e.target.value; if (S.config.forma === 'rectangular' && !(S.config.ancho_r > 0)) S.config.ancho_r = 20; renderDims(); cambioParametro(); });
   sincronizarParametros();
   $('#cfgAncho').addEventListener('change', e => { const v = Number(e.target.value); S.config.ancho = e.target.value === '' || !(v > 0) ? null : Math.max(0.5, v); e.target.value = S.config.ancho || ''; cambioParametro(); });
@@ -975,7 +977,8 @@
     const E = window.EJEMPLOS[k];
     // parámetros generales del ejemplo
     // (los ejemplos no traen amplitud ni límite inferior de clase: se usan 5 cm)
-    Object.assign(S.config, { ancho: 5, inicio: '5' }, E.config);
+    // la fecha de muestreo de los ejemplos es ficticia, como sus antecedentes
+    Object.assign(S.config, { ancho: 5, inicio: '5', fecha: k === 'mono' ? '2026-03-18' : '2026-04-22' }, E.config);
     S.antecedentes = Object.assign({}, ANTECEDENTES_EJEMPLO[k]);
     regionDesdePredio(); sincronizarAntecedentes(); sincronizarParametros();
     S.archivo = E.titulo; S.parcelasVacias = [];

@@ -67,7 +67,7 @@
   }
 
   function hojaResumen(S) {
-    const s = ST(); const rows = [[{ v: 'Resumen por rodal', s: s.title }], [{ v: `Región del proyecto: ${(window.NORMATIVA.REGIONES.find(x => x.id === S.config.region) || {}).nombre} · Muestreo: ${MUESTREO[S.config.muestreo] || ''} · Parcela ${S.config.forma} de ${fa(S.config.area)} m² (${window.APP_descDims()}) · Archivo: ${S.archivo || ''} · Generado: ${new Date().toLocaleString('es-CL')}`, s: s.note }], []];
+    const s = ST(); const rows = [[{ v: 'Resumen por rodal', s: s.title }], [{ v: `Región del proyecto: ${(window.NORMATIVA.REGIONES.find(x => x.id === S.config.region) || {}).nombre} · Muestreo: ${MUESTREO[S.config.muestreo] || ''}${S.config.fecha ? ' (' + S.config.fecha.split('-').reverse().join('-') + ')' : ''} · Parcela ${S.config.forma} de ${fa(S.config.area)} m² (${window.APP_descDims()}) · Archivo: ${S.archivo || ''} · Generado: ${new Date().toLocaleString('es-CL')}`, s: s.note }], []];
     const H = ['Rodal', 'Superficie (ha)', 'Parcelas', 'Sup. parcela (m²)', 'Forma de crecimiento', 'Vástagos inicial (/ha)', 'Tipo forestal (D.S. 259)', 'Estado de desarrollo (Bases 2.5)', 'Categoría (Ley 20.283)', 'Estructura', 'DMC inicial (cm)', 'DMC residual (cm)', 'Altura media (m)', 'N inicial (árb/ha)', 'N residual (árb/ha)', 'G inicial (m²/ha)', 'G residual (m²/ha)', 'G extraída (%)', 'V inicial (m³/ha)', 'V residual (m³/ha)', 'Actividad a postular', 'Resultado Bases 2026'];
     rows.push(H.map(h => ({ v: h, s: s.header })));
     S.rodales.forEach(id => {

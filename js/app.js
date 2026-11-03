@@ -84,8 +84,27 @@
     actualizarVolver();
   });
   $('#btnCerrarSesion').addEventListener('click', () => { historial.length = 0; irA('inicio', true); PORTADA.abrir(); });
-  $('#btnComenzar').addEventListener('click', () => irA('datos'));
-  $('#btnIrRodales').addEventListener('click', () => irA('rodales'));
+  /* Botón al pie de cada sección para seguir a la siguiente (en el orden de las pestañas).
+     Queda desactivado, con el mismo motivo, cuando la pestaña siguiente está bloqueada. */
+  const ordenTabs = $$('#tabs button').map(b => b.dataset.tab);
+  ordenTabs.forEach((tab, i) => {
+    const sig = ordenTabs[i + 1], panel = $('#tab-' + tab);
+    if (!sig || !panel || ['cumplimiento', 'fuentes', 'ejemplos'].includes(tab)) return; // la sección 6, Fuentes y Ejemplos no llevan botón
+    const nombre = $(`#tabs button[data-tab="${sig}"]`).textContent.trim();
+    const caja = document.createElement('div'); caja.className = 'row-btns fin-seccion';
+    caja.innerHTML = `<button class="btn primary" data-siguiente="${sig}">Continuar a ${esc(nombre)} →</button>`;
+    panel.appendChild(caja);
+    caja.firstElementChild.addEventListener('click', () => irA(sig));
+  });
+  function actualizarBotonesSiguiente() {
+    $$('[data-siguiente]').forEach(b => {
+      const t = $(`#tabs button[data-tab="${b.dataset.siguiente}"]`);
+      b.disabled = t.disabled; b.title = t.disabled ? (t.title || 'Complete la sección actual para continuar.') : '';
+    });
+  }
+  // las pestañas se habilitan o bloquean en varios lugares: se observa su atributo «disabled»
+  new MutationObserver(actualizarBotonesSiguiente).observe($('#tabs'), { attributes: true, subtree: true, attributeFilter: ['disabled', 'title'] });
+  actualizarBotonesSiguiente();
   function habilitar(on) {
     on = on && !faltanParametros().length;
     $$('#tabs button').forEach(b => { if (!['inicio', 'datos', 'fuentes', 'ejemplos'].includes(b.dataset.tab)) b.disabled = !on; });
@@ -119,9 +138,6 @@
         ? `<b>No puede avanzar a la etapa 3.</b> Falta asignar función de volumen a ${faltan.length === 1 ? 'la especie' : 'las especies'}: <b>${faltan.map(esc).join(', ')}</b>. Elija una función del compendio o "Definida por el usuario…" en la columna "Función de volumen". Mientras tanto, las etapas 3 a 6, la exportación a Excel y el PDF quedan bloqueados.`
         : `Todas las especies tienen función de volumen asignada.`;
     }
-    // botón para continuar, al final de la sección 2: sólo se habilita con todas las funciones asignadas
-    const bIr = $('#btnIrRodales');
-    if (bIr) { bIr.disabled = bloq; bIr.title = msg; }
   }
 
   /* ======================= Antecedentes generales ======================= */
@@ -421,8 +437,7 @@
     if (amb.length) av.push({ t: 'info', m: `Nombres comunes asignados a más de una especie en el D.S. 68; revise la asignación en la pestaña 2: ${amb.map(([k]) => esc(k)).join(', ')}.` });
     const faltan = faltanParametros();
     if (faltan.length) av.push({ t: 'warn', m: `Complete los antecedentes generales y los parámetros generales para continuar a la sección 2. Falta: ${faltan.map(esc).join(', ')}.` });
-    $('#avisosCarga').innerHTML = av.map(a => `<div class="aviso ${a.t}">${a.m}</div>`).join('') + `<div class="row-btns"><button class="btn primary" id="btnIrEspecies" ${faltan.length ? 'disabled' : ''}>Continuar: especies y funciones de volumen →</button></div>`;
-    $('#btnIrEspecies').addEventListener('click', () => irA('especies'));
+    $('#avisosCarga').innerHTML = av.map(a => `<div class="aviso ${a.t}">${a.m}</div>`).join('');
   }
 
   /* ======================= Recalcular ======================= */
@@ -801,14 +816,14 @@
     const est = estratificado();
     const avisoM = { sistematico: ['info', 'Muestreo sistemático: se aplican los estimadores del muestreo aleatorio simple.'], conglomerados: ['info', 'Muestreo por conglomerados: la unidad de cálculo es el valor de la columna Parcela.'], dirigido: ['warn', 'Muestreo dirigido (no probabilístico): los estadísticos son sólo referenciales y no permiten estimar el error de muestreo.'] }[S.config.muestreo];
     $('#tblEstadisticos').innerHTML = `<p class="muted" style="margin:10px 12px 0">Tipo de muestreo: <b>${esc($('#cfgMuestreo').selectedOptions[0].text)}</b> · Parcela ${esc(S.config.forma)} de ${fmt(S.config.area, 1)} m² (${esc(descDims())}).</p>` + (avisoM ? `<div class="aviso ${avisoM[0]}" style="margin:8px 12px">${avisoM[1]}</div>` : '') +
-      `<table class="data"><thead><tr><th rowspan="2">Rodal</th><th rowspan="2" class="num">Parcelas (N°)</th><th rowspan="2" class="num">Intensidad de muestreo (%)</th><th rowspan="2" class="num">t student (95%)</th><th colspan="2" style="text-align:center">Media</th><th colspan="2" style="text-align:center">Varianza</th><th colspan="2" style="text-align:center">Coeficiente de variación (%)</th><th colspan="2" style="text-align:center">Error de muestreo (%)</th><th colspan="2" style="text-align:center">Volumen (m³/ha)</th></tr>
-      <tr><th class="num">Densidad (arb/ha)</th><th class="num">Área basal (m²/ha)</th><th class="num">Densidad</th><th class="num">Área basal</th><th class="num">Densidad</th><th class="num">Área basal</th><th class="num">Densidad</th><th class="num">Área basal</th><th class="num">Media</th><th class="num">E (%)</th></tr></thead><tbody>` +
-      rs.map(r => { const s = recalcStats(r); return `<tr><td><b>${esc(r.id)}</b></td><td class="num">${s.n}</td><td class="num">${s.intensidad == null ? '—' : fmt(s.intensidad, 2)}</td><td class="num">${fmt(s.t, 3)}</td><td class="num">${fmt(s.N.media, 0)}</td><td class="num">${fmt(s.G.media, 2)}</td><td class="num">${fmt(s.N.var, 1)}</td><td class="num">${fmt(s.G.var, 3)}</td><td class="num">${fmt(s.N.cv, 1)}</td><td class="num">${fmt(s.G.cv, 1)}</td><td class="num">${fmt(s.N.ePct, 1)}</td><td class="num">${fmt(s.G.ePct, 1)}</td><td class="num">${s.V ? fmt(s.V.media, 1) : '—'}</td><td class="num">${s.V ? fmt(s.V.ePct, 1) : '—'}</td></tr>`; }).join('') +
-      (est ? `<tr style="font-weight:650;background:var(--surface-2)"><td>Conjunto (estratificado)</td><td class="num">${est.n}</td><td class="num">${est.intensidad == null ? '—' : fmt(est.intensidad, 2)}</td><td class="num">${fmt(est.t, 3)}</td><td class="num">${fmt(est.N.media, 0)}</td><td class="num">${fmt(est.G.media, 2)}</td><td class="num">${fmt(est.N.var, 2)}</td><td class="num">${fmt(est.G.var, 4)}</td><td class="num">—</td><td class="num">—</td><td class="num">${fmt(est.N.ePct, 1)}</td><td class="num">${fmt(est.G.ePct, 1)}</td><td class="num">${est.V ? fmt(est.V.media, 1) : '—'}</td><td class="num">${est.V ? fmt(est.V.ePct, 1) : '—'}</td></tr>` : '') + '</tbody></table>' +
+      `<table class="data"><thead><tr><th rowspan="2">Rodal</th><th rowspan="2" class="num">Parcelas (N°)</th><th rowspan="2" class="num">Intensidad de muestreo (%)</th><th rowspan="2" class="num">t student (95%)</th><th colspan="2" style="text-align:center">Media</th><th colspan="2" style="text-align:center">Varianza</th><th colspan="2" style="text-align:center">Coeficiente de variación (%)</th><th colspan="2" style="text-align:center">Error de muestreo (%)</th></tr>
+      <tr><th class="num">Densidad (arb/ha)</th><th class="num">Área basal (m²/ha)</th><th class="num">Densidad</th><th class="num">Área basal</th><th class="num">Densidad</th><th class="num">Área basal</th><th class="num">Densidad</th><th class="num">Área basal</th></tr></thead><tbody>` +
+      rs.map(r => { const s = recalcStats(r); return `<tr><td><b>${esc(r.id)}</b></td><td class="num">${s.n}</td><td class="num">${s.intensidad == null ? '—' : fmt(s.intensidad, 2)}</td><td class="num">${fmt(s.t, 3)}</td><td class="num">${fmt(s.N.media, 0)}</td><td class="num">${fmt(s.G.media, 2)}</td><td class="num">${fmt(s.N.var, 1)}</td><td class="num">${fmt(s.G.var, 3)}</td><td class="num">${fmt(s.N.cv, 1)}</td><td class="num">${fmt(s.G.cv, 1)}</td><td class="num">${fmt(s.N.ePct, 1)}</td><td class="num">${fmt(s.G.ePct, 1)}</td></tr>`; }).join('') +
+      (est ? `<tr style="font-weight:650;background:var(--surface-2)"><td>Conjunto (estratificado)</td><td class="num">${est.n}</td><td class="num">${est.intensidad == null ? '—' : fmt(est.intensidad, 2)}</td><td class="num">${fmt(est.t, 3)}</td><td class="num">${fmt(est.N.media, 0)}</td><td class="num">${fmt(est.G.media, 2)}</td><td class="num">${fmt(est.N.var, 2)}</td><td class="num">${fmt(est.G.var, 4)}</td><td class="num">—</td><td class="num">—</td><td class="num">${fmt(est.N.ePct, 1)}</td><td class="num">${fmt(est.G.ePct, 1)}</td></tr>` : '') + '</tbody></table>' +
       (S.config.muestreo === 'estratificado' && !est ? `<div class="aviso info" style="margin:8px 12px">Para la estimación estratificada del conjunto, ingrese la superficie de todos los rodales en la pestaña 3. En la fila del conjunto, la varianza corresponde a la varianza de la media estratificada.</div>` : '') +
       `<p class="muted" style="margin:8px 12px;font-size:12px">Intensidad de muestreo = superficie muestreada / superficie del rodal (requiere la superficie del rodal).</p>`;
-    $('#tblParcelas').innerHTML = `<table class="data"><thead><tr><th>Rodal</th><th>Parcela</th><th class="num">Árboles</th><th class="num">N (árb/ha)</th><th class="num">G (m²/ha)</th><th class="num">V (m³/ha)</th></tr></thead><tbody>` +
-      rs.map(r => r.parcelas.map(p => `<tr><td>${esc(r.id)}</td><td>${esc(p.parcela)}</td><td class="num">${p.arboles}</td><td class="num">${fmt(p.n, 0)}</td><td class="num">${fmt(p.g, 2)}</td><td class="num">${p.v == null ? '—' : fmt(p.v, 1)}</td></tr>`).join('')).join('') + '</tbody></table>';
+    $('#tblParcelas').innerHTML = `<table class="data"><thead><tr><th>Rodal</th><th>Parcela</th><th class="num">Árboles</th><th class="num">N (árb/ha)</th><th class="num">G (m²/ha)</th></tr></thead><tbody>` +
+      rs.map(r => r.parcelas.map(p => `<tr><td>${esc(r.id)}</td><td>${esc(p.parcela)}</td><td class="num">${p.arboles}</td><td class="num">${fmt(p.n, 0)}</td><td class="num">${fmt(p.g, 2)}</td></tr>`).join('')).join('') + '</tbody></table>';
     if (!rodalGraf || !S.rodales.includes(rodalGraf)) rodalGraf = S.rodales[0];
     const sg = $('#selRodalGraf'); sg.innerHTML = opcionesRodal(rodalGraf);
     sg.onchange = () => { rodalGraf = sg.value; window.GRAFICOS.render($('#graficos'), S.resultados[rodalGraf], rodalGraf); };

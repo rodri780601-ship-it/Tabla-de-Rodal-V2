@@ -186,8 +186,16 @@
     { id: 'C_RLA', literal: 'C', nombre: 'Raleo latizal alto', estados: ['Latizal Alto'], regla: 'RALEO', corta: true, ref: '3.3.3 l' },
     { id: 'C_RLB', literal: 'C', nombre: 'Raleo latizal bajo', estados: ['Latizal Bajo'], regla: 'RALEO', corta: true, ref: '3.3.3 m' },
     // Bosques afectados por incendios (punto 4)
-    { id: 'I_REC', literal: 'Incendios', nombre: 'Corta de recuperación (bosques afectados por incendios)', estados: null, regla: 'RECUPERACION', corta: true, ref: '4 b' }
+    { id: 'I_REC', literal: 'Incendios', nombre: 'Corta de recuperación (bosques afectados por incendios)', estados: null, regla: 'RECUPERACION', corta: true, ref: '4 b' },
+    // Actividad no incluida en la lista: el usuario la describe y la aplicación no verifica sus requisitos
+    { id: 'OTRA', literal: '-', nombre: 'Otras actividades', estados: null, regla: 'OTRA', corta: false }
   ];
+  /* Actividades que se ofrecen como «actividad inmediata a ejecutar», sin referencia a los literales, en orden
+     alfabético y sin repetir: la corta sanitaria y la corta para bosques irregulares aparecen una sola vez (la corta
+     sanitaria se evalúa como literal a) en bosques de preservación); los clareos y raleos con fines no madereros
+     equivalen a los de producción maderera; se excluyen las podas y el anillado. */
+  const ACTIVIDADES_MENU = ['C_CMBA', 'C_CMBB', 'C_LIB', 'C_MEJ', 'I_REC', 'C_REG', 'C_IRR', 'C_SAN', 'C_RFJ', 'C_RLA', 'C_RLB'];
+  const nombreActividad = (a) => a.nombre.replace(/\s*\(literal [abc]\)/i, '');
 
   /* ---------- Categorías de conservación (RCE) ---------- */
   const CATEGORIAS = {
@@ -205,6 +213,6 @@
 
   window.NORMATIVA = {
     REGIONES, SP, SIEMPREVERDE, ESCLEROFILO, ESCLEROFILO_SIMILARES, TIPOS_FORESTALES, METODOS_CORTA,
-    RESTRICCIONES_PENDIENTE, ESTADOS, estadoDesarrollo, TIPOS_TABLA_VALORES, ACTIVIDADES, CATEGORIAS
+    RESTRICCIONES_PENDIENTE, ESTADOS, estadoDesarrollo, TIPOS_TABLA_VALORES, ACTIVIDADES, ACTIVIDADES_MENU, nombreActividad, CATEGORIAS
   };
 })();

@@ -668,11 +668,24 @@
 
   /* ---------- Verificación de las Bases Técnicas 2026 ---------- */
   function evaluarBases(r, cfg, ctx) {
-    const act = N.ACTIVIDADES.find(a => a.id === (cfg.actividad || 'NINGUNA'));
+    let act = N.ACTIVIDADES.find(a => a.id === (cfg.actividad || 'NINGUNA'));
     const checks = [];
     const add = (item, estado, detalle, ref) => checks.push({ item, estado, detalle, ref: ref || '' });
     const f1 = (x, d = 1) => x == null ? '—' : x.toLocaleString('es-CL', { minimumFractionDigits: d, maximumFractionDigits: d });
     if (!act || act.id === 'NINGUNA') return { actividad: act, checks, resultado: 'Sin actividad seleccionada', clase: 'neutral' };
+    // la corta sanitaria se ofrece una sola vez: en bosques de preservación se evalúa como literal a)
+    if (act.regla === 'SANITARIA') act = N.ACTIVIDADES.find(a => a.id === (r.categoria.cat === 'Preservación' ? 'A_SAN' : 'C_SAN'));
+    act = Object.assign({}, act, { nombre: N.nombreActividad(act) });
+    // Otras actividades: se registra la descripción del usuario; la aplicación no verifica sus requisitos
+    if (act.regla === 'OTRA') {
+      const txt = String(cfg.otraActividad || '').trim();
+      act.nombre = txt ? 'Otra actividad: ' + txt : 'Otra actividad (sin describir)';
+      if (!txt) add('Descripción de la actividad', 'pend', 'Indique cuál es la otra actividad inmediata a ejecutar.', '');
+      else add('Otra actividad', 'obs', `${txt}. La aplicación no verifica los requisitos de esta actividad: deben justificarse en el estudio técnico.`, '');
+      if (r.tot.ext.n > 0.0001 && r.rsah) r.rsah.forEach(c => checks.push(c));
+      const hayPendO = checks.some(c => c.estado === 'pend'), hayNoO = checks.some(c => c.estado === 'no');
+      return { actividad: act, checks, resultado: hayNoO ? 'No cumple' : hayPendO ? 'Información pendiente' : 'Cumple, con observaciones', clase: hayNoO ? 'bad' : hayPendO ? 'warn' : 'ok' };
+    }
     const inp = cfg.inputs || {};
 
     // 1. Bosque nativo (presencia accidental de exóticas)

@@ -714,11 +714,16 @@
     const sel = $('#selRodalInt'); sel.innerHTML = opcionesRodal(rodalActual);
     sel.onchange = () => { rodalActual = sel.value; renderIntervencion(); };
     const id = rodalActual, cfg = S.cfgRodal[id], r = S.resultados[id];
-    const actOpts = ['-', 'A', 'B', 'C', 'Incendios'].map(l => {
-      const acts = N.ACTIVIDADES.filter(a => a.literal === l);
-      const lab = { '-': 'General', A: 'Literal a) · Bosque nativo de preservación', B: 'Literal b) · Productos no madereros', C: 'Literal c) · Producción maderera', Incendios: 'Bosques afectados por incendios' }[l];
-      return `<optgroup label="${lab}">${acts.map(a => `<option value="${a.id}" ${cfg.actividad === a.id ? 'selected' : ''}>${esc(a.nombre)}</option>`).join('')}</optgroup>`;
-    }).join('');
+    // Sin referencia a los literales, en orden alfabético y sin repetir; «Otras actividades» al final.
+    // Se equiparan las actividades repetidas de proyectos anteriores (p. ej. corta sanitaria de otro literal).
+    const EQUIV = { A_SAN: 'C_SAN', B_SAN: 'C_SAN', B_IRR: 'C_IRR', B_CMBA: 'C_CMBA', B_CMBB: 'C_CMBB', B_RLB: 'C_RLB' };
+    if (EQUIV[cfg.actividad]) cfg.actividad = EQUIV[cfg.actividad];
+    const menu = N.ACTIVIDADES_MENU.map(idA => N.ACTIVIDADES.find(a => a.id === idA)).sort((a, b) => N.nombreActividad(a).localeCompare(N.nombreActividad(b), 'es'));
+    const actual = N.ACTIVIDADES.find(a => a.id === cfg.actividad);
+    const opt = (a, txt) => `<option value="${a.id}" ${cfg.actividad === a.id ? 'selected' : ''}>${esc(txt || N.nombreActividad(a))}</option>`;
+    const actOpts = opt(N.ACTIVIDADES.find(a => a.id === 'NINGUNA')) + menu.map(a => opt(a)).join('') +
+      (actual && !['NINGUNA', 'OTRA'].includes(actual.id) && !N.ACTIVIDADES_MENU.includes(actual.id) ? opt(actual, N.nombreActividad(actual) + ' (ya no disponible)') : '') +
+      opt(N.ACTIVIDADES.find(a => a.id === 'OTRA'));
     const chkSp = (name, arr) => r.porEspecie.map(e => `<label class="chk"><input type="checkbox" data-${name}="${esc(e.key)}" ${arr.includes(e.key) ? 'checked' : ''}> ${esc(e.nombre)}</label>`).join('<br>');
     $('#intervencionCfg').innerHTML = `
       <div class="grid2">
@@ -726,6 +731,7 @@
           <h2>Intervención propuesta · Rodal ${esc(id)}</h2>
           <div class="form">
             <label>Actividad inmediata a ejecutar<select data-f="actividad">${actOpts}</select></label>
+            <label id="boxOtraActividad" ${cfg.actividad === 'OTRA' ? '' : 'hidden'}>Indique cuál es la otra actividad<input type="text" data-f="otraActividad" value="${esc(cfg.otraActividad || '')}" placeholder="Ej.: corta de protección de cauce, raleo de cepas" autocomplete="off"><small>La aplicación no verifica los requisitos de esta actividad: deben justificarse en el estudio técnico.</small></label>
             <div id="boxMetodo" ${cfg.actividad === 'C_REG' ? '' : 'hidden'}><label>Método de corta de regeneración (D.S. 259)<select data-f="metodoRegen"><option value="">— seleccione —</option>${N.METODOS_CORTA.map(m => `<option value="${m.id}" ${cfg.metodoRegen === m.id ? 'selected' : ''}>${esc(m.nombre)}</option>`).join('')}</select></label></div>
             <div id="boxInputs"></div>
             <label>Cobertura arbórea y arbustiva residual estimada (%)<input type="number" step="any" min="0" max="100" data-f="coberturaRes" value="${esc(cfg.coberturaRes == null ? '' : cfg.coberturaRes)}"><small>Cobertura de copas que quedará después de la intervención. Se compara con el mínimo de los arts. 7 y 8 del D.S. 82.</small></label>
@@ -753,7 +759,7 @@
     const root = $('#intervencionCfg');
     $$('[data-f]', root).forEach(el => el.addEventListener('change', () => {
       cfg[el.dataset.f] = el.type === 'number' ? (el.value === '' ? '' : Number(el.value)) : el.value;
-      if (el.dataset.f === 'actividad') { $('#boxMetodo').hidden = el.value !== 'C_REG'; renderInputsActividad(); }
+      if (el.dataset.f === 'actividad') { $('#boxMetodo').hidden = el.value !== 'C_REG'; $('#boxOtraActividad').hidden = el.value !== 'OTRA'; renderInputsActividad(); }
       recalcular();
     }));
     $$('input[name=modoExt]', root).forEach(el => el.addEventListener('change', () => { cfg.ext.modo = el.value; $('#boxRegla').hidden = el.value !== 'regla'; recalcular(); }));
@@ -1107,7 +1113,8 @@
     cargarArboles(arboles, avisos);
     Object.entries(E.rodales).forEach(([id, c]) => {
       const cfg = S.cfgRodal[id]; if (!cfg) return;
-      Object.assign(cfg, { superficie: c.superficie, pendiente: c.pendiente, actividad: c.actividad });
+      // (el ejemplo simpódico usaba un raleo con fines no madereros, que ya no se ofrece: se usa el raleo de latizal alto)
+      Object.assign(cfg, { superficie: c.superficie, pendiente: c.pendiente, actividad: c.actividad === 'B_RLAFJ' ? 'C_RLA' : c.actividad });
       Object.assign(cfg.ext, c.ext);
     });
     textoCrecimiento();

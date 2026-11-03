@@ -350,7 +350,7 @@
     const regionComp = (N.REGIONES.find(r => r.id === ctx.region) || {}).compendio;
     // ---- Forma de crecimiento: monopódico (cada registro es un individuo) o simpódico (los vástagos de
     //      una misma cepa, identificados por la columna "Árbol", forman un solo individuo) ----
-    const simpodico = (cfg.crecimiento || ctx.crecimiento) === 'simpodico';
+    const simpodico = ctx.crecimiento === 'simpodico'; // definida en los parámetros generales para todo el inventario
     const tallos = arboles.filter(a => a.dap > 0);
     const spKeys = [...new Set(tallos.map(a => a.key))];
     // altura promedio por especie, ingresada por el usuario en la sección 2 (común a todos los rodales)
@@ -652,7 +652,7 @@
     // Profundidad de suelo (art. 9)
     const prof = cfg.profSuelo === '' || cfg.profSuelo == null ? null : Number(cfg.profSuelo);
     const lim = reg === 'XII' ? 10 : 20;
-    if (prof == null) add(`Profundidad del suelo (≥ ${lim} cm)`, 'pend', `Ingrese la profundidad del suelo: se prohíbe la corta de bosque nativo en suelos de menos de ${lim} cm${reg === 'XII' ? ' (Región de Magallanes)' : ''}.`, 'D.S. 82 art. 9');
+    if (prof == null) add(`Profundidad del suelo (≥ ${lim} cm)`, 'pend', `Ingrese la profundidad del suelo en «Suelo y clima» (sección 6): se prohíbe la corta de bosque nativo en suelos de menos de ${lim} cm${reg === 'XII' ? ' (Región de Magallanes)' : ''}.`, 'D.S. 82 art. 9');
     else add(`Profundidad del suelo (≥ ${lim} cm)`, prof >= lim ? 'si' : 'no', `Profundidad del suelo ${prof} cm${prof < lim ? ': se prohíbe la corta de bosque nativo' : ''}.`, 'D.S. 82 art. 9');
     if (reg === 'XII' && (r.tipo.id === 'LEN' || r.tipo.id === 'CM') && r.hProm != null && r.hProm <= 8) {
       const adulto = ['Fustal joven', 'Fustal', 'Sobremaduro'].includes(r.estado.estado);

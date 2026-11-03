@@ -279,7 +279,7 @@
     if (variasCepas.length) avisos.push({ t: 'warn', m: `Individuos con más de una fila «Cepa» (${variasCepas.length}): ${variasCepas.slice(0, 8).map(esc).join('; ')}${variasCepas.length > 8 ? '…' : ''}. Revise el N° de árbol: se agrupan como un solo individuo.` });
   }
   function hayMultiTallo(arb) { if (arb.some(a => a.tipo === 'Vástago')) return true; const c = {}; return arb.some(a => { if (a.arbol == null) return false; const k = a.rodal + '|' + a.parcela + '|' + a.arbol; c[k] = (c[k] || 0) + 1; return c[k] > 1; }); }
-  function esSimpodicoAlguno() { return S.config.crecimiento === 'simpodico' || Object.values(S.cfgRodal).some(c => c.crecimiento === 'simpodico'); }
+  function esSimpodicoAlguno() { return S.config.crecimiento === 'simpodico'; }
   function textoCrecimiento() { $('#boxDmcSimp').hidden = !esSimpodicoAlguno(); $('#cfgDmcSimp').value = S.config.dmcSimp || ''; $('#txtCrecimiento').textContent = (TXT_CREC[S.config.crecimiento] || '') + (S.config.crecimiento === 'simpodico' && S.arboles.length && !S.tieneArbol ? ' El inventario cargado no tiene columna «Árbol»: cada fila se contará como un individuo.' : ''); }
   $('#cfgDmcSimp').addEventListener('change', e => { S.config.dmcSimp = e.target.value; cambioParametro(); });
   $('#cfgCrecimiento').addEventListener('change', e => { S.config.crecimiento = e.target.value; textoCrecimiento(); cambioParametro(); });
@@ -684,13 +684,10 @@
       <div class="card" id="resRodal"></div>
       <div class="grid2">
         <div class="card">
+          <h2>Ajuste manual de parámetros</h2>
+          <p class="muted" style="margin-top:0">Estos ajustes reemplazan los valores que la aplicación calcula a partir del inventario y deben justificarse en el estudio técnico respectivo.</p>
           <div class="form">
-            <div class="fl">Suelo y clima (Reglamento de Suelos, Aguas y Humedales, D.S. 82)</div>
-            <label>Profundidad del suelo (cm)<input type="number" step="any" min="0" data-f="profSuelo" value="${esc(cfg.profSuelo == null ? '' : cfg.profSuelo)}"><small>Se prohíbe la corta de bosque nativo en suelos de menos de 20 cm (10 cm en la Región de Magallanes), art. 9.</small></label>
-            <label class="chk"><input type="checkbox" data-b="sueloGranitico" ${cfg.sueloGranitico ? 'checked' : ''}> Suelo granítico (esclerófilo y palma chilena en pendiente ≥ 45 %: cobertura mínima 60 %, art. 7)</label>
-            <label class="chk"><input type="checkbox" data-b="precipAlta" ${cfg.precipAlta ? 'checked' : ''}> Precipitación media anual sobre 1.500 mm (pendiente ≥ 45 %: cobertura mínima 60 %, art. 8)</label>
             <div class="two">
-              <label>Forma de crecimiento<select data-f="crecimiento"><option value="" ${!cfg.crecimiento ? 'selected' : ''}>Según parámetro general (${S.config.crecimiento === 'simpodico' ? 'simpódico' : 'monopódico'})</option><option value="monopodico" ${cfg.crecimiento === 'monopodico' ? 'selected' : ''}>Monopódico</option><option value="simpodico" ${cfg.crecimiento === 'simpodico' ? 'selected' : ''}>Simpódico</option></select></label>
               <label>Estructura<select data-f="estructura"><option value="auto" ${cfg.estructura === 'auto' ? 'selected' : ''}>Automática</option><option value="regular" ${cfg.estructura === 'regular' ? 'selected' : ''}>Regular</option><option value="irregular" ${cfg.estructura === 'irregular' ? 'selected' : ''}>Irregular o indefinida</option></select></label>
               <label>Categoría de bosque<select data-f="categoriaManual"><option value="">Automática (Ley 20.283)</option>${['Preservación', 'Conservación y protección', 'Uso múltiple'].map(c => `<option ${cfg.categoriaManual === c ? 'selected' : ''}>${c}</option>`).join('')}</select></label>
             </div>
@@ -731,7 +728,6 @@
     const root = $('#rodalCfg');
     $$('[data-f]', root).forEach(el => el.addEventListener('change', () => {
       cfg[el.dataset.f] = el.type === 'number' ? (el.value === '' ? '' : Number(el.value)) : el.value;
-      if (el.dataset.f === 'crecimiento') textoCrecimiento();
       if (el.dataset.f === 'actividad') { $('#boxMetodo').hidden = el.value !== 'C_REG'; renderInputsActividad(); }
       recalcular();
     }));
@@ -896,6 +892,19 @@
     const rs = S.rodales.map(id => S.resultados[id]);
     $('#tblResumen').innerHTML = `<table class="data"><thead><tr><th>Rodal</th><th>Tipo forestal</th><th>Estado de desarrollo</th><th>Categoría (Ley 20.283)</th><th class="num">DMC ini/res (cm)</th><th class="num">N ini/res</th><th class="num">G ini/res</th><th class="num">V ini/res</th><th>Actividad</th><th>Bases 2026</th></tr></thead><tbody>` +
       rs.map(r => `<tr><td><b>${esc(r.id)}</b></td><td>${esc(r.tipo.nombre)}</td><td>${esc(r.estado.estado || '—')}</td><td>${esc(r.categoria.cat)}</td><td class="num">${fmt(r.DMCini)} / ${fmt(r.DMCres)}</td><td class="num">${fmt(r.tot.ini.n, 0)} / ${fmt(r.tot.res.n, 0)}</td><td class="num">${fmt(r.tot.ini.g, 2)} / ${fmt(r.tot.res.g, 2)}</td><td class="num">${r.tot.ini.v == null ? '—' : fmt(r.tot.ini.v, 1) + ' / ' + fmt(r.tot.res.v, 1)}</td><td>${esc(r.bases.actividad ? r.bases.actividad.nombre : '—')}</td><td><span class="tag ${r.bases.clase}">${esc(r.bases.resultado)}</span></td></tr>`).join('') + '</tbody></table>';
+    // Suelo y clima por rodal (D.S. 82): se edita aquí y recalcula la verificación de cada rodal
+    $('#tblSueloClima').innerHTML = `<table class="data"><thead><tr><th>Rodal</th><th>Profundidad del suelo (cm)</th><th>Suelo granítico</th><th>Precipitación media anual sobre 1.500 mm</th></tr></thead><tbody>` +
+      rs.map(r => { const c = r.cfg; return `<tr><td><b>${esc(r.id)}</b></td>
+        <td><input type="number" step="any" min="0" data-sc="${esc(r.id)}" data-scf="profSuelo" value="${esc(c.profSuelo == null ? '' : c.profSuelo)}" style="width:110px"></td>
+        <td><label class="chk"><input type="checkbox" data-sc="${esc(r.id)}" data-scb="sueloGranitico" ${c.sueloGranitico ? 'checked' : ''}> Sí</label></td>
+        <td><label class="chk"><input type="checkbox" data-sc="${esc(r.id)}" data-scb="precipAlta" ${c.precipAlta ? 'checked' : ''}> Sí</label></td></tr>`; }).join('') + '</tbody></table>' +
+      `<p class="muted" style="font-size:12px;margin:8px 0 0">Suelo granítico: en esclerófilo y palma chilena con pendiente ≥ 45 %, la cobertura mínima residual es 60 % (art. 7). Precipitación sobre 1.500 mm: en los demás tipos forestales con pendiente ≥ 45 %, fuera de Aysén y Magallanes, la cobertura mínima residual es 60 % (art. 8).</p>`;
+    $$('[data-sc]', $('#tblSueloClima')).forEach(el => el.addEventListener('change', () => {
+      const cfg = S.cfgRodal[el.dataset.sc];
+      if (el.dataset.scb) cfg[el.dataset.scb] = el.checked;
+      else cfg[el.dataset.scf] = el.value === '' ? '' : Number(el.value);
+      recalcular();
+    }));
     $('#detalleCumplimiento').innerHTML = rs.map(r => `
       <div class="card">
         <div class="card-head"><h2>Rodal ${esc(r.id)} · ${esc(r.bases.actividad ? r.bases.actividad.nombre : 'Sin actividad')}</h2><span class="tag ${r.bases.clase}">${esc(r.bases.resultado)}</span></div>

@@ -90,7 +90,7 @@
   <nav class="tabs" role="tablist" id="tabs">
     <button role="tab" data-tab="inicio" class="active">Inicio</button>
     <button role="tab" data-tab="datos">1 · Inventario</button>
-    <button role="tab" data-tab="especies" disabled>2 · Especies y volumen</button>
+    <button role="tab" data-tab="especies" disabled>2 · Especies y funciones de volumen</button>
     <button role="tab" data-tab="rodales" disabled>3 · Rodales</button>
     <button role="tab" data-tab="tabla" disabled>4 · Tabla de rodal</button>
     <button role="tab" data-tab="estadisticos" disabled>5 · Estadísticos</button>
@@ -116,7 +116,7 @@
         <h2>Cómo se usa</h2>
         <ol class="pasos">
           <li><b>1 · Inventario.</b> Complete los antecedentes generales del predio y los parámetros del muestreo, y cargue el inventario (Excel o CSV) con la plantilla. Si la plantilla trae la hoja «Ficha predial», los antecedentes se completan solos.</li>
-          <li><b>2 · Especies y volumen.</b> Revise el reconocimiento de cada especie según el D.S. 68/2009, su categoría de conservación (listado MMA), la altura promedio y la función de volumen.</li>
+          <li><b>2 · Especies y funciones de volumen.</b> Revise el reconocimiento de cada especie según el D.S. 68/2009, su categoría de conservación (listado MMA), la altura promedio y la función de volumen.</li>
           <li><b>3 · Rodales.</b> Indique superficie, pendiente y actividad de cada rodal, y defina la extracción. Obtiene tipo forestal, estado de desarrollo y categoría de bosque.</li>
           <li><b>4 · Tabla de rodal.</b> Tabla inicial y residual por clase diamétrica y especie: densidad, área basal y volumen.</li>
           <li><b>5 · Estadísticos.</b> Error de muestreo por rodal, valores por parcela y gráficos de los efectos de la intervención.</li>
@@ -170,7 +170,7 @@
                 <select id="antComuna" disabled></select>
               </label>
             </div>
-            <label>Propietario
+            <label>Interesado
               <input type="text" id="antPropietario" autocomplete="off">
             </label>
           </div>
@@ -253,6 +253,7 @@
 
     <!-- ============ 2. ESPECIES ============ -->
     <section class="panel" id="tab-especies">
+      <div class="alerta-amenazadas" id="alertaAmenazadas" role="alert" hidden></div>
       <div class="card">
         <div class="card-head">
           <h2>Especies del inventario</h2>
@@ -287,6 +288,9 @@
         <p class="muted" style="font-size:12px;margin:10px 0 0">La función se identifica en la página, el Excel y el PDF como "definida por el usuario", con su fuente; su validez es responsabilidad del profesional.</p>
         <div class="dlg-pie"><button class="btn ghost" id="fuEliminar">Eliminar función</button><span style="flex:1"></span><button class="btn" id="fuCancelar">Cancelar</button><button class="btn primary" id="fuGuardar">Guardar y calcular</button></div>
       </dialog>
+      <div class="row-btns fin-seccion">
+        <button class="btn primary" id="btnIrRodales" disabled>Continuar a 3 · Rodales →</button>
+      </div>
     </section>
 
     <!-- ============ 3. RODALES ============ -->

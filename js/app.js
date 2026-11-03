@@ -85,6 +85,7 @@
   });
   $('#btnCerrarSesion').addEventListener('click', () => { historial.length = 0; irA('inicio', true); PORTADA.abrir(); });
   $('#btnComenzar').addEventListener('click', () => irA('datos'));
+  $('#btnIrRodales').addEventListener('click', () => irA('rodales'));
   function habilitar(on) {
     on = on && !faltanParametros().length;
     $$('#tabs button').forEach(b => { if (!['inicio', 'datos', 'fuentes', 'ejemplos'].includes(b.dataset.tab)) b.disabled = !on; });
@@ -116,9 +117,11 @@
       box.className = 'aviso ' + (bloq ? 'bad' : 'ok');
       box.innerHTML = bloq
         ? `<b>No puede avanzar a la etapa 3.</b> Falta asignar función de volumen a ${faltan.length === 1 ? 'la especie' : 'las especies'}: <b>${faltan.map(esc).join(', ')}</b>. Elija una función del compendio o "Definida por el usuario…" en la columna "Función de volumen". Mientras tanto, las etapas 3 a 6, la exportación a Excel y el PDF quedan bloqueados.`
-        : `Todas las especies tienen función de volumen asignada. <button class="btn small primary" id="btnIrRodales" style="margin-left:8px">Continuar a 3 · Rodales</button>`;
-      const b = $('#btnIrRodales'); if (b) b.addEventListener('click', () => irA('rodales'));
+        : `Todas las especies tienen función de volumen asignada.`;
     }
+    // botón para continuar, al final de la sección 2: sólo se habilita con todas las funciones asignadas
+    const bIr = $('#btnIrRodales');
+    if (bIr) { bIr.disabled = bloq; bIr.title = msg; }
   }
 
   /* ======================= Antecedentes generales ======================= */
@@ -164,7 +167,7 @@
   // generales y todos los parámetros generales. Parten en blanco.
   function faltanParametros() {
     const c = S.config, A = S.antecedentes, f = [];
-    [['predio', 'nombre del predio'], ['rol', 'rol de avalúo'], ['region', 'región'], ['provincia', 'provincia'], ['comuna', 'comuna'], ['propietario', 'propietario']]
+    [['predio', 'nombre del predio'], ['rol', 'rol de avalúo'], ['region', 'región'], ['provincia', 'provincia'], ['comuna', 'comuna'], ['propietario', 'interesado']]
       .forEach(([k, nom]) => { if (!String(A[k] || '').trim()) f.push(nom); });
     if (!c.muestreo) f.push('tipo de muestreo');
     if (!c.fecha) f.push('fecha de muestreo');
@@ -418,7 +421,7 @@
     if (amb.length) av.push({ t: 'info', m: `Nombres comunes asignados a más de una especie en el D.S. 68; revise la asignación en la pestaña 2: ${amb.map(([k]) => esc(k)).join(', ')}.` });
     const faltan = faltanParametros();
     if (faltan.length) av.push({ t: 'warn', m: `Complete los antecedentes generales y los parámetros generales para continuar a la sección 2. Falta: ${faltan.map(esc).join(', ')}.` });
-    $('#avisosCarga').innerHTML = av.map(a => `<div class="aviso ${a.t}">${a.m}</div>`).join('') + `<div class="row-btns"><button class="btn primary" id="btnIrEspecies" ${faltan.length ? 'disabled' : ''}>Continuar: especies y volumen →</button></div>`;
+    $('#avisosCarga').innerHTML = av.map(a => `<div class="aviso ${a.t}">${a.m}</div>`).join('') + `<div class="row-btns"><button class="btn primary" id="btnIrEspecies" ${faltan.length ? 'disabled' : ''}>Continuar: especies y funciones de volumen →</button></div>`;
     $('#btnIrEspecies').addEventListener('click', () => irA('especies'));
   }
 
@@ -454,11 +457,33 @@
     return `N° ${f.id} · ${f.especies.join('-')} · Reg. ${f.regiones.join('-')} · ${f.usaH ? 'DAP y H ' + f.alturaTipo : 'sólo DAP'} · ${f.estructura} · ${f.validacion}${f.unidad !== 'm3' ? ' · ' + f.unidad : ''}`;
   }
   function regionComp() { return (N.REGIONES.find(r => r.id === S.config.region) || {}).compendio; }
+  /* Alerta de especies en categoría de amenaza (Vulnerable, En Peligro o En Peligro Crítico) según el listado MMA
+     para la región del proyecto (o la categoría asignada manualmente). */
+  const CAT_AMENAZA = ['CR', 'EN', 'VU'];
+  function renderAlertaAmenazadas() {
+    const box = $('#alertaAmenazadas');
+    const porEspecie = new Map();
+    Object.values(S.nombres).forEach(info => {
+      if (!info.key || porEspecie.has(info.key)) return;
+      const cat = C.categoriaEspecie(info.key, S.config.region, S.catOverride[info.key]);
+      if (!CAT_AMENAZA.includes(cat.code)) return;
+      const e = C.CAT.especies[info.key] || {};
+      const rodales = S.rodales.filter(id => S.arboles.some(a => a.rodal === id && a.key === info.key));
+      porEspecie.set(info.key, { comun: e.nombreComun || info.key, sci: info.key, cat, rodales });
+    });
+    const lista = [...porEspecie.values()].sort((a, b) => CAT_AMENAZA.indexOf(a.cat.code) - CAT_AMENAZA.indexOf(b.cat.code) || a.comun.localeCompare(b.comun, 'es'));
+    box.hidden = !lista.length;
+    if (!lista.length) { box.innerHTML = ''; return; }
+    box.innerHTML = `<div class="alerta-titulo"><span class="alerta-icono" aria-hidden="true">!</span>Especies en categoría de amenaza (${lista.length})</div>
+      <ul>${lista.map(x => `<li><span class="tag cat-${x.cat.code}">${x.cat.code} · ${esc(N.CATEGORIAS[x.cat.code].nombre)}</span> <b>${esc(x.comun)}</b> (<i>${esc(x.sci)}</i>)${x.rodales.length ? ` · rodal${x.rodales.length > 1 ? 'es' : ''} ${esc(x.rodales.join(', '))}` : ''}${x.cat.fuente === 'Asignada manualmente' ? ' · categoría asignada manualmente' : ''}</li>`).join('')}</ul>
+      <p>Categoría de conservación según el listado del Ministerio del Medio Ambiente para la región del proyecto. La presencia de estas especies puede determinar la categoría de bosque de preservación (Ley 20.283, art. 2° N° 4) y la protección del art. 19.</p>`;
+  }
   function renderEspecies() {
+    renderAlertaAmenazadas();
     const tbl = $('#tblEspecies');
     const filas = Object.entries(S.nombres).sort((a, b) => b[1].n - a[1].n);
     const todasF = Object.values(C.FN).filter(f => !f.usuario);
-    tbl.innerHTML = `<thead><tr><th>Nombre en el inventario</th><th class="num">Árboles</th><th>Especie según D.S. 68/2009</th><th>Categoría MMA (región ${esc(S.config.region)})</th><th>Altura promedio (m)</th><th>Función de volumen</th></tr></thead><tbody>` +
+    tbl.innerHTML = `<thead><tr><th>Nombre en el inventario</th><th class="num">Árboles</th><th>Especie según D.S. 68/2009</th><th>Altura promedio (m)</th><th>Función de volumen</th><th>Categoría MMA (región ${esc(S.config.region)})</th></tr></thead><tbody>` +
       filas.map(([nm, info]) => {
         const key = info.key || ('X:' + C.norm(nm));
         const cat = C.categoriaEspecie(key, S.config.region, S.catOverride[key]);
@@ -480,18 +505,18 @@
           if (!fUsada.regiones.includes(regionComp())) avisoF += `<div class="tag neutral" style="margin-top:4px">Región ${esc(fUsada.regiones.join('-'))}</div>`;
         }
         const catSel = `<select data-cat="${esc(key)}"><option value="">Según listado MMA</option>${Object.entries(N.CATEGORIAS).map(([k, v]) => `<option value="${k}" ${S.catOverride[key] && S.catOverride[key].code === k ? 'selected' : ''}>${k} · ${v.nombre}</option>`).join('')}</select>`;
-        return `<tr>
+        return `<tr${CAT_AMENAZA.includes(cat.code) ? ' class="fila-amenazada"' : ''}>
           <td><b>${esc(nm || '(vacío)')}</b>${info.ambiguo && info.auto ? `<div class="tag info" style="margin-top:4px">Nombre ambiguo en D.S. 68</div>` : ''}</td>
           <td class="num">${info.n.toLocaleString('es-CL')}</td>
           <td><select data-nombre="${esc(nm)}"><option value="">— No figura en el D.S. 68 (no nativa) —</option>${opcionesD68.map(o => `<option value="${esc(o.s)}" ${info.key === o.s ? 'selected' : ''}>${esc(o.label)}</option>`).join('')}</select>
             ${info.key ? '' : '<div class="tag warn" style="margin-top:4px">No reconocida</div>'}</td>
+          <td><input type="number" step="any" min="0" max="90" data-alt="${esc(key)}" value="${S.alturas[key] != null ? esc(S.alturas[key]) : ''}" placeholder="m" style="width:90px">${fUsada && fUsada.usaH && !(S.alturas[key] > 0) ? '<div class="tag warn" style="margin-top:4px">Requerida para el volumen</div>' : (fUsada && !fUsada.usaH ? '<div class="muted" style="font-size:12px;margin-top:3px">La función usa sólo DAP</div>' : '')}</td>
+          <td><select data-fun="${esc(key)}">${fOpts}</select>${avisoF}
+            ${fUsada && fUsada.usuario ? `<div><button class="btn ghost small" data-fu="${esc(key)}" data-fu-nom="${esc(nm)}" style="margin-top:4px">Editar ecuación</button></div>` : fUsada ? `<div><button class="btn ghost small" data-verf="${fUsada.id}" style="margin-top:4px">Ver función N° ${fUsada.id}</button></div>` : ''}</td>
           <td><span class="tag cat-${cat.code}">${cat.code} · ${esc((N.CATEGORIAS[cat.code] || {}).nombre || '')}</span>
             <div class="muted" style="font-size:12px;margin-top:3px">${cat.raw ? esc('Listado: ' + cat.raw.replace(/\n/g, ' ') + ' · ' + (cat.fuente || '')) : (cat.code === 'NC' && info.key ? 'No figura en el listado MMA' : esc(cat.fuente || ''))}</div>
             ${cat.nota && cat.raw ? `<div style="font-size:12px;color:var(--warn)">${esc(cat.nota)}</div>` : ''}
             <details style="margin-top:4px"><summary class="muted" style="font-size:12px;cursor:pointer">Modificar</summary>${catSel}</details></td>
-          <td><input type="number" step="any" min="0" max="90" data-alt="${esc(key)}" value="${S.alturas[key] != null ? esc(S.alturas[key]) : ''}" placeholder="m" style="width:90px">${fUsada && fUsada.usaH && !(S.alturas[key] > 0) ? '<div class="tag warn" style="margin-top:4px">Requerida para el volumen</div>' : (fUsada && !fUsada.usaH ? '<div class="muted" style="font-size:12px;margin-top:3px">La función usa sólo DAP</div>' : '')}</td>
-          <td><select data-fun="${esc(key)}">${fOpts}</select>${avisoF}
-            ${fUsada && fUsada.usuario ? `<div><button class="btn ghost small" data-fu="${esc(key)}" data-fu-nom="${esc(nm)}" style="margin-top:4px">Editar ecuación</button></div>` : fUsada ? `<div><button class="btn ghost small" data-verf="${fUsada.id}" style="margin-top:4px">Ver función N° ${fUsada.id}</button></div>` : ''}</td>
         </tr>`;
       }).join('') + '</tbody>';
     $$('select[data-nombre]', tbl).forEach(s => s.addEventListener('change', () => {
@@ -871,7 +896,8 @@
   // Plantilla de inventario de la app Capfor (Parcelas de Muestreo Forestal): la misma plantilla base (hoja "Inventario"
   // con listas desplegables, hoja Control, instrucciones y nómina D.S. 68) más la hoja "Ficha predial" con los
   // antecedentes del predio. Aquí la ficha va en blanco para que el usuario la complete.
-  const CAMPOS_FICHA = [['Nombre del predio', 'predio'], ['Rol de avalúo', 'rol'], ['Región', 'region'], ['Provincia', 'provincia'], ['Comuna', 'comuna'], ['Propietario', 'propietario']];
+  const CAMPOS_FICHA = [['Nombre del predio', 'predio'], ['Rol de avalúo', 'rol'], ['Región', 'region'], ['Provincia', 'provincia'], ['Comuna', 'comuna'], ['Interesado', 'propietario']];
+  // (la clave interna sigue siendo «propietario» para abrir proyectos guardados antes del cambio de nombre)
   async function agregarHojaFicha(zip) {
     const R = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships', WS = 'application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml';
     // estilos de la hoja Control de la plantilla: 4 = título, 5 = encabezado verde, 6 = celda con borde, 9 = nota
@@ -910,7 +936,8 @@
     const val = {};
     let variosPredios = false;
     h.rows.forEach(r => {
-      const etiqueta = C.norm(r && r[0]).replace(/^nombre del propietario$/, 'propietario');
+      // la ficha de Capfor y las plantillas anteriores usan «Propietario» o «Nombre del propietario»
+      const etiqueta = C.norm(r && r[0]).replace(/^(nombre del )?propietario$/, 'interesado');
       const campo = CAMPOS_FICHA.find(([t]) => C.norm(t) === etiqueta);
       if (!campo) return;
       const v = r[1] == null ? '' : String(r[1]).trim();
@@ -970,8 +997,8 @@
   /* ======================= Datos de ejemplo ======================= */
   // Antecedentes generales FICTICIOS de los ejemplos (no corresponden a predios ni personas reales)
   const ANTECEDENTES_EJEMPLO = {
-    mono: { predio: 'Fundo Los Coigües (ejemplo ficticio)', rol: '1234-56', region: 'La Araucanía', provincia: 'Cautín', comuna: 'Cunco', propietario: 'Propietario de ejemplo' },
-    simp: { predio: 'Hijuela El Peumal (ejemplo ficticio)', rol: '789-12', region: 'Valparaíso', provincia: 'Quillota', comuna: 'Hijuelas', propietario: 'Propietaria de ejemplo' }
+    mono: { predio: 'Fundo Los Coigües (ejemplo ficticio)', rol: '1234-56', region: 'La Araucanía', provincia: 'Cautín', comuna: 'Cunco', propietario: 'Interesado de ejemplo' },
+    simp: { predio: 'Hijuela El Peumal (ejemplo ficticio)', rol: '789-12', region: 'Valparaíso', provincia: 'Quillota', comuna: 'Hijuelas', propietario: 'Interesada de ejemplo' }
   };
   function cargarEjemplo(k) {
     const E = window.EJEMPLOS[k];

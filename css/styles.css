@@ -326,4 +326,13 @@ ol.pasos { margin: 4px 0 10px; padding-left: 20px; display: grid; gap: 8px; max-
 .pie-conaf a { color: var(--azul); text-decoration: none; }
 .pie-conaf a:hover { text-decoration: underline; }
 .pie-legal { margin-top: 16px; padding-top: 10px; border-top: 1px solid var(--line); font-size: 12px; color: var(--muted); text-align: center; }
-@media (max-width: 760px) { .pie-cols { grid-template-columns: 1fr; } }
+@media (max-width: 760px) { .pie-cols { grid-template-columns: 1fr; } }/* botón para continuar a la sección siguiente, al pie de la sección */
+.row-btns.fin-seccion { justify-content: flex-end; margin: 4px 0 8px; }
+/* ---------- Sección 2: alerta de especies en categoría de amenaza ---------- */
+.alerta-amenazadas { margin: 0 0 16px; padding: 14px 18px; border: 2px solid var(--rojo); border-left-width: 8px; border-radius: var(--radius); background: var(--bad-soft); color: var(--ink); }
+.alerta-amenazadas .alerta-titulo { display: flex; align-items: center; gap: 10px; font-size: 16px; font-weight: 700; color: var(--rojo); }
+.alerta-amenazadas .alerta-icono { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--rojo); color: #fff; font-size: 15px; flex: none; }
+.alerta-amenazadas ul { margin: 10px 0 8px; padding-left: 0; list-style: none; display: grid; gap: 6px; }
+.alerta-amenazadas p { margin: 0; font-size: 12.5px; color: var(--ink-2); }
+#tblEspecies tr.fila-amenazada td { background: var(--bad-soft); }
+#tblEspecies tr.fila-amenazada td:first-child { box-shadow: inset 4px 0 0 var(--rojo); }

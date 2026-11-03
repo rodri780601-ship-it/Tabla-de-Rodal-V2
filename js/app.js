@@ -729,6 +729,7 @@
             </div>
           </div>
         </div>
+      <div class="card resaltado" id="resRodalAjustado" hidden></div>
 `;
     // eventos
     const root = $('#rodalCfg');
@@ -828,25 +829,52 @@
     $$('[data-in]', box).forEach(el => el.addEventListener('change', () => { cfg.inputs[el.dataset.in] = el.value === '' ? '' : Number(el.value); recalcular(); }));
     $$('[data-int]', box).forEach(el => el.addEventListener('change', () => { cfg.especiesInteres = $$('[data-int]', box).filter(x => x.checked).map(x => x.dataset.int); recalcular(); }));
   }
+  // Campos de «Ajuste manual de parámetros» (sección 3)
+  const CAMPOS_AJUSTE = { estructura: 'auto', categoriaManual: '', tipoManual: '', estadoManual: '' };
+  const hayAjusteManual = (cfg) => Object.entries(CAMPOS_AJUSTE).some(([k, def]) => cfg[k] && cfg[k] !== def);
+  // Diagnóstico tal como lo calcula la aplicación, sin los ajustes manuales
+  function diagnosticoSinAjustes(id) {
+    const cx = ctx(), cfg = S.cfgRodal[id];
+    cx.cfgRodal = Object.assign({}, S.cfgRodal, { [id]: Object.assign({}, cfg, CAMPOS_AJUSTE) });
+    return C.calcularRodal(id, S.arboles.filter(a => a.rodal === id), cx);
+  }
+  // Recuadros del diagnóstico; con «ref» se resaltan los valores que difieren del diagnóstico calculado
+  function htmlDiagnostico(r, ref) {
+    const volTxt = (o) => o.v == null ? '—' : fmt(o.v, 1) + (o.vCompleto ? '' : ' *');
+    const est = (x) => x.estructura === 'irregular' ? 'Irregular' : 'Regular';
+    const item = (l, v, d, antes) => {
+      const mod = ref && antes !== undefined && antes !== v;
+      return `<div class="res-item${mod ? ' modificado' : ''}"><div class="l">${l}${mod ? ' <span class="tag warn">Ajustado</span>' : ''}</div><div class="v">${esc(v)}</div><div class="d">${mod ? `Calculado: <b>${esc(antes)}</b>. ` : ''}${d}</div></div>`;
+    };
+    return `<div class="res-grid">
+        ${item('Tipo forestal (D.S. 259)', r.tipo.nombre, esc(r.tipo.motivo) + (r.tipo.alternativas.length ? ' También cumple: ' + esc(r.tipo.alternativas.join(', ')) + '.' : ''), ref && ref.tipo.nombre)}
+        ${item('Estado de desarrollo', r.estado.estado || 'Indeterminado', esc(r.estado.criterio), ref && (ref.estado.estado || 'Indeterminado'))}
+        ${item('Categoría de bosque (Ley 20.283)', r.categoria.cat, esc(r.categoria.art) + '. ' + esc(r.categoria.motivosP.concat(r.categoria.motivosCP).join(' ') || 'No cumple condiciones de preservación ni de conservación y protección.'), ref && ref.categoria.cat)}
+        ${item('Estructura', est(r), r.cfg.estructura === 'auto' || !r.cfg.estructura ? 'Sugerida por la distribución diamétrica' : 'Definida por el usuario', ref && est(ref))}
+        ${item('DMC inicial → residual' + (r.simpodico ? (r.dmcPorVastago ? ' (por vástago)' : ' (por individuo)') : ''), `${fmt(r.DMCini)} → ${fmt(r.DMCres)} cm`, `Altura media ${fmt(r.hProm)} m · ${r.nP} parcela(s) de ${fmt(r.area, 0)} m²`)}
+        ${item('Densidad inicial → residual' + (r.simpodico ? ' (individuos)' : ''), `${fmt(r.tot.ini.n, 0)} → ${fmt(r.tot.res.n, 0)} árb/ha`, `Extracción ${fmt(r.tot.ext.n, 0)} árb/ha` + (r.simpodico ? ` · Vástagos ${fmt(r.tot.ini.tallos, 0)} → ${fmt(r.tot.res.tallos, 0)} /ha (${fmt(r.tot.ini.n ? r.tot.ini.tallos / r.tot.ini.n : 0, 1)} por individuo)` : ''))}
+        ${item('Área basal inicial → residual', `${fmt(r.tot.ini.g, 2)} → ${fmt(r.tot.res.g, 2)} m²/ha`, `Extracción ${fmt(r.tot.ext.g, 2)} m²/ha (${fmt(r.tot.ini.g ? r.tot.ext.g / r.tot.ini.g * 100 : 0)} %)`)}
+        ${item('Volumen inicial → residual', `${volTxt(r.tot.ini)} → ${volTxt(r.tot.res)} m³/ha`, r.tot.ini.vCompleto ? (r.porEspecie.some(e => (C.FN[e.fid] || {}).usuario) ? 'Funciones del compendio y definidas por el usuario' : 'Funciones del compendio') : '* Hay especies sin función o sin altura: volumen parcial')}
+      </div>`;
+  }
+  const htmlRSAH = (r) => (r.tot.ext.n > 0.0001 || (r.bases.actividad && r.bases.actividad.corta)) ? `<h3>Restricciones del Reglamento de Suelos, Aguas y Humedales (D.S. 82/2010)</h3>
+      <ul class="checks">${r.rsah.map(c => `<li><span class="tag ${lblEstado[c.estado][0]}">${lblEstado[c.estado][1]}</span><div><b>${esc(c.item)}</b> · ${esc(c.detalle)} <span class="ref">${esc(c.ref)}</span></div></li>`).join('')}</ul>` : '';
   function refrescarResultadosRodal() {
     const id = rodalActual; if (!id || !$('#resRodal')) return;
-    const r = S.resultados[id];
-    const b = r.bases;
-    const volTxt = (o) => o.v == null ? '—' : fmt(o.v, 1) + (o.vCompleto ? '' : ' *');
-    $('#resRodal').innerHTML = `
-      <div class="card-head"><h2>Rodal ${esc(id)} · diagnóstico</h2>${b.actividad && b.actividad.id !== 'NINGUNA' && b.resultado !== 'Cumple, con observaciones' ? `<span class="tag ${b.clase}">${esc(b.resultado)}</span>` : ''}</div>
-      <div class="res-grid">
-        <div class="res-item"><div class="l">Tipo forestal (D.S. 259)</div><div class="v">${esc(r.tipo.nombre)}</div><div class="d">${esc(r.tipo.motivo)}${r.tipo.alternativas.length ? ' También cumple: ' + esc(r.tipo.alternativas.join(', ')) + '.' : ''}</div></div>
-        <div class="res-item"><div class="l">Estado de desarrollo</div><div class="v">${esc(r.estado.estado || 'Indeterminado')}</div><div class="d">${esc(r.estado.criterio)}</div></div>
-        <div class="res-item"><div class="l">Categoría de bosque (Ley 20.283)</div><div class="v">${esc(r.categoria.cat)}</div><div class="d">${esc(r.categoria.art)}. ${esc(r.categoria.motivosP.concat(r.categoria.motivosCP).join(' ') || 'No cumple condiciones de preservación ni de conservación y protección.')}</div></div>
-        <div class="res-item"><div class="l">Estructura</div><div class="v">${r.estructura === 'irregular' ? 'Irregular' : 'Regular'}</div><div class="d">${r.cfg.estructura === 'auto' || !r.cfg.estructura ? 'Sugerida por la distribución diamétrica' : 'Definida por el usuario'}</div></div>
-        <div class="res-item"><div class="l">DMC inicial → residual${r.simpodico ? (r.dmcPorVastago ? ' (por vástago)' : ' (por individuo)') : ''}</div><div class="v">${fmt(r.DMCini)} → ${fmt(r.DMCres)} cm</div><div class="d">Altura media ${fmt(r.hProm)} m · ${r.nP} parcela(s) de ${fmt(r.area, 0)} m²</div></div>
-        <div class="res-item"><div class="l">Densidad inicial → residual${r.simpodico ? ' (individuos)' : ''}</div><div class="v">${fmt(r.tot.ini.n, 0)} → ${fmt(r.tot.res.n, 0)} árb/ha</div><div class="d">Extracción ${fmt(r.tot.ext.n, 0)} árb/ha${r.simpodico ? ` · Vástagos ${fmt(r.tot.ini.tallos, 0)} → ${fmt(r.tot.res.tallos, 0)} /ha (${fmt(r.tot.ini.n ? r.tot.ini.tallos / r.tot.ini.n : 0, 1)} por individuo)` : ''}</div></div>
-        <div class="res-item"><div class="l">Área basal inicial → residual</div><div class="v">${fmt(r.tot.ini.g, 2)} → ${fmt(r.tot.res.g, 2)} m²/ha</div><div class="d">Extracción ${fmt(r.tot.ext.g, 2)} m²/ha (${fmt(r.tot.ini.g ? r.tot.ext.g / r.tot.ini.g * 100 : 0)} %)</div></div>
-        <div class="res-item"><div class="l">Volumen inicial → residual</div><div class="v">${volTxt(r.tot.ini)} → ${volTxt(r.tot.res)} m³/ha</div><div class="d">${r.tot.ini.vCompleto ? (r.porEspecie.some(e => (C.FN[e.fid] || {}).usuario) ? 'Funciones del compendio y definidas por el usuario' : 'Funciones del compendio') : '* Hay especies sin función o sin altura: volumen parcial'}</div></div>
-      </div>
-      ${r.tot.ext.n > 0.0001 || (b.actividad && b.actividad.corta) ? `<h3>Restricciones del Reglamento de Suelos, Aguas y Humedales (D.S. 82/2010)</h3>
-      <ul class="checks">${r.rsah.map(c => `<li><span class="tag ${lblEstado[c.estado][0]}">${lblEstado[c.estado][1]}</span><div><b>${esc(c.item)}</b> · ${esc(c.detalle)} <span class="ref">${esc(c.ref)}</span></div></li>`).join('')}</ul>` : ''}`;
+    const r = S.resultados[id], b = r.bases;
+    const tagBases = b.actividad && b.actividad.id !== 'NINGUNA' && b.resultado !== 'Cumple, con observaciones' ? `<span class="tag ${b.clase}">${esc(b.resultado)}</span>` : '';
+    const ajuste = hayAjusteManual(r.cfg), boxAj = $('#resRodalAjustado');
+    if (!ajuste) {
+      $('#resRodal').innerHTML = `<div class="card-head"><h2>Rodal ${esc(id)} · diagnóstico</h2>${tagBases}</div>${htmlDiagnostico(r)}${htmlRSAH(r)}`;
+      boxAj.hidden = true; boxAj.innerHTML = ''; return;
+    }
+    // con ajustes manuales: el diagnóstico calculado arriba y, bajo los ajustes, el diagnóstico ajustado (el que rige)
+    const auto = diagnosticoSinAjustes(id);
+    $('#resRodal').innerHTML = `<div class="card-head"><h2>Rodal ${esc(id)} · diagnóstico calculado</h2></div>
+      <p class="muted" style="margin-top:0">Resultado obtenido a partir del inventario, sin los ajustes manuales. El diagnóstico que se usa en las secciones siguientes es el ajustado, más abajo.</p>${htmlDiagnostico(auto)}`;
+    boxAj.hidden = false;
+    boxAj.innerHTML = `<div class="card-head"><h2>Rodal ${esc(id)} · diagnóstico con ajustes manuales</h2>${tagBases}</div>
+      <p class="muted" style="margin-top:0">Se resaltan los valores que cambian respecto del diagnóstico calculado. Este es el diagnóstico que rige para la tabla de rodal, el cumplimiento, el Excel y el PDF.</p>${htmlDiagnostico(r, auto)}${htmlRSAH(r)}`;
   }
 
   /* ======================= 4. Tabla de rodal ======================= */

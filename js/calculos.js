@@ -488,6 +488,11 @@
     r.estadoRes = N.estadoDesarrollo(esc, DMCres, hPromRes);
     if (cfg.estadoManual) r.estado = { estado: cfg.estadoManual, criterio: 'Asignado manualmente por el profesional' };
     r.estructura = cfg.estructura && cfg.estructura !== 'auto' ? cfg.estructura : sugerirEstructura(r);
+    // Los estados de desarrollo (Bases 2.5, Cuadro 2) se definen para bosques regulares: en un rodal de estructura
+    // irregular o indefinida el estado de desarrollo (inicial y residual) es «No aplica».
+    if (r.estructura === 'irregular') {
+      r.estado = r.estadoRes = { estado: 'No aplica', noAplica: true, criterio: 'Rodal de estructura irregular o indefinida: los estados de desarrollo del Cuadro 2 (Bases 2.5) se definen para bosques de estructura regular' };
+    }
     r.categoria = categoriaBosque(r, cfg);
     r.exoticas = (() => { const g = sum(porEspecie.filter(e => !e.nativa).map(e => e.ini.g)); return { g, pct: tot.ini.g ? g / tot.ini.g * 100 : 0, especies: porEspecie.filter(e => !e.nativa).map(e => e.nombre) }; })();
     r.metodos = restriccionesMetodos(r, cfg);
@@ -641,12 +646,12 @@
       else add('Estructura', 'obs', 'La actividad aplica a bosques que se desean manejar con estructura irregular, siendo actualmente irregulares o no estructurados. Verifique la estructura del rodal.', 'Bases ' + act.ref);
     } else if (act.estados) {
       const e = r.estado.estado;
-      if (!e) add('Estado de desarrollo', 'pend', r.estado.criterio, 'Bases 2.5');
+      if (r.estado.noAplica) add('Estado de desarrollo', 'obs', `No aplica. ${r.estado.criterio}. La actividad se define por estados de desarrollo (${act.estados.join(', ')}): verifique que corresponda al rodal.`, 'Bases 2.5 y ' + act.ref);
+      else if (!e) add('Estado de desarrollo', 'pend', r.estado.criterio, 'Bases 2.5');
       else if (act.estados.includes(e)) {
         if (act.excepcional && act.excepcional.includes(e)) add('Estado de desarrollo', 'obs', `${e}: aplicable sólo excepcionalmente; debe justificarse.`, 'Bases ' + act.ref);
         else add('Estado de desarrollo', 'si', `${e} (${r.estado.criterio}).`, 'Bases 2.5 y ' + act.ref);
       } else add('Estado de desarrollo', 'no', `El rodal está en estado ${e} (${r.estado.criterio}); la actividad requiere: ${act.estados.join(', ')}.`, 'Bases 2.5 y ' + act.ref);
-      if (r.estructura === 'irregular') add('Estructura', 'obs', 'Los estados de desarrollo del Cuadro 2 se definen para bosques regulares; el rodal parece de estructura irregular.', 'Bases 2.5');
     }
 
     // 5. Art. 19 Ley 20.283: corta de especies clasificadas

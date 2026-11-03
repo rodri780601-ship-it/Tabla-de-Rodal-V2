@@ -683,7 +683,7 @@
             <label class="chk"><input type="checkbox" data-b="ambienteUnico" ${cfg.ambienteUnico ? 'checked' : ''}> Ambiente único o representativo de la diversidad biológica</label>
             <div class="two">
               <label>Forma de crecimiento<select data-f="crecimiento"><option value="" ${!cfg.crecimiento ? 'selected' : ''}>Según parámetro general (${S.config.crecimiento === 'simpodico' ? 'simpódico' : 'monopódico'})</option><option value="monopodico" ${cfg.crecimiento === 'monopodico' ? 'selected' : ''}>Monopódico</option><option value="simpodico" ${cfg.crecimiento === 'simpodico' ? 'selected' : ''}>Simpódico</option></select></label>
-              <label>Estructura<select data-f="estructura"><option value="auto" ${cfg.estructura === 'auto' ? 'selected' : ''}>Automática</option><option value="regular" ${cfg.estructura === 'regular' ? 'selected' : ''}>Regular</option><option value="irregular" ${cfg.estructura === 'irregular' ? 'selected' : ''}>Irregular / no estructurado</option></select></label>
+              <label>Estructura<select data-f="estructura"><option value="auto" ${cfg.estructura === 'auto' ? 'selected' : ''}>Automática</option><option value="regular" ${cfg.estructura === 'regular' ? 'selected' : ''}>Regular</option><option value="irregular" ${cfg.estructura === 'irregular' ? 'selected' : ''}>Irregular o indefinida</option></select></label>
               <label>Categoría de bosque<select data-f="categoriaManual"><option value="">Automática (Ley 20.283)</option>${['Preservación', 'Conservación y protección', 'Uso múltiple'].map(c => `<option ${cfg.categoriaManual === c ? 'selected' : ''}>${c}</option>`).join('')}</select></label>
             </div>
             <div class="two">

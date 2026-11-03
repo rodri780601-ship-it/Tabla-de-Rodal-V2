@@ -90,26 +90,34 @@
     return s + '</svg>';
   }
 
-  /* ---------- mapa de calor especie × parcela ---------- */
+  /* ---------- mapa de calor especie × parcela ----------
+     Cada especie (fila) tiene su propio color; la intensidad del tono indica la densidad de esa especie en la
+     parcela, en 5 tramos relativos a su máximo (para ver dónde se concentra cada especie). */
+  const COLORES_ESPECIE = ['#2a78d6', '#e0611f', '#1a8f5c', '#8e44ad', '#c79100', '#c0392b', '#138d9c', '#7b5b45', '#d63384', '#546e7a'];
+  const colorEspecie = (i) => COLORES_ESPECIE[i % COLORES_ESPECIE.length];
+  const mezclar = (hex, t) => { const n = parseInt(hex.replace('#', ''), 16), b = [243, 245, 241]; const c = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((x, k) => Math.round(b[k] + (x - b[k]) * t)); return '#' + c.map(x => x.toString(16).padStart(2, '0')).join(''); };
+  const TRAMOS = [0.28, 0.46, 0.64, 0.82, 1];
   function mapaCalor({ especies, parcelas, valor, valorRes }) {
     const P = paleta();
     const cw = Math.max(30, Math.min(54, 560 / Math.max(1, parcelas.length))), ch = 26, m = { l: 150, t: 34, r: 10, b: 10 };
     const W = m.l + parcelas.length * cw + m.r, H = m.t + especies.length * ch + m.b;
     const max = Math.max(...especies.flatMap(e => parcelas.map(p => valor(e, p))), 0);
-    const color = (v) => { if (!(v > 0)) return P.empty; const k = Math.min(P.ramp.length - 1, Math.floor(v / max * P.ramp.length - 1e-9)); return P.ramp[Math.max(0, k)]; };
+    const maxSp = especies.map(e => Math.max(...parcelas.map(p => valor(e, p)), 0));
+    const colorCelda = (i, v) => { if (!(v > 0)) return P.empty; const k = Math.min(TRAMOS.length - 1, Math.floor(v / maxSp[i] * TRAMOS.length - 1e-9)); return mezclar(colorEspecie(i), TRAMOS[Math.max(0, k)]); };
     const lum = (hex) => { const n = parseInt(hex.replace('#', ''), 16); const c = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map(x => { x /= 255; return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4); }); return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]; };
-    const tinta = (v) => { if (!(v > 0)) return P.muted; return lum(color(v)) < 0.25 ? '#ffffff' : '#0b0b0b'; };
+    const tinta = (i, v) => { if (!(v > 0)) return P.muted; return lum(colorCelda(i, v)) < 0.22 ? '#ffffff' : '#0b0b0b'; };
     let s = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" class="chart heat" xmlns="http://www.w3.org/2000/svg" font-family="system-ui, -apple-system, 'Segoe UI', sans-serif">`;
     s += `<text x="${m.l}" y="12" font-size="11" fill="${P.ink2}">Parcela</text>`;
     parcelas.forEach((p, j) => { s += `<text x="${m.l + j * cw + cw / 2}" y="${m.t - 8}" text-anchor="middle" font-size="11" fill="${P.muted}">${esc(p)}</text>`; });
     especies.forEach((e, i) => {
       const nom = e.nombre.length > 22 ? e.nombre.slice(0, 21) + '…' : e.nombre;
-      s += `<text x="${m.l - 8}" y="${m.t + i * ch + ch / 2 + 4}" text-anchor="end" font-size="11.5" fill="${P.ink}">${esc(nom)}</text>`;
+      s += `<rect x="${m.l - 16}" y="${m.t + i * ch + ch / 2 - 5}" width="10" height="10" rx="2" fill="${colorEspecie(i)}"/>`;
+      s += `<text x="${m.l - 22}" y="${m.t + i * ch + ch / 2 + 4}" text-anchor="end" font-size="11.5" fill="${P.ink}">${esc(nom)}</text>`;
       parcelas.forEach((p, j) => {
         const v = valor(e, p), vr = valorRes(e, p);
         const x = m.l + j * cw + 1, y = m.t + i * ch + 1;
-        s += `<rect x="${x}" y="${y}" width="${cw - 2}" height="${ch - 2}" rx="3" fill="${color(v)}" data-tip="${esc(`${e.nombre} · parcela ${p}|Inicial: ${fmt(v, 0)} árb/ha|Residual: ${fmt(vr, 0)} árb/ha`)}"/>`;
-        if (cw >= 30) s += `<text x="${x + (cw - 2) / 2}" y="${y + ch / 2 + 2}" text-anchor="middle" font-size="10" fill="${tinta(v)}" pointer-events="none">${v > 0 ? fmt(v, 0) : '·'}</text>`;
+        s += `<rect x="${x}" y="${y}" width="${cw - 2}" height="${ch - 2}" rx="3" fill="${colorCelda(i, v)}" data-tip="${esc(`${e.nombre} · parcela ${p}|Inicial: ${fmt(v, 0)} árb/ha|Residual: ${fmt(vr, 0)} árb/ha`)}"/>`;
+        if (cw >= 30) s += `<text x="${x + (cw - 2) / 2}" y="${y + ch / 2 + 2}" text-anchor="middle" font-size="10" fill="${tinta(i, v)}" pointer-events="none">${v > 0 ? fmt(v, 0) : '·'}</text>`;
       });
     });
     return { svg: s + '</svg>', max };
@@ -209,7 +217,7 @@
           svg: barrasHorizontales({ cats: D.sp.map(e => e.nombre), res: D.sp.map(e => e.res.g), ext: D.sp.map(e => e.ext.g), xLabel: 'Área basal (m²/ha)', dec: 2 }) }
       ];
       const hm = mapaCalor({ especies: D.sp, parcelas: D.parcelasId, valor: (e, p) => ((D.ps.find(x => x.parcela === p).cuenta || {})[e.key] || 0) * r.FE, valorRes: (e, p) => (D.cuentaRes[e.key + '|' + p] || 0) * r.FE });
-      figs.push({ id: 'esp', titulo: '4. Distribución espacial por especie (densidad inicial, árb/ha por parcela)', sub: 'Cada celda es una parcela; el tono indica la densidad.', leyenda: false, ancho: 'completo', svg: hm.svg });
+      figs.push({ id: 'esp', titulo: '4. Distribución espacial por especie (densidad inicial, árb/ha por parcela)', sub: 'Cada fila es una especie, con su propio color; cada celda es una parcela y la intensidad del tono indica la densidad de la especie en esa parcela, relativa a su máximo.', leyenda: false, ancho: 'completo', svg: hm.svg });
       return { figs, datos: D };
     } finally { FORZAR_CLARA = false; }
   }
@@ -253,7 +261,7 @@
     r.arboles.forEach(a => { const k = a.key + '|' + a.parcela; cuentaRes[k] = (cuentaRes[k] || 0) + a.res; });
     const hm = mapaCalor({ especies: sp, parcelas: parcelasId, valor: (e, p) => ((ps.find(x => x.parcela === p).cuenta || {})[e.key] || 0) * FE, valorRes: (e, p) => (cuentaRes[e.key + '|' + p] || 0) * FE });
     const P = paleta();
-    const escala = `<div class="legend"><span class="muted">Árb/ha por parcela:</span><span><i style="background:${P.empty};border:1px solid var(--line)"></i>0</span>${P.ramp.map((c, k) => `<span><i style="background:${c}"></i>${k === 0 ? '> 0' : k === P.ramp.length - 1 ? '≤ ' + fmt(hm.max, 0) : ''}</span>`).join('')}</div>`;
+    const escala = `<div class="legend"><span class="muted">Color por especie; tono más intenso = mayor densidad de la especie (relativa a su máximo):</span><span><i style="background:${P.empty};border:1px solid var(--line)"></i>0</span>${sp.map((e, i) => `<span><i style="background:${colorEspecie(i)}"></i>${esc(e.nombre)}</span>`).join('')}</div>`;
     const disp = sp.map(e => ({ e, d: dispersion(parcelasId.map(p => (ps.find(x => x.parcela === p).cuenta || {})[e.key] || 0)) }));
     const tagP = { 'Agregada': 'warn', 'Aleatoria': 'info', 'Regular (uniforme)': 'ok', 'Datos insuficientes': 'neutral' };
     const tablaDisp = `<div class="table-wrap" style="margin-top:10px"><table class="data"><thead><tr><th>Especie</th><th class="num">Árboles medidos</th><th class="num">Frecuencia (% parcelas)</th><th class="num">Media por parcela</th><th class="num">Varianza</th><th>Distribución espacial</th></tr></thead><tbody>` +
@@ -283,7 +291,7 @@
       </div>
       <div class="card">
         <h2>4. Distribución espacial por especie</h2>
-        ${figura('fig-esp', 'Densidad inicial por especie y parcela', 'Cada celda es una parcela; el tono indica la densidad (árb/ha). El cursor muestra también la densidad residual.', `<div class="heat-wrap">${hm.svg}</div>`, false).replace('<div class="fig-body">', escala + '<div class="fig-body">')}
+        ${figura('fig-esp', 'Densidad inicial por especie y parcela', 'Cada especie tiene su color; la intensidad del tono indica la densidad (árb/ha) de la especie en cada parcela, relativa a su máximo. El número de cada celda es la densidad; el cursor muestra también la densidad residual.', `<div class="heat-wrap">${hm.svg}</div>`, false).replace('<div class="fig-body">', escala + '<div class="fig-body">')}
         ${tablaDisp}
       </div>`;
     activarTooltips(contenedor);

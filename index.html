@@ -419,6 +419,13 @@
     </div>
     <div class="pie-legal">Tabla de Rodal · Bosque Nativo — maqueta de demostración</div>  </footer>
 
+  <dialog id="dlgCerrarSesion" class="dlg" aria-labelledby="csTitulo">
+    <div class="dlg-head"><h2 id="csTitulo">¿Cerrar sesión?</h2></div>
+    <p>Al cerrar sesión se borran el inventario, los antecedentes, los parámetros y toda la configuración de esta sesión. Al ingresar de nuevo, la aplicación partirá en blanco.</p>
+    <p class="muted">Si quiere continuar después, use antes «Guardar proyecto».</p>
+    <div class="dlg-pie"><span style="flex:1"></span><button class="btn" id="csCancelar">Cancelar</button><button class="btn primary" id="csConfirmar">Cerrar sesión</button></div>
+  </dialog>
+
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
   <script src="lib/jszip.min.js"></script>

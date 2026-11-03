@@ -8,6 +8,18 @@
   const fmt = (x, d = 1) => (x == null || !isFinite(x)) ? '—' : Number(x).toLocaleString('es-CL', { minimumFractionDigits: d, maximumFractionDigits: d });
   const toast = (m) => { const t = $('#toast'); t.textContent = m; t.classList.add('show'); clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove('show'), 3200); };
 
+  /* ======================= Sesión en blanco ======================= */
+  // Cada ingreso parte con todos los campos vacíos: la app no guarda datos en el navegador, y además se evita
+  // que el navegador rellene o restaure los campos al recargar la página o al volver con «Atrás».
+  $$('input, select, textarea').forEach(el => {
+    el.setAttribute('autocomplete', 'off');
+    if (el.type === 'checkbox' || el.type === 'radio') el.checked = el.defaultChecked;
+    else if (el.tagName === 'SELECT') [...el.options].forEach(o => { o.selected = o.defaultSelected; });
+    else if (el.type !== 'file') el.value = el.defaultValue;
+    else el.value = '';
+  });
+  window.addEventListener('pageshow', e => { if (e.persisted) location.reload(); }); // página restaurada desde la caché del navegador
+
   /* ======================= Estado ======================= */
   const S = window.APP_STATE = {
     config: { region: '', area: null, ancho: null, inicio: '', muestreo: '', fecha: '', forma: '', ancho_r: 20, crecimiento: '', dmcSimp: '' },
@@ -20,7 +32,7 @@
   /* ======================= Portada ======================= */
   // Versión de prueba: el ingreso no valida credenciales (la app no tiene servidor); sólo da paso al inventario.
   // Los datos del formulario no se guardan ni se envían.
-  const PORTADA = (function portada() {
+  (function portada() {
     let i = 0, timer = null;
     const slides = () => $$('#portada .pt-slide');
     const mostrar = (n) => {
@@ -41,14 +53,6 @@
       e.preventDefault(); $('#ptClave').value = '';
       document.body.classList.remove('con-portada'); clearInterval(timer); window.scrollTo({ top: 0 });
     });
-    // Cerrar sesión: vuelve a la portada (los datos cargados se conservan mientras la página siga abierta)
-    return {
-      abrir() {
-        $('#ptRut').value = ''; $('#ptClave').value = '';
-        document.body.classList.add('con-portada'); window.scrollTo({ top: 0 });
-        clearInterval(timer); timer = setInterval(() => mostrar(i + 1), 6000);
-      }
-    };
   })();
 
   C.construirCatalogo();
@@ -83,7 +87,13 @@
     }
     actualizarVolver();
   });
-  $('#btnCerrarSesion').addEventListener('click', () => { historial.length = 0; irA('inicio', true); PORTADA.abrir(); });
+  // Cerrar sesión: se descarta todo lo cargado y se vuelve a la portada con la aplicación en blanco
+  // (recargar la página reinicia el estado completo; la portada es lo primero que se muestra).
+  // Se pide confirmación antes, porque se pierde lo que no se haya guardado como proyecto.
+  const dlgCS = $('#dlgCerrarSesion');
+  $('#btnCerrarSesion').addEventListener('click', () => { if (dlgCS.showModal) dlgCS.showModal(); else dlgCS.setAttribute('open', ''); $('#csCancelar').focus(); });
+  $('#csCancelar').addEventListener('click', () => { if (dlgCS.close) dlgCS.close(); else dlgCS.removeAttribute('open'); });
+  $('#csConfirmar').addEventListener('click', () => { location.reload(); });
   /* Botón al pie de cada sección para seguir a la siguiente (en el orden de las pestañas).
      Queda desactivado, con el mismo motivo, cuando la pestaña siguiente está bloqueada. */
   const ordenTabs = $$('#tabs button').map(b => b.dataset.tab);

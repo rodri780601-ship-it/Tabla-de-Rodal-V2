@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Tabla de Rodal · Bosque Nativo</title>
-  <meta name="description" content="Construye la tabla de rodal inicial y residual a partir del inventario de parcelas, y evalúa tipo forestal, estado de desarrollo, categoría de bosque y cumplimiento de las Bases Técnicas 2026.">
+  <meta name="description" content="Construye la tabla de rodal inicial y residual a partir del inventario de parcelas, y evalúa tipo forestal, estado de desarrollo y categoría de bosque.">
   <link rel="stylesheet" href="css/styles.css">
 </head>
 <body class="con-portada">
@@ -368,8 +368,8 @@
           <li><b>Altura:</b> para cada especie se ingresa una altura promedio (m) en la sección 2; se aplica a todos sus árboles en la función de volumen del compendio y define la altura media del rodal para distinguir repoblado y monte bravo.</li>
           <li><b>Especies nativas:</b> exclusivamente la nómina del D.S. N° 68 de 2009 del Ministerio de Agricultura. Los nombres no reconocidos se tratan como especies no nativas para evaluar la presencia accidental de exóticas.</li>
           <li><b>Categorías de conservación:</b> exclusivamente el listado del Ministerio del Medio Ambiente, <i>Nómina de especies según estado de conservación</i> (20.º proceso RCE). Cuando la categoría es diferenciada por zona, se aplica la de la región del proyecto.</li>
-          <li><b>Tipo forestal y métodos de corta:</b> D.S. N° 259 de 1980, arts. 18 a 24 y 30 (vigentes para la corta de regeneración según las Bases, punto 3.3.2 a).</li>
-          <li><b>Estado de desarrollo, actividades y requisitos:</b> Bases Técnicas del Primer Llamado a Concursos 2026 (punto 2.5, Cuadro 2, y definiciones de los literales a, b y c), y Tabla de Valores del D.S. 82/2022 (Anexo 1).</li>
+          <li><b>Tipo forestal y métodos de corta:</b> D.S. N° 259 de 1980, arts. 18 a 24 y 30.</li>
+          <li><b>Estado de desarrollo:</b> CONAF (2018), <i>Consideraciones para la formulación del Plan de Manejo Forestal de Bosque Nativo, Ley N° 20.283</i>, Cuadro N° 3. <b>Actividades y requisitos:</b> Tabla de Valores del D.S. 82/2022.</li>
           <li><b>Categoría de bosque:</b> Ley N° 20.283, art. 2° N° 4 (preservación), N° 5 (conservación y protección) y N° 6 (uso múltiple), y art. 19.</li>
           <li><b>Productos primarios del bosque nativo:</b> art. 35° del Reglamento General de la Ley sobre Recuperación del Bosque Nativo y Fomento Forestal, según el listado publicado por CONAF (<a href="https://www.conaf.cl/regulacion/documentacion/productos-primarios-del-bosque-nativo/" target="_blank" rel="noopener">conaf.cl</a>):
             <ul>
@@ -390,7 +390,7 @@
           <li>Esclerófilo: además de las especies nombradas en el art. 19 k), se consideran de "distribución geográfica similar" otras especies de la zona mediterránea incluidas en el D.S. 68 (belloto del sur, frangel, patagua, huingán, guayacán, entre otras).</li>
           <li>Roble-Hualo frente a Roble-Raulí-Coigüe: con presencia de hualo y roble+hualo ≥ 50 % se asigna Roble-Hualo; de lo contrario se evalúa Roble-Raulí-Coigüe.</li>
           <li>Preservación: basta la presencia en el inventario de una especie en categoría CR, EN o VU, según la categoría regional vigente.</li>
-          <li>Para esclerófilo, las Bases indican que el DMC se calcula con el diámetro a la altura del tocón (0,3 m). La aplicación usa el diámetro de la columna Dap tal como viene; si corresponde, ingrese el DAT en esa columna.</li>
+          <li>Para esclerófilo, el DMC se calcula con el diámetro a la altura del tocón, DAT, a 0,3 m (CONAF 2018, Cuadro N° 3). La aplicación usa el diámetro de la columna Dap tal como viene; si corresponde, ingrese el DAT en esa columna.</li>
           <li>Los volúmenes negativos que entregan algunas funciones para árboles pequeños se fijan en cero.</li>
           <li>Bosque simpódico: la densidad cuenta individuos (cepas), identificados por el N° de la columna «Árbol»; el área basal y el volumen suman todos los vástagos o ramas, cada uno con su DAP (el volumen se calcula vástago a vástago con la función de la especie). En la tabla de rodal cada individuo se clasifica por su diámetro equivalente √(Σ d²), de modo que N, G y DMC sean coherentes. El DMC puede calcularse por individuo o por vástago (parámetros generales); esta elección define el estado de desarrollo. Si se marcan para extraer sólo algunos vástagos de una cepa, el individuo permanece en la densidad residual con el área basal de los vástagos que quedan.</li>
         </ul>

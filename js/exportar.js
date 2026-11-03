@@ -68,7 +68,7 @@
 
   function hojaResumen(S) {
     const s = ST(); const rows = [[{ v: 'Resumen por rodal', s: s.title }], [{ v: `Región del proyecto: ${(window.NORMATIVA.REGIONES.find(x => x.id === S.config.region) || {}).nombre} · Muestreo: ${MUESTREO[S.config.muestreo] || ''}${S.config.fecha ? ' (' + S.config.fecha.split('-').reverse().join('-') + ')' : ''} · Parcela ${S.config.forma} de ${fa(S.config.area)} m² (${window.APP_descDims()}) · Archivo: ${S.archivo || ''} · Generado: ${new Date().toLocaleString('es-CL')}`, s: s.note }], []];
-    const H = ['Rodal', 'Superficie (ha)', 'Parcelas', 'Sup. parcela (m²)', 'Forma de crecimiento', 'Vástagos inicial (/ha)', 'Tipo forestal (D.S. 259)', 'Estado de desarrollo', 'Categoría (Ley 20.283)', 'Estructura', 'DMC inicial (cm)', 'DMC residual (cm)', 'Altura media (m)', 'N inicial (árb/ha)', 'N residual (árb/ha)', 'G inicial (m²/ha)', 'G residual (m²/ha)', 'G extraída (%)', 'V inicial (m³/ha)', 'V residual (m³/ha)', 'Actividad inmediata a ejecutar', 'Resultado Bases 2026'];
+    const H = ['Rodal', 'Superficie (ha)', 'Parcelas', 'Sup. parcela (m²)', 'Forma de crecimiento', 'Vástagos inicial (/ha)', 'Tipo forestal (D.S. 259)', 'Estado de desarrollo', 'Categoría (Ley 20.283)', 'Estructura', 'DMC inicial (cm)', 'DMC residual (cm)', 'Altura media (m)', 'N inicial (árb/ha)', 'N residual (árb/ha)', 'G inicial (m²/ha)', 'G residual (m²/ha)', 'G extraída (%)', 'V inicial (m³/ha)', 'V residual (m³/ha)', 'Actividad inmediata a ejecutar', 'Resultado de la verificación'];
     rows.push(H.map(h => ({ v: h, s: s.header })));
     S.rodales.forEach(id => {
       const r = S.resultados[id];
@@ -162,7 +162,7 @@
   }
 
   function hojaTipoForestal(S) {
-    const s = ST(); const rows = [[{ v: 'Determinación del tipo forestal (D.S. 259 de 1980, art. 19) y estado de desarrollo (Bases Técnicas 2026, punto 2.5)', s: s.title }], []];
+    const s = ST(); const rows = [[{ v: 'Determinación del tipo forestal (D.S. 259 de 1980, art. 19) y estado de desarrollo (CONAF 2018, Cuadro N° 3)', s: s.title }], []];
     S.rodales.forEach(id => {
       const r = S.resultados[id];
       rows.push([{ v: `Rodal ${id}: ${r.tipo.nombre}`, s: s.subtitle }]);
@@ -177,7 +177,7 @@
   }
 
   function hojaCumplimiento(S) {
-    const s = ST(); const rows = [[{ v: 'Verificación de las Bases Técnicas del Primer Llamado a Concursos 2026 y restricciones de los métodos de corta (D.S. 259)', s: s.title }], []];
+    const s = ST(); const rows = [[{ v: 'Verificación de requisitos de la actividad y restricciones de los métodos de corta (D.S. 259)', s: s.title }], []];
     const map = { si: ['Cumple', s.ok], no: ['No cumple', s.bad], obs: ['Observación', s.warn], pend: ['Pendiente', s.warn] };
     S.rodales.forEach(id => {
       const r = S.resultados[id], b = r.bases;
@@ -193,7 +193,7 @@
       r.metodos.metodos.forEach(m => rows.push([{ v: `${m.nombre} (art. ${m.art})`, s: s.wrap }, { v: m.aplica === false ? 'No' : m.aplica ? 'Sí' : 'Sin tipo', s: m.aplica === false ? s.bad : m.aplica ? s.ok : s.text }, { v: m.requisitos + (m.maxG ? ` Extracción máxima: ${m.maxG} % del área basal.` : ''), s: s.wrap }, { v: [m.obs.join(' '), m.nota || ''].filter(Boolean).join(' '), s: s.wrap }]));
       rows.push([]);
     });
-    return { name: 'Cumplimiento Bases', landscape: true, rows, cols: [34, 13, 80, 30] };
+    return { name: 'Cumplimiento', landscape: true, rows, cols: [34, 13, 80, 30] };
   }
 
   function hojaFunciones(S) {
@@ -217,7 +217,7 @@
       'Especies nativas: D.S. N° 68 de 2009, Ministerio de Agricultura, nómina de especies arbóreas y arbustivas originarias del país.',
       'Categorías de conservación: Ministerio del Medio Ambiente, Nómina de especies según estado de conservación (' + window.CALC.getMMA().fuente + ').',
       'Tipos forestales y métodos de corta: D.S. N° 259 de 1980, Ministerio de Agricultura, arts. 18 a 24 y 30.',
-      'Estados de desarrollo y actividades bonificables: CONAF, Bases Técnicas Primer Llamado a Concursos 2026, Ley 20.283; Tabla de Valores D.S. 82/2022.',
+      'Estados de desarrollo: CONAF (2018), Consideraciones para la formulación del Plan de Manejo Forestal de Bosque Nativo, Ley N° 20.283, Cuadro N° 3. Actividades: Tabla de Valores D.S. 82/2022.',
       'Categoría de bosque: Ley N° 20.283, art. 2° N° 4, 5 y 6; prohibición de corta de especies clasificadas: art. 19.',
       'Los resultados son una ayuda para el profesional patrocinante y deben revisarse antes de su presentación.'
     ];

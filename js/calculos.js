@@ -560,7 +560,7 @@
     if (!id && cumple('ESC')) { id = 'ESC'; motivo = 'Presencia de especies esclerófilas.'; }
     const alternativas = crit.filter(c => c.cumple && c.id !== id).map(c => c.nombre);
     let res = id ? { id, nombre: N.TIPOS_FORESTALES.find(t => t.id === id).nombre, motivo, alternativas, criterios: crit, manual: false }
-      : { id: null, nombre: 'No determinado', motivo: 'El rodal no responde a las definiciones del art. 19 del D.S. 259; el profesional debe justificar técnicamente el tipo forestal al que se asimila (Bases 2.5).', alternativas, criterios: crit, manual: false };
+      : { id: null, nombre: 'No determinado', motivo: 'El rodal no responde a las definiciones del art. 19 del D.S. 259; el profesional debe justificar técnicamente el tipo forestal al que se asimila.', alternativas, criterios: crit, manual: false };
     if (manual) {
       const t = N.TIPOS_FORESTALES.find(x => x.id === manual);
       if (t) res = Object.assign({}, res, { id: t.id, nombre: t.nombre, motivo: 'Asignado manualmente por el profesional (determinación automática: ' + res.nombre + ').', manual: true });
@@ -670,7 +670,8 @@
   function evaluarBases(r, cfg, ctx) {
     let act = N.ACTIVIDADES.find(a => a.id === (cfg.actividad || 'NINGUNA'));
     const checks = [];
-    const add = (item, estado, detalle, ref) => checks.push({ item, estado, detalle, ref: ref || '' });
+    // las referencias citan sólo la normativa (Ley 20.283, D.S. 259, D.S. 82); no se citan las Bases Técnicas
+    const add = (item, estado, detalle, ref) => checks.push({ item, estado, detalle, ref: String(ref || '').replace(/Bases[^;]*(;\s*|$)/g, '').trim() });
     const f1 = (x, d = 1) => x == null ? '—' : x.toLocaleString('es-CL', { minimumFractionDigits: d, maximumFractionDigits: d });
     if (!act || act.id === 'NINGUNA') return { actividad: act, checks, resultado: 'Sin actividad seleccionada', clase: 'neutral' };
     // la corta sanitaria se ofrece una sola vez: en bosques de preservación se evalúa como literal a)

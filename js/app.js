@@ -1009,7 +1009,7 @@
     $('#detalleCumplimiento').innerHTML = rs.map(r => `
       <div class="card">
         <div class="card-head"><h2>Rodal ${esc(r.id)} · ${esc(r.bases.actividad ? r.bases.actividad.nombre : 'Sin actividad')}</h2><span class="tag ${r.bases.clase}">${esc(r.bases.resultado)}</span></div>
-        ${r.bases.checks.length ? `<ul class="checks">${r.bases.checks.map(c => `<li><span class="tag ${lblEstado[c.estado][0]}">${lblEstado[c.estado][1]}</span><div><b>${esc(c.item)}</b> · ${esc(c.detalle)} <span class="ref">${esc(c.ref)}</span></div></li>`).join('')}</ul>` : `<p class="muted">Seleccione la actividad inmediata a ejecutar en la pestaña 4 para verificar las Bases Técnicas.</p>`}
+        ${r.bases.checks.length ? `<ul class="checks">${r.bases.checks.map(c => `<li><span class="tag ${lblEstado[c.estado][0]}">${lblEstado[c.estado][1]}</span><div><b>${esc(c.item)}</b> · ${esc(c.detalle)} <span class="ref">${esc(c.ref)}</span></div></li>`).join('')}</ul>` : `<p class="muted">Seleccione la actividad inmediata a ejecutar en la pestaña 4 para verificar sus requisitos.</p>`}
         <h3>Restricciones de los métodos de corta para el tipo ${esc(r.tipo.nombre)} (D.S. 259)</h3>
         ${r.metodos.especial ? `<div class="aviso bad">${esc(r.metodos.especial)}</div>` : ''}
         <div class="table-wrap"><table class="data"><thead><tr><th>Método</th><th>Aplicable</th><th>Requisitos de regeneración</th><th>Restricciones y observaciones</th></tr></thead><tbody>

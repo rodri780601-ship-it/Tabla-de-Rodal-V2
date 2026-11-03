@@ -681,6 +681,10 @@
             <label class="chk"><input type="checkbox" data-b="cercaAgua" ${cfg.cercaAgua ? 'checked' : ''}> A menos de 200 m de manantiales, cuerpos o cursos de agua naturales</label>
             <label class="chk"><input type="checkbox" data-b="snap" ${cfg.snap ? 'checked' : ''}> Dentro de un área del Sistema Nacional de Áreas Protegidas</label>
             <label class="chk"><input type="checkbox" data-b="ambienteUnico" ${cfg.ambienteUnico ? 'checked' : ''}> Ambiente único o representativo de la diversidad biológica</label>
+            <div class="fl">Suelo y clima (Reglamento de Suelos, Aguas y Humedales, D.S. 82)</div>
+            <label>Profundidad del suelo (cm)<input type="number" step="any" min="0" data-f="profSuelo" value="${esc(cfg.profSuelo == null ? '' : cfg.profSuelo)}"><small>Se prohíbe la corta de bosque nativo en suelos de menos de 20 cm (10 cm en la Región de Magallanes), art. 9.</small></label>
+            <label class="chk"><input type="checkbox" data-b="sueloGranitico" ${cfg.sueloGranitico ? 'checked' : ''}> Suelo granítico (esclerófilo y palma chilena en pendiente ≥ 45 %: cobertura mínima 60 %, art. 7)</label>
+            <label class="chk"><input type="checkbox" data-b="precipAlta" ${cfg.precipAlta ? 'checked' : ''}> Precipitación media anual sobre 1.500 mm (pendiente ≥ 45 %: cobertura mínima 60 %, art. 8)</label>
             <div class="two">
               <label>Forma de crecimiento<select data-f="crecimiento"><option value="" ${!cfg.crecimiento ? 'selected' : ''}>Según parámetro general (${S.config.crecimiento === 'simpodico' ? 'simpódico' : 'monopódico'})</option><option value="monopodico" ${cfg.crecimiento === 'monopodico' ? 'selected' : ''}>Monopódico</option><option value="simpodico" ${cfg.crecimiento === 'simpodico' ? 'selected' : ''}>Simpódico</option></select></label>
               <label>Estructura<select data-f="estructura"><option value="auto" ${cfg.estructura === 'auto' ? 'selected' : ''}>Automática</option><option value="regular" ${cfg.estructura === 'regular' ? 'selected' : ''}>Regular</option><option value="irregular" ${cfg.estructura === 'irregular' ? 'selected' : ''}>Irregular o indefinida</option></select></label>
@@ -698,6 +702,7 @@
             <label>Actividad a postular<select data-f="actividad">${actOpts}</select></label>
             <div id="boxMetodo" ${cfg.actividad === 'C_REG' ? '' : 'hidden'}><label>Método de corta de regeneración (D.S. 259)<select data-f="metodoRegen"><option value="">— seleccione —</option>${N.METODOS_CORTA.map(m => `<option value="${m.id}" ${cfg.metodoRegen === m.id ? 'selected' : ''}>${esc(m.nombre)}</option>`).join('')}</select></label></div>
             <div id="boxInputs"></div>
+            <label>Cobertura arbórea y arbustiva residual estimada (%)<input type="number" step="any" min="0" max="100" data-f="coberturaRes" value="${esc(cfg.coberturaRes == null ? '' : cfg.coberturaRes)}"><small>Cobertura de copas que quedará después de la intervención. Se compara con el mínimo de los arts. 7 y 8 del D.S. 82.</small></label>
             <div class="fl">Árboles a extraer (define la tabla residual)</div>
             <label class="chk"><input type="radio" name="modoExt" value="ninguna" ${cfg.ext.modo === 'ninguna' ? 'checked' : ''}> Sin corta (residual = inicial)</label>
             <label class="chk"><input type="radio" name="modoExt" value="archivo" ${cfg.ext.modo === 'archivo' ? 'checked' : ''} ${S.tieneExtraer ? '' : 'disabled'}> Según la columna "Extraer" del inventario${S.tieneExtraer ? '' : ' (no disponible)'}</label>
@@ -764,7 +769,9 @@
         <div class="res-item"><div class="l">Densidad inicial → residual${r.simpodico ? ' (individuos)' : ''}</div><div class="v">${fmt(r.tot.ini.n, 0)} → ${fmt(r.tot.res.n, 0)} árb/ha</div><div class="d">Extracción ${fmt(r.tot.ext.n, 0)} árb/ha${r.simpodico ? ` · Vástagos ${fmt(r.tot.ini.tallos, 0)} → ${fmt(r.tot.res.tallos, 0)} /ha (${fmt(r.tot.ini.n ? r.tot.ini.tallos / r.tot.ini.n : 0, 1)} por individuo)` : ''}</div></div>
         <div class="res-item"><div class="l">Área basal inicial → residual</div><div class="v">${fmt(r.tot.ini.g, 2)} → ${fmt(r.tot.res.g, 2)} m²/ha</div><div class="d">Extracción ${fmt(r.tot.ext.g, 2)} m²/ha (${fmt(r.tot.ini.g ? r.tot.ext.g / r.tot.ini.g * 100 : 0)} %)</div></div>
         <div class="res-item"><div class="l">Volumen inicial → residual</div><div class="v">${volTxt(r.tot.ini)} → ${volTxt(r.tot.res)} m³/ha</div><div class="d">${r.tot.ini.vCompleto ? (r.porEspecie.some(e => (C.FN[e.fid] || {}).usuario) ? 'Funciones del compendio y definidas por el usuario' : 'Funciones del compendio') : '* Hay especies sin función o sin altura: volumen parcial'}</div></div>
-      </div>`;
+      </div>
+      ${r.tot.ext.n > 0.0001 || (b.actividad && b.actividad.corta) ? `<h3>Restricciones del Reglamento de Suelos, Aguas y Humedales (D.S. 82/2010)</h3>
+      <ul class="checks">${r.rsah.map(c => `<li><span class="tag ${lblEstado[c.estado][0]}">${lblEstado[c.estado][1]}</span><div><b>${esc(c.item)}</b> · ${esc(c.detalle)} <span class="ref">${esc(c.ref)}</span></div></li>`).join('')}</ul>` : ''}`;
   }
 
   /* ======================= 4. Tabla de rodal ======================= */

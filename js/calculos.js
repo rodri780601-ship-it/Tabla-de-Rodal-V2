@@ -496,6 +496,7 @@
     r.categoria = categoriaBosque(r, cfg);
     r.exoticas = (() => { const g = sum(porEspecie.filter(e => !e.nativa).map(e => e.ini.g)); return { g, pct: tot.ini.g ? g / tot.ini.g * 100 : 0, especies: porEspecie.filter(e => !e.nativa).map(e => e.nombre) }; })();
     r.metodos = restriccionesMetodos(r, cfg);
+    r.rsah = evaluarRSAH(r, cfg, ctx);
     r.bases = evaluarBases(r, cfg, ctx);
     return r;
   }
@@ -617,6 +618,53 @@
     const especial = (tipo === 'ALE' || tipo === 'ARA') ? 'Los tipos forestales Alerce y Araucaria se rigen por los decretos N° 29 y N° 490 de 1976 del Ministerio de Agricultura (art. 30 del D.S. 259); además, ambas especies están clasificadas como amenazadas, por lo que rige la prohibición del art. 19 de la Ley 20.283.' : null;
     return { metodos: out, especial };
   }
+
+  /* ---------- Reglamento de Suelos, Aguas y Humedales (D.S. 82/2010, MINAGRI) ----------
+     Arts. 7 y 8: cobertura arbórea y arbustiva mínima que debe quedar tras la intervención.
+     Art. 9: profundidad mínima de suelo para cortar bosque nativo.
+     Arts. 3, 4, 5, 12, 15 y 16: recordatorios que dependen de datos de terreno que el inventario no registra. */
+  function evaluarRSAH(r, cfg, ctx) {
+    const out = [];
+    const add = (item, estado, detalle, ref) => out.push({ item, estado, detalle, ref });
+    const rp = rangoPendiente(cfg.pendiente);
+    const pend45 = rp === '45a60' || rp === 'ge60';
+    const reg = ctx.region, australes = reg === 'XI' || reg === 'XII';
+    const cob = cfg.coberturaRes === '' || cfg.coberturaRes == null ? null : Number(cfg.coberturaRes);
+    const escPal = r.tipo.id === 'ESC' || r.tipo.id === 'PAL';
+    // Cobertura mínima (arts. 7 y 8)
+    let min = null, regla = '';
+    if (rp) {
+      if (escPal) {
+        if (!pend45) { min = 20; regla = 'Tipo forestal ' + r.tipo.nombre + ' en pendiente < 45 %'; }
+        else if (cfg.sueloGranitico) { min = 60; regla = 'Tipo forestal ' + r.tipo.nombre + ' en pendiente ≥ 45 % y suelo granítico'; }
+        else { min = 40; regla = 'Tipo forestal ' + r.tipo.nombre + ' en pendiente ≥ 45 %'; }
+      } else {
+        if (!pend45) { min = 30; regla = 'Bosque nativo distinto de esclerófilo y palma chilena, en pendiente < 45 %'; }
+        else if (!australes && (rp === 'ge60' || cfg.precipAlta)) { min = 60; regla = 'Pendiente ≥ 45 % con pendiente sobre 60 % o precipitación sobre 1.500 mm/año (fuera de las regiones de Aysén y Magallanes)'; }
+        else { min = 40; regla = 'Bosque nativo distinto de esclerófilo y palma chilena, en pendiente ≥ 45 %'; }
+      }
+    }
+    const refCob = escPal ? 'D.S. 82 art. 7' : 'D.S. 82 art. 8';
+    if (min == null) add('Cobertura residual mínima', 'pend', 'Seleccione la pendiente predominante del rodal para determinar la cobertura arbórea y arbustiva mínima que debe quedar.', refCob);
+    else if (cob == null) add(`Cobertura residual mínima (${min} %)`, 'pend', `${regla}: debe quedar una cobertura arbórea y arbustiva de al menos ${min} %. Ingrese la cobertura residual estimada en la sección 3.`, refCob);
+    else add(`Cobertura residual mínima (${min} %)`, cob >= min ? 'si' : 'no', `${regla}: cobertura arbórea y arbustiva residual estimada ${cob} % (mínimo ${min} %).`, refCob);
+    add('Residuos leñosos', 'obs', 'Los residuos leñosos de diámetro inferior a 3 cm no pueden retirarse del área afecta.', refCob);
+    // Profundidad de suelo (art. 9)
+    const prof = cfg.profSuelo === '' || cfg.profSuelo == null ? null : Number(cfg.profSuelo);
+    const lim = reg === 'XII' ? 10 : 20;
+    if (prof == null) add(`Profundidad del suelo (≥ ${lim} cm)`, 'pend', `Ingrese la profundidad del suelo: se prohíbe la corta de bosque nativo en suelos de menos de ${lim} cm${reg === 'XII' ? ' (Región de Magallanes)' : ''}.`, 'D.S. 82 art. 9');
+    else add(`Profundidad del suelo (≥ ${lim} cm)`, prof >= lim ? 'si' : 'no', `Profundidad del suelo ${prof} cm${prof < lim ? ': se prohíbe la corta de bosque nativo' : ''}.`, 'D.S. 82 art. 9');
+    if (reg === 'XII' && (r.tipo.id === 'LEN' || r.tipo.id === 'CM') && r.hProm != null && r.hProm <= 8) {
+      const adulto = ['Fustal joven', 'Fustal', 'Sobremaduro'].includes(r.estado.estado);
+      add('Lenga o coigüe adulto de baja altura', adulto ? 'no' : 'obs', `Altura media ${f1n(r.hProm)} m (≤ 8 m): en la Región de Magallanes se prohíbe la corta de bosques de lenga y coigüe en estado adulto que no superen los 8 m de altura.${adulto ? '' : ' Verifique si el bosque está en estado adulto.'}`, 'D.S. 82 art. 9');
+    }
+    // Zonas de protección de cursos y cuerpos de agua (arts. 3, 4 y 5)
+    if (cfg.cercaAgua) add('Zonas de protección de cursos y cuerpos de agua', 'obs', 'Zona de exclusión de intervención (5 m a cada lado de cursos de sección 0,2 a 0,5 m²; 10 m en manantiales, cuerpos de agua y cursos de más de 0,5 m²): prohibida la corta, salvo raleo, corta de selección o de protección dejando ≥ 50 % de cobertura arbórea. Zona de manejo limitado contigua (10 m en pendientes de 30 a 45 %; 20 m sobre 45 %): intervención dejando ≥ 50 % de cobertura, sin estructuras, vías de saca ni desechos. En ambas, madereo sólo con cable o huinche.' + (['IX', 'XIV', 'X', 'XI', 'XII'].includes(reg) ? ' En esta región se aplican sólo a cursos de agua permanentes.' : ' En esta región se aplican a cursos permanentes y no permanentes.'), 'D.S. 82 arts. 2 p) y q), 3, 4 y 5');
+    // Área alterada y cárcavas (arts. 15 y 16)
+    add('Área alterada y estructuras (≤ 18 %)', 'obs', 'La suma del área alterada y del área ocupada por estructuras (caminos, vías de saca, canchas de acopio, etc.) no puede superar el 18 % del área afecta, como promedio por hectárea. En cárcavas de más de 0,5 m de profundidad y 10 m de largo se prohíbe la corta en su interior y en los 5 m aledaños.', 'D.S. 82 arts. 15 y 16');
+    return out;
+  }
+  const f1n = (x) => x == null ? '—' : x.toLocaleString('es-CL', { maximumFractionDigits: 1 });
 
   /* ---------- Verificación de las Bases Técnicas 2026 ---------- */
   function evaluarBases(r, cfg, ctx) {
@@ -746,6 +794,8 @@
         break;
       }
     }
+    // 7. Reglamento de Suelos, Aguas y Humedales (D.S. 82/2010)
+    if (act.corta && r.rsah) r.rsah.forEach(c => checks.push(c));
     if (act.corta && (act.regla !== 'SANITARIA')) add('Marcación', 'obs', 'Revise la obligación de marcación de individuos cuando la definición de la actividad lo exige.', 'Bases 2.4');
     if (r.metodos.especial) add('Tipos Alerce y Araucaria', 'no', r.metodos.especial, 'D.S. 259 art. 30');
 

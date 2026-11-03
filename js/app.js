@@ -669,9 +669,7 @@
     const sps = r.porEspecie;
     const chkSp = (name, arr) => sps.map(e => `<label class="chk"><input type="checkbox" data-${name}="${esc(e.key)}" ${arr.includes(e.key) ? 'checked' : ''}> ${esc(e.nombre)}</label>`).join('<br>');
     $('#rodalCfg').innerHTML = `
-      <div class="card" id="resRodal"></div>
-      <div class="grid2">
-        <div class="card">
+      <div class="card">
           <h2>Antecedentes del rodal ${esc(id)}</h2>
           <div class="form">
             <label>Superficie del rodal (ha)<input type="number" step="any" min="0" data-f="superficie" value="${esc(cfg.superficie)}"><small>Se usa para la intensidad de muestreo, el muestreo estratificado y las restricciones del art. 18 del D.S. 259.</small></label>
@@ -681,6 +679,12 @@
             <label class="chk"><input type="checkbox" data-b="cercaAgua" ${cfg.cercaAgua ? 'checked' : ''}> A menos de 200 m de manantiales, cuerpos o cursos de agua naturales</label>
             <label class="chk"><input type="checkbox" data-b="snap" ${cfg.snap ? 'checked' : ''}> Dentro de un área del Sistema Nacional de Áreas Protegidas</label>
             <label class="chk"><input type="checkbox" data-b="ambienteUnico" ${cfg.ambienteUnico ? 'checked' : ''}> Ambiente único o representativo de la diversidad biológica</label>
+          </div>
+      </div>
+      <div class="card" id="resRodal"></div>
+      <div class="grid2">
+        <div class="card">
+          <div class="form">
             <div class="fl">Suelo y clima (Reglamento de Suelos, Aguas y Humedales, D.S. 82)</div>
             <label>Profundidad del suelo (cm)<input type="number" step="any" min="0" data-f="profSuelo" value="${esc(cfg.profSuelo == null ? '' : cfg.profSuelo)}"><small>Se prohíbe la corta de bosque nativo en suelos de menos de 20 cm (10 cm en la Región de Magallanes), art. 9.</small></label>
             <label class="chk"><input type="checkbox" data-b="sueloGranitico" ${cfg.sueloGranitico ? 'checked' : ''}> Suelo granítico (esclerófilo y palma chilena en pendiente ≥ 45 %: cobertura mínima 60 %, art. 7)</label>

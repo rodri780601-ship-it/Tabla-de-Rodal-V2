@@ -891,8 +891,8 @@
     const ct = await zip.file('[Content_Types].xml').async('string');
     zip.file('[Content_Types].xml', ct.replace('</Types>', `<Override PartName="/xl/worksheets/sheetFicha.xml" ContentType="${WS}"/></Types>`));
   }
-  // botón de la sección 1 y botón de la sección Inicio
-  $$('#btnPlantilla, [data-plantilla]').forEach(b => b.addEventListener('click', async () => {
+  // botón «Descargar plantilla de inventario» de la sección Inicio
+  $$('[data-plantilla]').forEach(b => b.addEventListener('click', async () => {
     try {
       const zip = await JSZip.loadAsync(window.PLANTILLA_XLSX_B64, { base64: true });
       await agregarHojaFicha(zip);

@@ -51,10 +51,22 @@
       </section>
     </main>
 
-    <footer class="pt-pie">
-      <img src="img/logo_conaf_negro.png" alt="Ministerio de Agricultura, Gobierno de Chile · CONAF" class="pt-logo-pie">
-      <div>Corporación Nacional Forestal · <a href="https://www.conaf.cl" target="_blank" rel="noopener">www.conaf.cl</a></div>
-    </footer>
+    <footer class="pt-pie pie-conaf">
+    <div class="pie-cols">
+      <div class="pie-marca">
+        <img src="img/logo_conaf_negro.png" alt="Ministerio de Agricultura, Gobierno de Chile · Corporación Nacional Forestal (CONAF)" class="pie-logo">
+        <span class="pie-titulo">Servicios en Línea</span>
+      </div>
+      <div class="pie-bloque">
+        <span class="pie-titulo">Consultas</span>
+        <p>Para consultas de carácter general, reclamos o sugerencias, contáctese con la Oficina de Informaciones, Reclamos y Sugerencias (OIRS) de CONAF a través del <a href="https://oirs.conaf.cl" target="_blank" rel="noopener">Portal OIRS</a> o al correo consulta.oirs@conaf.cl.</p>
+      </div>
+      <div class="pie-bloque">
+        <span class="pie-titulo">Corporación Nacional Forestal · CONAF</span>
+        <p>Paseo Bulnes 259, Depto. 406<br>Santiago, Chile<br><a href="https://www.conaf.cl" target="_blank" rel="noopener">www.conaf.cl</a></p>
+      </div>
+    </div>
+    <div class="pie-legal">Tabla de Rodal · Bosque Nativo — maqueta de demostración</div>  </footer>
   </div>
 
   <header class="top">
@@ -120,7 +132,7 @@
         <div>
         <div class="card">
           <h2>Cargar inventario de parcelas</h2>
-          <p class="muted" style="margin-top:0">Cargue el inventario de parcelas en Excel (.xlsx) o CSV, con una fila por árbol y las columnas <b>Rodal</b>, <b>Parcela</b>, <b>Especie</b> y <b>Dap</b> (cm). Puede agregar <b>Árbol</b>, <b>Tipo</b> (Cepa / Vástago) y <b>Extraer</b> (S/N). Lo más simple es usar la plantilla: si incluye la hoja «Ficha predial», también completa los antecedentes generales.</p>
+          <p class="muted" style="margin-top:0">Cargue el inventario de parcelas en Excel (.xlsx) o CSV, con una fila por árbol y las columnas <b>Rodal</b>, <b>Parcela</b>, <b>Especie</b> y <b>Dap</b> (cm). Puede agregar <b>Árbol</b>, <b>Tipo</b> (Cepa / Vástago) y <b>Extraer</b> (S/N). Lo más simple es usar la plantilla, que se descarga en <b>Inicio</b>: si incluye la hoja «Ficha predial», también completa los antecedentes generales.</p>
           <details class="formato">
             <summary>Formato del archivo</summary>
             <p class="muted">Columnas mínimas: <b>Rodal</b>, <b>Parcela</b>, <b>Especie</b> y <b>Dap</b> (cm), como la hoja «Inventario» de la plantilla. Columnas opcionales: <b>Árbol</b> (N° del individuo en la parcela), <b>Tipo</b> (Cepa / Vástago: en bosque simpódico, cada cepa con sus vástagos forma un individuo) y <b>Extraer</b> (S/N). La superficie de la parcela se define en los parámetros generales y la altura promedio de cada especie en la sección 2. Si el archivo trae la hoja <b>Ficha predial</b> (plantilla de la app Parcelas de Muestreo Forestal), sus datos completan los antecedentes generales.</p>
@@ -131,9 +143,6 @@
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0-12-4 4m4-4 4 4M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
               <span>Arrastre el archivo aquí o <u>selecciónelo</u></span>
             </div>
-          </div>
-          <div class="row-btns">
-            <button class="btn" id="btnPlantilla">Descargar plantilla</button>
           </div>
           <div id="msgArchivo"></div>
         </div>
@@ -390,9 +399,22 @@
     </section>
   </main>
 
-  <footer class="site-footer">
-    <a href="https://www.conaf.cl" target="_blank" rel="noopener">www.conaf.cl</a>
-  </footer>
+  <footer class="site-footer pie-conaf">
+    <div class="pie-cols">
+      <div class="pie-marca">
+        <img src="img/logo_conaf_negro.png" alt="Ministerio de Agricultura, Gobierno de Chile · Corporación Nacional Forestal (CONAF)" class="pie-logo">
+        <span class="pie-titulo">Servicios en Línea</span>
+      </div>
+      <div class="pie-bloque">
+        <span class="pie-titulo">Consultas</span>
+        <p>Para consultas de carácter general, reclamos o sugerencias, contáctese con la Oficina de Informaciones, Reclamos y Sugerencias (OIRS) de CONAF a través del <a href="https://oirs.conaf.cl" target="_blank" rel="noopener">Portal OIRS</a> o al correo consulta.oirs@conaf.cl.</p>
+      </div>
+      <div class="pie-bloque">
+        <span class="pie-titulo">Corporación Nacional Forestal · CONAF</span>
+        <p>Paseo Bulnes 259, Depto. 406<br>Santiago, Chile<br><a href="https://www.conaf.cl" target="_blank" rel="noopener">www.conaf.cl</a></p>
+      </div>
+    </div>
+    <div class="pie-legal">Tabla de Rodal · Bosque Nativo — maqueta de demostración</div>  </footer>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 

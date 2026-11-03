@@ -90,6 +90,53 @@
     return s + '</svg>';
   }
 
+  /* ---------- líneas por clase diamétrica, una por especie (pauta CONAF 12.3.6) ----------
+     var = 'n' (densidad, árb/ha) o 'g' (área basal, m²/ha). Línea continua = inicial; segmentada = residual
+     (sólo si hay intervención). La leyenda va dentro del SVG para que se conserve en el PDF y en el PNG. */
+  function lineasEspecies({ filas, especies, variable, xLabel, yLabel, ancho }) {
+    const P = paleta();
+    const vk = variable || 'n', dec = vk === 'g' ? 2 : 0, unidad = vk === 'g' ? 'm²/ha' : 'árb/ha';
+    const val = (f, e, c) => (f.sp[e.key] && f.sp[e.key][c]) ? f.sp[e.key][c][vk] || 0 : 0;
+    const conRes = especies.some(e => filas.some(f => Math.abs(val(f, e, 'ini') - val(f, e, 'res')) > 1e-9));
+    const W = ancho || 680, porFila = Math.max(1, Math.floor((W - 60) / 150)), filasLey = Math.ceil(especies.length / porFila) + (conRes ? 1 : 0);
+    const m = { l: 58, r: 14, t: 14 + filasLey * 18, b: 54 }, H = 300 + filasLey * 18;
+    const iw = W - m.l - m.r, ih = H - m.t - m.b;
+    const fmtC = (x) => fmt(x, x % 1 ? 1 : 0);
+    const top = niceMax(Math.max(...especies.flatMap(e => filas.map(f => Math.max(val(f, e, 'ini'), val(f, e, 'res')))), 0));
+    const n = filas.length, x = (i) => m.l + (n === 1 ? iw / 2 : i * iw / (n - 1)), y = (v) => m.t + ih - v / top * ih;
+    let s = `<svg viewBox="0 0 ${W} ${H}" role="img" class="chart" xmlns="http://www.w3.org/2000/svg" font-family="system-ui, -apple-system, 'Segoe UI', sans-serif">`;
+    especies.forEach((e, i) => {
+      const lx = 12 + (i % porFila) * 150, ly = 10 + Math.floor(i / porFila) * 18, nom = e.nombre.length > 18 ? e.nombre.slice(0, 17) + '…' : e.nombre;
+      s += `<line x1="${lx}" x2="${lx + 18}" y1="${ly + 4}" y2="${ly + 4}" stroke="${colorEspecie(i)}" stroke-width="2.5"/><circle cx="${lx + 9}" cy="${ly + 4}" r="3" fill="${colorEspecie(i)}"/><text x="${lx + 24}" y="${ly + 8}" font-size="11" fill="${P.ink}">${esc(nom)}</text>`;
+    });
+    if (conRes) {
+      const ly = 10 + Math.ceil(especies.length / porFila) * 18;
+      s += `<line x1="12" x2="30" y1="${ly + 4}" y2="${ly + 4}" stroke="${P.ink2}" stroke-opacity="0.38" stroke-width="1.6"/><text x="36" y="${ly + 8}" font-size="11" fill="${P.ink2}">Inicial</text>`;
+      s += `<line x1="100" x2="118" y1="${ly + 4}" y2="${ly + 4}" stroke="${P.ink2}" stroke-width="2.4" stroke-dasharray="6 3"/><text x="124" y="${ly + 8}" font-size="11" fill="${P.ink2}">Residual</text>`;
+    }
+    ticks(top).forEach(t => { s += `<line x1="${m.l}" x2="${W - m.r}" y1="${y(t)}" y2="${y(t)}" stroke="${t === 0 ? P.axis : P.grid}"/><text x="${m.l - 8}" y="${y(t) + 4}" text-anchor="end" font-size="11" fill="${P.muted}">${fmt(t, decTick(top))}</text>`; });
+    s += `<text transform="translate(14 ${m.t + ih / 2}) rotate(-90)" text-anchor="middle" font-size="11.5" fill="${P.ink2}">${esc(yLabel)}</text>`;
+    const cada = Math.ceil(n / 16);
+    filas.forEach((f, i) => { if (i % cada === 0) s += `<text x="${x(i)}" y="${m.t + ih + 16}" text-anchor="middle" font-size="11" fill="${P.muted}">${fmtC(f.clase.mc)}</text>`; });
+    s += `<text x="${m.l + iw / 2}" y="${H - 8}" text-anchor="middle" font-size="11.5" fill="${P.ink2}">${esc(xLabel)}</text>`;
+    especies.forEach((e, i) => {
+      const col = colorEspecie(i);
+      (conRes ? ['ini', 'res'] : ['ini']).forEach(c => {
+        const vals = filas.map(f => val(f, e, c));
+        // con intervención, la inicial va tenue y la residual destacada; sin intervención, la inicial va con color pleno
+        const tenue = conRes && c === 'ini', op = tenue ? 0.38 : 1;
+        s += `<polyline points="${vals.map((v, j) => `${x(j)},${y(v)}`).join(' ')}" fill="none" stroke="${col}" stroke-opacity="${op}" stroke-width="${tenue ? 1.6 : 2.4}" ${c === 'res' ? 'stroke-dasharray="6 3"' : ''} stroke-linejoin="round" stroke-linecap="round"/>`;
+        vals.forEach((v, j) => { s += `<circle cx="${x(j)}" cy="${y(v)}" r="${tenue ? 2.4 : 3.2}" fill="${col}" fill-opacity="${op}" stroke="#fff" stroke-width="1"/>`; });
+      });
+    });
+    // franjas transparentes por clase para el tooltip con todas las especies
+    filas.forEach((f, j) => {
+      const w = n === 1 ? iw : iw / (n - 1), x0 = x(j) - w / 2;
+      const tip = `Clase ${fmtC(f.clase.li)} – ${fmtC(f.clase.ls)} cm|` + especies.map(e => `${e.nombre}: ${fmt(val(f, e, 'ini'), dec)}${conRes ? ' → ' + fmt(val(f, e, 'res'), dec) : ''} ${unidad}`).join('|');
+      s += `<rect x="${x0}" y="${m.t}" width="${w}" height="${ih}" fill="transparent" data-tip="${esc(tip)}"/>`;
+    });
+    return s + '</svg>';
+  }
   /* ---------- mapa de calor especie × parcela ----------
      Cada especie (fila) tiene su propio color; la intensidad del tono indica la densidad de esa especie en la
      parcela, en 5 tramos relativos a su máximo (para ver dónde se concentra cada especie). */
@@ -211,10 +258,10 @@
           svg: barrasApiladas({ cats: D.ps.map(p => p.parcela), res: D.ps.map(p => p.nRes || 0), ext: D.ps.map(p => p.n - (p.nRes || 0)), yLabel: 'Densidad (árb/ha)', xLabel: 'Parcela' }) },
         { id: 'gp', titulo: '2b. Área basal por parcela', sub: `Media ${fmt(r.tot.ini.g, 2)} → ${fmt(r.tot.res.g, 2)} m²/ha`, leyenda: true,
           svg: barrasApiladas({ cats: D.ps.map(p => p.parcela), res: D.ps.map(p => p.gRes || 0), ext: D.ps.map(p => p.g - (p.gRes || 0)), yLabel: 'Área basal (m²/ha)', xLabel: 'Parcela', dec: 2 }) },
-        { id: 'ne', titulo: '3a. Densidad por especie', sub: '', leyenda: true,
-          svg: barrasHorizontales({ cats: D.sp.map(e => e.nombre), res: D.sp.map(e => e.res.n), ext: D.sp.map(e => e.ext.n), xLabel: 'Densidad (árb/ha)' }) },
-        { id: 'ge', titulo: '3b. Área basal por especie', sub: '', leyenda: true,
-          svg: barrasHorizontales({ cats: D.sp.map(e => e.nombre), res: D.sp.map(e => e.res.g), ext: D.sp.map(e => e.ext.g), xLabel: 'Área basal (m²/ha)', dec: 2 }) }
+        { id: 'ne', titulo: '3a. Densidad por clase diamétrica y especie', sub: 'Línea continua = inicial; segmentada = residual.', leyenda: false,
+          svg: lineasEspecies({ filas: D.filas, especies: D.sp, variable: 'n', xLabel: 'Marca de clase diamétrica (cm)', yLabel: 'Densidad (árb/ha)' }) },
+        { id: 'ge', titulo: '3b. Área basal por clase diamétrica y especie', sub: 'Línea continua = inicial; segmentada = residual.', leyenda: false,
+          svg: lineasEspecies({ filas: D.filas, especies: D.sp, variable: 'g', xLabel: 'Marca de clase diamétrica (cm)', yLabel: 'Área basal (m²/ha)' }) }
       ];
       const hm = mapaCalor({ especies: D.sp, parcelas: D.parcelasId, valor: (e, p) => ((D.ps.find(x => x.parcela === p).cuenta || {})[e.key] || 0) * r.FE, valorRes: (e, p) => (D.cuentaRes[e.key + '|' + p] || 0) * r.FE });
       figs.push({ id: 'esp', titulo: '4. Distribución espacial por especie (densidad inicial, árb/ha por parcela)', sub: 'Cada fila es una especie, con su propio color; cada celda es una parcela y la intensidad del tono indica la densidad de la especie en esa parcela, relativa a su máximo.', leyenda: false, ancho: 'completo', svg: hm.svg });
@@ -247,8 +294,8 @@
     const g2b = barrasApiladas({ cats: ps.map(p => p.parcela), res: ps.map(p => p.gRes || 0), ext: ps.map(p => p.g - (p.gRes || 0)), yLabel: 'Área basal (m²/ha)', xLabel: 'Parcela', dec: 2, tipCat: c => 'Parcela ' + c });
     // 3. estructura por especie
     const sp = r.porEspecie.filter(e => e.ini.n > 0);
-    const g3a = barrasHorizontales({ cats: sp.map(e => e.nombre), res: sp.map(e => e.res.n), ext: sp.map(e => e.ext.n), xLabel: 'Densidad (árb/ha)', dec: 0 });
-    const g3b = barrasHorizontales({ cats: sp.map(e => e.nombre), res: sp.map(e => e.res.g), ext: sp.map(e => e.ext.g), xLabel: 'Área basal (m²/ha)', dec: 2 });
+    const g3a = lineasEspecies({ filas, especies: sp, variable: 'n', xLabel: 'Marca de clase diamétrica (cm)', yLabel: 'Densidad (árb/ha)' });
+    const g3b = lineasEspecies({ filas, especies: sp, variable: 'g', xLabel: 'Marca de clase diamétrica (cm)', yLabel: 'Área basal (m²/ha)' });
     const pctN = (e) => r.tot.ini.n ? e.ini.n / r.tot.ini.n * 100 : 0, pctNr = (e) => r.tot.res.n ? e.res.n / r.tot.res.n * 100 : 0;
     const pctG = (e) => r.tot.ini.g ? e.ini.g / r.tot.ini.g * 100 : 0, pctGr = (e) => r.tot.res.g ? e.res.g / r.tot.res.g * 100 : 0;
     const tablaEstr = `<div class="table-wrap" style="margin-top:10px"><table class="data"><thead><tr><th>Especie</th><th class="num">N inicial (%)</th><th class="num">N residual (%)</th><th class="num">G inicial (%)</th><th class="num">G residual (%)</th><th class="num">DMC inicial (cm)</th><th class="num">DMC residual (cm)</th></tr></thead><tbody>` +
@@ -284,8 +331,8 @@
       <div class="card">
         <h2>3. Efecto sobre la estructura por especie</h2>
         <div class="grid2 eq">
-          ${figura('fig-ne', 'Densidad por especie', '', g3a)}
-          ${figura('fig-ge', 'Área basal por especie', '', g3b)}
+          ${figura('fig-ne', 'Densidad por clase diamétrica y especie', 'Línea continua = inicial; segmentada = residual. El cursor muestra los valores de cada clase.', g3a, false)}
+          ${figura('fig-ge', 'Área basal por clase diamétrica y especie', 'Línea continua = inicial; segmentada = residual. El cursor muestra los valores de cada clase.', g3b, false)}
         </div>
         ${tablaEstr}
       </div>
@@ -297,7 +344,7 @@
     activarTooltips(contenedor);
     contenedor.querySelectorAll('[data-png]').forEach(b => b.addEventListener('click', () => {
       const fig = contenedor.querySelector('#' + b.dataset.png);
-      descargarPNG(fig.querySelector('svg'), `rodal_${nombreRodal}_${b.dataset.png}`, `Rodal ${nombreRodal} · ${fig.querySelector('figcaption').textContent}`, b.dataset.png !== 'fig-esp');
+      descargarPNG(fig.querySelector('svg'), `rodal_${nombreRodal}_${b.dataset.png}`, `Rodal ${nombreRodal} · ${fig.querySelector('figcaption').textContent}`, !['fig-esp', 'fig-ne', 'fig-ge'].includes(b.dataset.png));
     }));
   }
 

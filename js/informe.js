@@ -59,12 +59,11 @@
       </tbody></table>
       ${window.APP_ajustesRodal && rs.some(r => Object.values(window.APP_ajustesRodal(r)).some(Boolean)) ? '<p class="nota"><span class="marca-ajuste"></span> Valor ajustado manualmente por el profesional (difiere del calculado a partir del inventario); debe justificarse en el estudio técnico.</p>' : ''}
       <h2>Estadísticos del muestreo</h2>
-      <table class="it"><thead><tr><th rowspan="2">Rodal</th><th rowspan="2">Parcelas</th><th rowspan="2">Intensidad (%)</th><th rowspan="2">t (95 %)</th><th colspan="2">Media</th><th colspan="2">Varianza</th><th colspan="2">Coeficiente de variación</th><th colspan="2">Error de muestreo</th></tr>
+      <table class="it"><thead><tr><th rowspan="2">Rodal</th><th rowspan="2">Parcelas</th><th rowspan="2">Intensidad (%)</th><th rowspan="2">t de Student (95 %)</th><th colspan="2">Media</th><th colspan="2">Varianza</th><th colspan="2">Coeficiente de variación</th><th colspan="2">Error de muestreo</th></tr>
       <tr><th>N (árb/ha)</th><th>G (m²/ha)</th><th>N (árb/ha)²</th><th>G (m²/ha)²</th><th>N (%)</th><th>G (%)</th><th>N (%)</th><th>G (%)</th></tr></thead><tbody>
       ${rs.map(r => { const s = window.APP_recalcStats(r); return `<tr><td>${esc(r.id)}</td><td class="n">${s.n}</td><td class="n">${s.intensidad == null ? '—' : fmt(s.intensidad, 2)}</td><td class="n">${fmt(s.t, 3)}</td><td class="n">${fmt(s.N.media, 0)}</td><td class="n">${fmt(s.G.media, 2)}</td><td class="n">${fmt(s.N.var, 1)}</td><td class="n">${fmt(s.G.var, 3)}</td><td class="n">${fmt(s.N.cv, 1)}</td><td class="n">${fmt(s.G.cv, 1)}</td><td class="n">${fmt(s.N.ePct, 1)}</td><td class="n">${fmt(s.G.ePct, 1)}</td></tr>`; }).join('')}
       ${(() => { const e = window.APP_estratificado(); return e ? `<tr class="tot"><td>Conjunto (estratificado)</td><td class="n">${e.n}</td><td class="n">${fmt(e.intensidad, 2)}</td><td class="n">${fmt(e.t, 3)}</td><td class="n">${fmt(e.N.media, 0)}</td><td class="n">${fmt(e.G.media, 2)}</td><td class="n">${fmt(e.N.var, 2)}</td><td class="n">${fmt(e.G.var, 4)}</td><td>—</td><td>—</td><td class="n">${fmt(e.N.ePct, 1)}</td><td class="n">${fmt(e.G.ePct, 1)}</td></tr>` : ''; })()}
       </tbody></table>
-      <p class="nota">Error de muestreo = t(0,975; n−1) × S / √n, en porcentaje de la media. Intensidad de muestreo = superficie muestreada / superficie del rodal.</p>
     </section>`;
     // ---------- Coordenadas UTM de las parcelas y parámetros parciales (pauta CONAF, 12.1.2) ----------
     const U = S.utm || { huso: '', parcelas: {} };

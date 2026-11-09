@@ -290,7 +290,7 @@
           'Extraer, opcional: S/N para los árboles marcados para corta. Si no existe, la extracción se define en la aplicación (por regla o editando la tabla).',
           'La superficie y forma de la parcela y el tipo de muestreo se definen en los parámetros generales de la aplicación.',
           'Especie: nombre común o científico. Se reconoce exclusivamente con la nómina del D.S. N° 68/2009 (ver hoja "Especies D.S. 68").',
-          'Para registrar una parcela sin árboles, ingrese una fila con Rodal y Parcela y deje Especie y Dap vacíos.',
+          'Las parcelas sin datos (una fila con Rodal y Parcela pero sin Especie ni Dap) no se consideran en el número de parcelas ni en los cálculos.',
           'Ejemplo de fila: 1 | 1 | Roble (Nothofagus obliqua) | 23,5 | N'].map(t => [{ v: t, s: s.wrap }])]
     };
     const d68 = { name: 'Especies D.S. 68', cols: [32, 60], rows: [['Nombre para el inventario', 'Nombres comunes (D.S. 68/2009)'].map(v => ({ v, s: s.header })), ...window.DS68_ESPECIES.map(e => [(window.CALC.CAT.especies[e.s] || {}).nombreComun + ' (' + e.s + ')', e.c])], freeze: [1, 0] };

@@ -442,7 +442,6 @@
     $('#cfgHuso').value = U.huso || '';
     const conteo = {};
     S.arboles.forEach(a => { const k = a.rodal + '|' + a.parcela; conteo[k] = (conteo[k] || 0) + 1; });
-    (S.parcelasVacias || []).forEach(p => { const k = p.rodal + '|' + p.parcela; if (!conteo[k]) conteo[k] = 0; });
     const nat = (x, y) => String(x).localeCompare(String(y), 'es', { numeric: true });
     const claves = Object.keys(conteo).sort((x, y) => { const [ra, pa] = x.split('|'), [rb, pb] = y.split('|'); return (S.rodales.indexOf(ra) - S.rodales.indexOf(rb)) || nat(pa, pb); });
     const fueraRango = (c) => c && ((c.e !== '' && c.e != null && (c.e < 100000 || c.e > 900000)) || (c.n !== '' && c.n != null && (c.n < 1000000 || c.n > 10000000)));
@@ -465,7 +464,7 @@
   function renderResumenCarga() {
     renderCoordenadas();
     $('#cardResumenCarga').hidden = false;
-    const nP = new Set(S.arboles.map(a => a.rodal + '|' + a.parcela)).size + (S.parcelasVacias || []).length;
+    const nP = new Set(S.arboles.map(a => a.rodal + '|' + a.parcela)).size; // las parcelas sin datos no se cuentan
     const sp = Object.keys(S.especiesInfo).length;
     const noRec = Object.entries(S.nombres).filter(([k, v]) => !v.key);
     const amb = Object.entries(S.nombres).filter(([k, v]) => v.ambiguo && v.auto);
@@ -475,7 +474,7 @@
     ].map(([l, v]) => `<div class="kpi"><div class="v">${v.toLocaleString('es-CL')}</div><div class="l">${l}</div></div>`).join('');
     const av = S.avisos.slice();
     av.unshift({ t: 'ok', m: `Se detectaron automáticamente ${S.rodales.length} rodal(es): ${S.rodales.map(esc).join(', ')}.` });
-    if ((S.parcelasVacias || []).length) av.push({ t: 'info', m: `${S.parcelasVacias.length} parcela(s) sin árboles se consideran en los estadísticos con valor cero.` });
+    if ((S.parcelasVacias || []).length) av.push({ t: 'info', m: `${S.parcelasVacias.length} parcela(s) sin datos (${S.parcelasVacias.map(p => esc(p.rodal + '-' + p.parcela)).join(', ')}, rodal-parcela) no se consideran en el número de parcelas ni en ningún cálculo.` });
     if (noRec.length) av.push({ t: 'warn', m: `Nombres no reconocidos en la nómina del D.S. 68/2009 (se tratarán como no nativos hasta que los asigne en la pestaña 2): ${noRec.map(([k]) => esc(k || '(vacío)')).join(', ')}.` });
     if (amb.length) av.push({ t: 'info', m: `Nombres comunes asignados a más de una especie en el D.S. 68; revise la asignación en la pestaña 2: ${amb.map(([k]) => esc(k)).join(', ')}.` });
     const faltan = faltanParametros();
@@ -485,7 +484,7 @@
 
   /* ======================= Recalcular ======================= */
   function ctx() {
-    return { crecimiento: S.config.crecimiento, dmcSimp: S.config.dmcSimp || 'individuo', parcelasExtra: (S.parcelasVacias || []).reduce((o, p) => { (o[p.rodal] = o[p.rodal] || []).push(String(p.parcela)); return o; }, {}), region: S.config.region, areaParcela: S.config.area, anchoClase: S.config.ancho, inicioClase: S.config.inicio, funciones: S.funciones, cfgRodal: S.cfgRodal, alturas: S.alturas, catOverride: S.catOverride, especiesInfo: S.especiesInfo };
+    return { crecimiento: S.config.crecimiento, dmcSimp: S.config.dmcSimp || 'individuo', region: S.config.region, areaParcela: S.config.area, anchoClase: S.config.ancho, inicioClase: S.config.inicio, funciones: S.funciones, cfgRodal: S.cfgRodal, alturas: S.alturas, catOverride: S.catOverride, especiesInfo: S.especiesInfo };
   }
   function recalcular() {
     if (!S.arboles.length) return;
@@ -1200,7 +1199,7 @@
   const UTM_EJEMPLO = { mono: { huso: '18', e: 757200, n: 5689400 }, simp: { huso: '19', e: 300150, n: 6369800 } };
   function coordenadasEjemplo(k) {
     const base = UTM_EJEMPLO[k]; S.utm = { huso: base.huso, parcelas: {} };
-    const parcelas = [...new Set(S.arboles.map(a => a.rodal + '|' + a.parcela).concat((S.parcelasVacias || []).map(p => p.rodal + '|' + p.parcela)))];
+    const parcelas = [...new Set(S.arboles.map(a => a.rodal + '|' + a.parcela))];
     S.rodales.forEach((rid, ir) => {
       parcelas.filter(x => x.split('|')[0] === rid).sort((a, b) => a.localeCompare(b, 'es', { numeric: true })).forEach((x, i) => {
         const col = i % 4, fila = Math.floor(i / 4), j = (i * 37 + ir * 11) % 23 - 11;

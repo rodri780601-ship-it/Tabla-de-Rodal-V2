@@ -344,7 +344,8 @@
     const cfg = ctx.cfgRodal[rid] || {};
     const area = Number(ctx.areaParcela) || 500;
     const FE = 10000 / area;
-    const parcelas = [...new Set(arboles.map(a => String(a.parcela)).concat((ctx.parcelasExtra && ctx.parcelasExtra[rid]) || []))];
+    // las parcelas sin datos (sin árboles registrados) no se consideran: ni en el número de parcelas ni en los cálculos
+    const parcelas = [...new Set(arboles.map(a => String(a.parcela)))];
     const nP = parcelas.length || 1;
     const fe = FE / nP; // árboles/ha que representa cada árbol en la estimación del rodal
     const regionComp = (N.REGIONES.find(r => r.id === ctx.region) || {}).compendio;

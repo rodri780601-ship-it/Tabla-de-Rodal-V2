@@ -60,10 +60,10 @@
       <p class="nota">Ini. = inicial · Ext. = extracción · Res. = residual.</p>
       ${window.APP_ajustesRodal && rs.some(r => Object.values(window.APP_ajustesRodal(r)).some(Boolean)) ? '<p class="nota"><span class="marca-ajuste"></span> Valor ajustado manualmente por el profesional (difiere del calculado a partir del inventario); debe justificarse en el estudio técnico.</p>' : ''}
       <h2>Estadísticos del muestreo</h2>
-      <table class="it"><thead><tr><th rowspan="2">Rodal</th><th rowspan="2">Parcelas</th><th rowspan="2">Intensidad (%)</th><th rowspan="2">t de Student (95 %)</th><th colspan="2">Media</th><th colspan="2">Varianza</th><th colspan="2">Coeficiente de variación</th><th colspan="2">Error de muestreo</th></tr>
-      <tr><th>N (árb/ha)</th><th>G (m²/ha)</th><th>N (árb/ha)²</th><th>G (m²/ha)²</th><th>N (%)</th><th>G (%)</th><th>N (%)</th><th>G (%)</th></tr></thead><tbody>
-      ${rs.map(r => { const s = window.APP_recalcStats(r); return `<tr><td>${esc(r.id)}</td><td class="n">${s.n}</td><td class="n">${s.intensidad == null ? '—' : fmt(s.intensidad, 2)}</td><td class="n">${fmt(s.t, 3)}</td><td class="n">${fmt(s.N.media, 0)}</td><td class="n">${fmt(s.G.media, 2)}</td><td class="n">${fmt(s.N.var, 1)}</td><td class="n">${fmt(s.G.var, 3)}</td><td class="n">${fmt(s.N.cv, 1)}</td><td class="n">${fmt(s.G.cv, 1)}</td><td class="n">${fmt(s.N.ePct, 1)}</td><td class="n">${fmt(s.G.ePct, 1)}</td></tr>`; }).join('')}
-      ${(() => { const e = window.APP_estratificado(); return e ? `<tr class="tot"><td>Conjunto (estratificado)</td><td class="n">${e.n}</td><td class="n">${fmt(e.intensidad, 2)}</td><td class="n">${fmt(e.t, 3)}</td><td class="n">${fmt(e.N.media, 0)}</td><td class="n">${fmt(e.G.media, 2)}</td><td class="n">${fmt(e.N.var, 2)}</td><td class="n">${fmt(e.G.var, 4)}</td><td>—</td><td>—</td><td class="n">${fmt(e.N.ePct, 1)}</td><td class="n">${fmt(e.G.ePct, 1)}</td></tr>` : ''; })()}
+      <table class="it"><thead><tr><th rowspan="2">Rodal</th><th rowspan="2">Parcelas</th><th rowspan="2">t de Student (95 %)</th><th colspan="2">Media</th><th colspan="2">Desviación estándar</th><th colspan="2">Varianza</th><th colspan="2">Coeficiente de variación</th><th colspan="2">Error de muestreo</th></tr>
+      <tr><th>N (árb/ha)</th><th>G (m²/ha)</th><th>N (árb/ha)</th><th>G (m²/ha)</th><th>N (árb/ha)²</th><th>G (m²/ha)²</th><th>N (%)</th><th>G (%)</th><th>N (%)</th><th>G (%)</th></tr></thead><tbody>
+      ${rs.map(r => { const s = window.APP_recalcStats(r); return `<tr><td>${esc(r.id)}</td><td class="n">${s.n}</td><td class="n">${fmt(s.t, 3)}</td><td class="n">${fmt(s.N.media, 0)}</td><td class="n">${fmt(s.G.media, 2)}</td><td class="n">${fmt(s.N.s, 1)}</td><td class="n">${fmt(s.G.s, 2)}</td><td class="n">${fmt(s.N.var, 1)}</td><td class="n">${fmt(s.G.var, 3)}</td><td class="n">${fmt(s.N.cv, 1)}</td><td class="n">${fmt(s.G.cv, 1)}</td><td class="n">${fmt(s.N.ePct, 1)}</td><td class="n">${fmt(s.G.ePct, 1)}</td></tr>`; }).join('')}
+      ${(() => { const e = window.APP_estratificado(); return e ? `<tr class="tot"><td>Conjunto (estratificado)</td><td class="n">${e.n}</td><td class="n">${fmt(e.t, 3)}</td><td class="n">${fmt(e.N.media, 0)}</td><td class="n">${fmt(e.G.media, 2)}</td><td>—</td><td>—</td><td class="n">${fmt(e.N.var, 2)}</td><td class="n">${fmt(e.G.var, 4)}</td><td>—</td><td>—</td><td class="n">${fmt(e.N.ePct, 1)}</td><td class="n">${fmt(e.G.ePct, 1)}</td></tr>` : ''; })()}
       </tbody></table>
     </section>`;
     // ---------- Coordenadas UTM de las parcelas y parámetros parciales (pauta CONAF, 12.1.2) ----------
@@ -97,8 +97,13 @@
           <tr><th>Superficie / pendiente</th><td>${r.cfg.superficie === '' ? '—' : fmt(Number(r.cfg.superficie), 2) + ' ha'} · ${window.CALC.rangoPendiente(r.cfg.pendiente) ? 'pendiente predominante ' + window.CALC.PENDIENTES[window.CALC.rangoPendiente(r.cfg.pendiente)] : 'pendiente predominante no informada'}</td></tr>
           <tr><th>Existencias inicial → residual</th><td>N ${fmt(r.tot.ini.n, 0)} → ${fmt(r.tot.res.n, 0)} árb/ha · G ${fmt(r.tot.ini.g, 2)} → ${fmt(r.tot.res.g, 2)} m²/ha · V ${r.tot.ini.v == null ? '—' : fmt(r.tot.ini.v, 1) + ' → ' + fmt(r.tot.res.v, 1) + ' m³/ha'} · DMC ${fmt(r.DMCini)} → ${fmt(r.DMCres)} cm</td></tr>`; })()}
         </tbody></table>
-        <h3>Especies, categoría de conservación y volumen</h3>
-        <table class="it"><thead><tr><th>Especie</th><th>Nombre científico</th><th>Categoría</th><th>N ini/res</th><th>G ini/res</th><th>V ini/res</th><th>Altura (m)</th><th>Función</th></tr></thead><tbody>${r.porEspecie.map(e => `<tr><td>${esc(e.nombre)}</td><td><i>${esc((S.especiesInfo[e.key] || {}).sci || 'No figura en D.S. 68')}</i></td><td>${esc(e.cat.code)}</td><td class="n">${fmt(e.ini.n, 0)} / ${fmt(e.res.n, 0)}</td><td class="n">${fmt(e.ini.g, 2)} / ${fmt(e.res.g, 2)}</td><td class="n">${e.ini.v == null ? '—' : fmt(e.ini.v, 1) + ' / ' + fmt(e.res.v, 1)}</td><td class="n">${fmt(e.h, 1)}</td><td>${esc(window.CALC.etiquetaFid(e.fid))}</td></tr>`).join('')}</tbody></table>
+        <h3>Parámetros por especie</h3>
+        ${(() => { const dmc = (e, res) => { let s = 0, q = 0; r.arboles.filter(a => a.key === e.key).forEach(a => { const w = res ? a.res : 1, d = res ? a.dapRes : a.dap; s += w * d * d; q += w; }); return q > 0 ? Math.sqrt(s / q) : null; };
+          // como en la tabla de rodal: una columna inicial y una residual (sombreada) por cada parámetro
+          const par = (ini, res) => `<td class="n">${ini}</td><td class="n res">${res}</td>`;
+          return `<table class="it resumen"><thead><tr><th rowspan="2">Especie</th><th rowspan="2">Nombre científico</th><th colspan="2">DMC (cm)</th><th colspan="2">N (árb/ha)</th><th colspan="2">G (m²/ha)</th><th colspan="2">V (m³/ha)</th><th rowspan="2">Altura (m)</th></tr>
+            <tr><th>Ini.</th><th class="res">Res.</th><th>Ini.</th><th class="res">Res.</th><th>Ini.</th><th class="res">Res.</th><th>Ini.</th><th class="res">Res.</th></tr></thead><tbody>${r.porEspecie.map(e => `<tr><td>${esc(e.nombre)}</td><td><i>${esc((S.especiesInfo[e.key] || {}).sci || 'No figura en D.S. 68')}</i></td>${par(fmt(dmc(e)), fmt(dmc(e, true)))}${par(fmt(e.ini.n, 0), fmt(e.res.n, 0))}${par(fmt(e.ini.g, 2), fmt(e.res.g, 2))}${par(e.ini.v == null ? '—' : fmt(e.ini.v, 1), e.res.v == null ? '—' : fmt(e.res.v, 1))}<td class="n">${fmt(e.h, 1)}</td></tr>`).join('')}</tbody></table>
+            <p class="nota">Ini. = inicial · Res. = residual (columnas sombreadas).</p>`; })()}
       </section>`;
       // ---------- Tablas de rodal (oficio horizontal) ----------
       // (hoja vertical, igual que el resto: las tablas caben a lo ancho y se evita el salto por cambio de orientación)
@@ -166,6 +171,7 @@
 #informe table.it.resumen th, #informe table.it.resumen td { padding: 1.5pt 2pt; }
 #informe table.it.resumen th { text-align: center; vertical-align: middle; }
 #informe table.it.resumen td { overflow-wrap: anywhere; }
+#informe table.it.resumen td.res, #informe table.it.resumen th.res { background: #eef3ec; }
 #informe td.ajuste { background: #fbf0d6; box-shadow: inset 2.5pt 0 0 #9a6700; font-weight: bold; }
 #informe td.ajuste .calc { font-weight: normal; font-size: 7pt; color: #555; }
 #informe .marca-ajuste { display: inline-block; width: 8pt; height: 8pt; background: #fbf0d6; box-shadow: inset 2pt 0 0 #9a6700; border: 0.5pt solid #9a9a9a; vertical-align: -1pt; margin-right: 3pt; }

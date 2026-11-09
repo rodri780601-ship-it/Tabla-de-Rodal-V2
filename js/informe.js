@@ -54,8 +54,10 @@
       <p>Tipo de muestreo: <b>${esc(MUESTREO[S.config.muestreo] || '')}</b>${S.config.fecha ? ` · Fecha de muestreo: <b>${esc(S.config.fecha.split('-').reverse().join('-'))}</b>` : ''} · Parcela ${esc(S.config.forma)} de ${fmt(S.config.area, 2)} m² (${esc(window.APP_descDims())}) · Factor de expansión ${fmt(10000 / S.config.area, 2)}</p></header>
       <h2>Resumen por rodal</h2>
       <table class="it"><thead><tr><th>Rodal</th><th>Sup. (ha)</th><th>Tipo forestal</th><th>Estado de desarrollo</th><th>Categoría (Ley 20.283)</th><th>DMC ini/res (cm)</th><th>N ini/res (árb/ha)</th><th>G ini/res (m²/ha)</th><th>V ini/res (m³/ha)</th><th>Actividad</th></tr></thead><tbody>
-      ${rs.map(r => `<tr><td>${esc(r.id)}</td><td class="n">${r.cfg.superficie === '' ? '—' : fmt(Number(r.cfg.superficie), 2)}</td><td>${esc(r.tipo.nombre)}</td><td>${esc(r.estado.estado || '—')}</td><td>${esc(r.categoria.cat)}</td><td class="n">${fmt(r.DMCini)} / ${fmt(r.DMCres)}</td><td class="n">${fmt(r.tot.ini.n, 0)} / ${fmt(r.tot.res.n, 0)}</td><td class="n">${fmt(r.tot.ini.g, 2)} / ${fmt(r.tot.res.g, 2)}</td><td class="n">${r.tot.ini.v == null ? '—' : fmt(r.tot.ini.v, 1) + ' / ' + fmt(r.tot.res.v, 1)}</td><td>${esc(r.bases.actividad ? r.bases.actividad.nombre : '—')}</td></tr>`).join('')}
+      ${rs.map(r => { const aj = window.APP_ajustesRodal ? window.APP_ajustesRodal(r) : {}; const c = (v, calc) => calc == null ? `<td>${esc(v)}</td>` : `<td class="ajuste">${esc(v)}<div class="calc">Calculado: ${esc(calc)}</div></td>`;
+        return `<tr><td>${esc(r.id)}</td><td class="n">${r.cfg.superficie === '' ? '—' : fmt(Number(r.cfg.superficie), 2)}</td>${c(r.tipo.nombre, aj.tipo)}${c(r.estado.estado || '—', aj.estado)}${c(r.categoria.cat, aj.categoria)}<td class="n">${fmt(r.DMCini)} / ${fmt(r.DMCres)}</td><td class="n">${fmt(r.tot.ini.n, 0)} / ${fmt(r.tot.res.n, 0)}</td><td class="n">${fmt(r.tot.ini.g, 2)} / ${fmt(r.tot.res.g, 2)}</td><td class="n">${r.tot.ini.v == null ? '—' : fmt(r.tot.ini.v, 1) + ' / ' + fmt(r.tot.res.v, 1)}</td><td>${esc(r.bases.actividad ? r.bases.actividad.nombre : '—')}</td></tr>`; }).join('')}
       </tbody></table>
+      ${window.APP_ajustesRodal && rs.some(r => Object.values(window.APP_ajustesRodal(r)).some(Boolean)) ? '<p class="nota"><span class="marca-ajuste"></span> Valor ajustado manualmente por el profesional (difiere del calculado a partir del inventario); debe justificarse en el estudio técnico.</p>' : ''}
       <h2>Estadísticos del muestreo</h2>
       <table class="it"><thead><tr><th rowspan="2">Rodal</th><th rowspan="2">Parcelas</th><th rowspan="2">Intensidad (%)</th><th rowspan="2">t (95 %)</th><th colspan="2">Media</th><th colspan="2">Varianza</th><th colspan="2">Coeficiente de variación</th><th colspan="2">Error de muestreo</th></tr>
       <tr><th>N (árb/ha)</th><th>G (m²/ha)</th><th>N (árb/ha)²</th><th>G (m²/ha)²</th><th>N (%)</th><th>G (%)</th><th>N (%)</th><th>G (%)</th></tr></thead><tbody>
@@ -166,6 +168,9 @@
 #informe table.tr tr.tot td { text-align: right; }
 #informe table.tr tr.tot td:first-child { text-align: center; }
 #informe .nota { font-size: 7.8pt; color: #444; margin: 3pt 0; }
+#informe td.ajuste { background: #fbf0d6; box-shadow: inset 2.5pt 0 0 #9a6700; font-weight: bold; }
+#informe td.ajuste .calc { font-weight: normal; font-size: 7pt; color: #555; }
+#informe .marca-ajuste { display: inline-block; width: 8pt; height: 8pt; background: #fbf0d6; box-shadow: inset 2pt 0 0 #9a6700; border: 0.5pt solid #9a9a9a; vertical-align: -1pt; margin-right: 3pt; }
 #informe figure.if { margin: 6pt 0 10pt; }
 #informe figure.if figcaption { margin-bottom: 2pt; }
 #informe .svgbox svg { width: 100%; height: auto; display: block; }

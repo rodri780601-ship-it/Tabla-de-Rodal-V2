@@ -733,7 +733,17 @@
 `;
     // eventos
     const root = $('#rodalCfg');
-    $$('[data-f]', root).forEach(el => el.addEventListener('change', () => { cfg[el.dataset.f] = el.type === 'number' ? (el.value === '' ? '' : Number(el.value)) : el.value; recalcular(); }));
+    // los campos de «Ajuste manual de parámetros» con un valor distinto del automático quedan destacados
+    const marcarAjustes = () => Object.entries(CAMPOS_AJUSTE).forEach(([k, def]) => {
+      const el = $(`[data-f="${k}"]`, root); if (!el) return;
+      const lab = el.closest('label'), mod = !!cfg[k] && cfg[k] !== def;
+      lab.classList.toggle('campo-ajustado', mod);
+      let tag = lab.querySelector('.tag-ajustado');
+      if (mod && !tag) { tag = document.createElement('span'); tag.className = 'tag warn tag-ajustado'; tag.textContent = 'Ajustado'; lab.insertBefore(tag, el); }
+      if (!mod && tag) tag.remove();
+    });
+    $$('[data-f]', root).forEach(el => el.addEventListener('change', () => { cfg[el.dataset.f] = el.type === 'number' ? (el.value === '' ? '' : Number(el.value)) : el.value; marcarAjustes(); recalcular(); }));
+    marcarAjustes();
     $$('[data-b]', root).forEach(el => el.addEventListener('change', () => { cfg[el.dataset.b] = el.checked; recalcular(); }));
     refrescarResultadosRodal();
   }
@@ -857,6 +867,14 @@
         ${item('Volumen inicial → residual', `${volTxt(r.tot.ini)} → ${volTxt(r.tot.res)} m³/ha`, r.tot.ini.vCompleto ? (r.porEspecie.some(e => (C.FN[e.fid] || {}).usuario) ? 'Funciones del compendio y definidas por el usuario' : 'Funciones del compendio') : '* Hay especies sin función o sin altura: volumen parcial')}
       </div>`;
   }
+  // Valores del resumen que cambian por los ajustes manuales: { tipo, estado, categoria } = valor calculado (o null)
+  function ajustesRodal(r) {
+    if (!hayAjusteManual(r.cfg)) return { tipo: null, estado: null, categoria: null };
+    const a = diagnosticoSinAjustes(r.id), dif = (x, y) => x !== y ? y : null;
+    return { tipo: dif(r.tipo.nombre, a.tipo.nombre), estado: dif(r.estado.estado || '—', a.estado.estado || '—'), categoria: dif(r.categoria.cat, a.categoria.cat) };
+  }
+  const celdaAjuste = (v, calculado) => calculado == null ? `<td>${esc(v)}</td>` : `<td class="celda-ajuste" title="Calculado: ${esc(calculado)}">${esc(v)}<div class="calc">Calculado: ${esc(calculado)}</div></td>`;
+  window.APP_ajustesRodal = ajustesRodal;
   function refrescarResultadosRodal() {
     const id = rodalActual; if (!id || !$('#resRodal')) return;
     const r = S.resultados[id], b = r.bases;
@@ -992,7 +1010,8 @@
   function renderCumplimiento() {
     const rs = S.rodales.map(id => S.resultados[id]);
     $('#tblResumen').innerHTML = `<table class="data"><thead><tr><th>Rodal</th><th>Tipo forestal</th><th>Estado de desarrollo</th><th>Categoría (Ley 20.283)</th><th class="num">DMC ini/res (cm)</th><th class="num">N ini/res</th><th class="num">G ini/res</th><th class="num">V ini/res</th><th>Actividad</th></tr></thead><tbody>` +
-      rs.map(r => `<tr><td><b>${esc(r.id)}</b></td><td>${esc(r.tipo.nombre)}</td><td>${esc(r.estado.estado || '—')}</td><td>${esc(r.categoria.cat)}</td><td class="num">${fmt(r.DMCini)} / ${fmt(r.DMCres)}</td><td class="num">${fmt(r.tot.ini.n, 0)} / ${fmt(r.tot.res.n, 0)}</td><td class="num">${fmt(r.tot.ini.g, 2)} / ${fmt(r.tot.res.g, 2)}</td><td class="num">${r.tot.ini.v == null ? '—' : fmt(r.tot.ini.v, 1) + ' / ' + fmt(r.tot.res.v, 1)}</td><td>${esc(r.bases.actividad ? r.bases.actividad.nombre : '—')}</td></tr>`).join('') + '</tbody></table>';
+      rs.map(r => { const aj = ajustesRodal(r); return `<tr><td><b>${esc(r.id)}</b></td>${celdaAjuste(r.tipo.nombre, aj.tipo)}${celdaAjuste(r.estado.estado || '—', aj.estado)}${celdaAjuste(r.categoria.cat, aj.categoria)}<td class="num">${fmt(r.DMCini)} / ${fmt(r.DMCres)}</td><td class="num">${fmt(r.tot.ini.n, 0)} / ${fmt(r.tot.res.n, 0)}</td><td class="num">${fmt(r.tot.ini.g, 2)} / ${fmt(r.tot.res.g, 2)}</td><td class="num">${r.tot.ini.v == null ? '—' : fmt(r.tot.ini.v, 1) + ' / ' + fmt(r.tot.res.v, 1)}</td><td>${esc(r.bases.actividad ? r.bases.actividad.nombre : '—')}</td></tr>`; }).join('') + '</tbody></table>' +
+      (rs.some(r => Object.values(ajustesRodal(r)).some(Boolean)) ? `<p class="nota-ajuste"><span class="marca-ajuste"></span> Valor ajustado manualmente por el profesional en la sección 3 (difiere del calculado a partir del inventario); debe justificarse en el estudio técnico.</p>` : '');
     // Suelo y clima por rodal (D.S. 82): se edita aquí y recalcula la verificación de cada rodal
     $('#tblSueloClima').innerHTML = `<table class="data"><thead><tr><th>Rodal</th><th>Profundidad del suelo (cm)</th><th>Suelo granítico</th><th>Precipitación media anual sobre 1.500 mm</th></tr></thead><tbody>` +
       rs.map(r => { const c = r.cfg; return `<tr><td><b>${esc(r.id)}</b></td>

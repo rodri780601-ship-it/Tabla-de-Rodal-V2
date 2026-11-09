@@ -76,6 +76,12 @@
       </tbody></table>
       <p class="nota">Densidad y área basal por parcela, de carácter referencial, para apoyar el análisis de la homogeneidad del rodal.</p>
     </section>`;
+    // ---------- Funciones de volumen utilizadas (a continuación de las coordenadas) ----------
+    const usadas = new Map(); rs.forEach(r => r.porEspecie.forEach(e => { if (e.fid) { const u = usadas.get(e.fid) || new Set(); u.add(e.nombre); usadas.set(e.fid, u); } }));
+    h += `<section class="pg"><h2>Funciones de volumen utilizadas</h2>
+      <table class="it"><thead><tr><th>N°</th><th>Especie</th><th>Región</th><th>Ecuación</th><th>Variable</th><th>Fuente</th></tr></thead><tbody>
+      ${[...usadas.keys()].sort(window.CALC.ordenFid).map(id => { const f = window.CALC.FN[id]; return `<tr><td>${f.usuario ? 'Usuario' : f.id}</td><td>${esc([...usadas.get(id)].join(', '))}</td><td>${esc(f.regiones.join(' - '))}</td><td class="eq">${esc(f.eq)}</td><td>${esc(f.variable)}</td><td>${esc(f.fuente)} (${esc(f.anio)})</td></tr>`; }).join('')}
+      </tbody></table></section>`;
 
     rs.forEach(r => {
       const { figs, datos } = window.GRAFICOS.figurasRodal(r);
@@ -121,20 +127,7 @@
         <p class="nota">Distribución de los individuos entre las parcelas del rodal (el inventario no registra coordenadas). La distribución espacial (agregada, aleatoria o regular) se clasifica comparando la varianza con la media por parcela, al 95 % de confianza.</p>
       </section>`;
     });
-    // ---------- Fuentes ----------
-    const usadas = new Map(); rs.forEach(r => r.porEspecie.forEach(e => { if (e.fid) { const u = usadas.get(e.fid) || new Set(); u.add(e.nombre); usadas.set(e.fid, u); } }));
-    h += `<section class="pg"><h2>Funciones de volumen utilizadas</h2>
-      <table class="it"><thead><tr><th>N°</th><th>Especies de la función</th><th>Aplicada a</th><th>Región</th><th>Ecuación</th><th>Variable</th><th>Fuente</th></tr></thead><tbody>
-      ${[...usadas.keys()].sort(window.CALC.ordenFid).map(id => { const f = window.CALC.FN[id]; return `<tr><td>${f.usuario ? 'Usuario' : f.id}</td><td>${esc(f.especies.join(' - '))}</td><td>${esc([...usadas.get(id)].join(', '))}</td><td>${esc(f.regiones.join(' - '))}</td><td class="eq">${esc(f.eq)}</td><td>${esc(f.variable)}</td><td>${esc(f.fuente)} (${esc(f.anio)})</td></tr>`; }).join('')}
-      </tbody></table>
-      <h2>Fuentes</h2><ul class="fuentes">
-        <li>Funciones de volumen: Drake, F.; Emanuelli, P.; Acuña, E. (2003). Compendio de Funciones Dendrométricas del Bosque Nativo. CONAF-GTZ.</li>
-        <li>Especies nativas: D.S. N° 68 de 2009, Ministerio de Agricultura.</li>
-        <li>Categorías de conservación: Ministerio del Medio Ambiente, ${esc(window.CALC.getMMA().fuente)}.</li>
-        <li>Tipos forestales y métodos de corta: D.S. N° 259 de 1980, Ministerio de Agricultura.</li>
-        <li>Estados de desarrollo: CONAF (2018), Consideraciones para la formulación del Plan de Manejo Forestal de Bosque Nativo, Ley N° 20.283, Cuadro N° 3.</li>
-        <li>Categoría de bosque y protección de especies clasificadas: Ley N° 20.283, art. 2° y art. 19.</li>
-      </ul><p class="nota">Los resultados son una ayuda para el profesional y deben revisarse antes de su presentación.</p></section>`;
+    h += `<section class="pg"><p class="nota">Los resultados son una ayuda para el profesional y deben revisarse antes de su presentación.</p></section>`;
     return h;
   }
 

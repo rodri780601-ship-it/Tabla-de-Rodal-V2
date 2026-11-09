@@ -308,7 +308,7 @@
     if (!c.ok) { delete FN[idUsuario(key)]; return c; }
     FN[idUsuario(key)] = {
       id: idUsuario(key), usuario: true, especies: [def.especie || key.replace(/^X:/, '')], keys: [key], regiones: ['—'],
-      usaH: c.usaH, alturaTipo: c.usaH ? 'total' : 'no aplica', alturaDesc: c.usaH ? 'Altura promedio de la especie (sección 2)' : '', unidad: 'm3',
+      usaH: c.usaH, alturaTipo: c.usaH ? 'total' : 'no aplica', alturaDesc: c.usaH ? 'Altura promedio de la especie en el rodal (sección 2)' : '', unidad: 'm3',
       validacion: 'definida por el usuario', eq: def.ecuacion, expr: c.js, fn: c.fn, pag: '—', estructura: '—', localidad: '—',
       variable: def.variable || 'Volumen por árbol (m³)', dlu: '', rangoD: def.rangoD || '', rangoH: '', fuente: def.fuente || 'Definida por el usuario', anio: def.anio || '', r2: '', muestra: '',
       nota: 'Función ingresada por el usuario; no proviene del Compendio de Funciones Dendrométricas del Bosque Nativo. Su validez es responsabilidad del profesional.'
@@ -353,9 +353,11 @@
     const simpodico = ctx.crecimiento === 'simpodico'; // definida en los parámetros generales para todo el inventario
     const tallos = arboles.filter(a => a.dap > 0);
     const spKeys = [...new Set(tallos.map(a => a.key))];
-    // altura promedio por especie, ingresada por el usuario en la sección 2 (común a todos los rodales)
+    // altura promedio por rodal y especie, ingresada por el usuario en la sección 2
     const alt = {};
-    spKeys.forEach(k => { const u = ctx.alturas[k]; alt[k] = (u != null && u !== '' && Number(u) > 0) ? Number(u) : null; });
+    // ctx.alturas: { rodal: { especie: altura } } (altura promedio por rodal y especie, sección 2)
+    const altR = (ctx.alturas && ctx.alturas[rid] && typeof ctx.alturas[rid] === 'object') ? ctx.alturas[rid] : {};
+    spKeys.forEach(k => { const u = altR[k]; alt[k] = (u != null && u !== '' && Number(u) > 0) ? Number(u) : null; });
     const dmcTallos = tallos.length ? Math.sqrt(sum(tallos.map(a => a.dap * a.dap)) / tallos.length) : null;
     const preferRenoval = dmcTallos != null ? dmcTallos < 30 : null;
 

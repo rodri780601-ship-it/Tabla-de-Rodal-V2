@@ -373,3 +373,5 @@ td.celda-ajuste .calc { font-weight: 400; font-size: 11.5px; color: var(--muted)
 label.campo-ajustado { background: var(--warn-soft); box-shadow: inset 4px 0 0 var(--warn); border-radius: 6px; padding: 6px 8px 8px 12px; }
 label.campo-ajustado select { border-color: var(--warn); font-weight: 600; }
 label .tag-ajustado { margin-left: 6px; vertical-align: 1px; }
+/* ---------- Sección 2: alturas por rodal y especie ---------- */
+#tblAlturas tr.sep-rodal td { border-top: 2px solid var(--line); }

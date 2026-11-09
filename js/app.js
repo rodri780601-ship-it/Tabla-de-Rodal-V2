@@ -415,6 +415,7 @@
       if (!S.cfgRodal[id]) S.cfgRodal[id] = { superficie: '', pendiente: '', suelosFragiles: false, cercaAgua: false, snap: false, ambienteUnico: false, estructura: 'auto', actividad: 'NINGUNA', metodoRegen: '', ext: { modo: S.tieneExtraer ? 'archivo' : 'ninguna', pctG: 30, criterio: 'abajo', especies: [], dapMin: '', dapMax: '', protegerAmenazadas: true }, inputs: {}, especiesInteres: [] };
       delete S.cfgRodal[id].areaParcela;
     });
+    normalizarAlturas();
     avisoParametros();
     recalcular();
     renderResumenCarga();
@@ -536,12 +537,51 @@
       <ul>${lista.map(x => `<li><span class="tag cat-${x.cat.code}">${x.cat.code} · ${esc(N.CATEGORIAS[x.cat.code].nombre)}</span> <b>${esc(x.comun)}</b> (<i>${esc(x.sci)}</i>)${x.rodales.length ? ` · rodal${x.rodales.length > 1 ? 'es' : ''} ${esc(x.rodales.join(', '))}` : ''}${x.cat.fuente === 'Asignada manualmente' ? ' · categoría asignada manualmente' : ''}</li>`).join('')}</ul>
       <p>Categoría de conservación según el listado del Ministerio del Medio Ambiente para la región del proyecto. La presencia de estas especies puede determinar la categoría de bosque de preservación (Ley 20.283, art. 2° N° 4) y la protección del art. 19.</p>`;
   }
+  /* ---- Alturas promedio por rodal y especie: S.alturas[rodal][especie] = altura (m) ---- */
+  // Proyectos anteriores y ejemplos traen una altura por especie, común a todos los rodales: se copia a cada rodal.
+  function normalizarAlturas() {
+    const A = S.alturas || {};
+    const global = Object.entries(A).filter(([, v]) => v == null || typeof v !== 'object');
+    if (!global.length) return;
+    const nuevo = {};
+    Object.entries(A).forEach(([k, v]) => { if (v && typeof v === 'object') nuevo[k] = v; });
+    S.rodales.forEach(rid => {
+      const enRodal = new Set(S.arboles.filter(a => a.rodal === rid).map(a => a.key));
+      global.forEach(([k, h]) => { if (enRodal.has(k) && h > 0) { (nuevo[rid] = nuevo[rid] || {})[k] = h; } });
+    });
+    S.alturas = nuevo;
+  }
+  const alturaDe = (rid, k) => ((S.alturas || {})[rid] || {})[k];
+  const fidDeEspecie = (key) => { const nm = Object.keys(S.nombres).find(n => (S.nombres[n].key || ('X:' + C.norm(n))) === key); return nm ? funcionAsignada(key, S.nombres[nm]) : null; };
+  function renderAlturas() {
+    const tbl = $('#tblAlturas'); if (!tbl) return;
+    const filas = [];
+    S.rodales.forEach(rid => {
+      const cuenta = {}; S.arboles.forEach(a => { if (a.rodal === rid) cuenta[a.key] = (cuenta[a.key] || 0) + 1; });
+      Object.entries(cuenta).sort((x, y) => y[1] - x[1]).forEach(([k, n]) => filas.push({ rid, k, n }));
+    });
+    const nombre = (k) => (S.especiesInfo[k] || {}).nombre || k.replace(/^X:/, '');
+    tbl.innerHTML = `<thead><tr><th>Rodal</th><th>Especie</th><th class="num">Árboles</th><th>Altura promedio (m)</th></tr></thead><tbody>` +
+      filas.map(({ rid, k, n }, i) => {
+        const h = alturaDe(rid, k), f = C.FN[fidDeEspecie(k)], nuevoRodal = i === 0 || filas[i - 1].rid !== rid;
+        const aviso = f && f.usaH && !(h > 0) ? '<div class="tag warn" style="margin-top:4px">Requerida para el volumen</div>' : (f && !f.usaH ? '<div class="muted" style="font-size:12px;margin-top:3px">La función usa sólo DAP</div>' : '');
+        return `<tr${nuevoRodal && i > 0 ? ' class="sep-rodal"' : ''}><td>${nuevoRodal ? `<b>Rodal ${esc(rid)}</b>` : ''}</td><td>${esc(nombre(k))}</td><td class="num">${n.toLocaleString('es-CL')}</td>
+          <td><input type="number" step="any" min="0" max="90" data-altr="${esc(rid)}" data-alt="${esc(k)}" value="${h != null ? esc(h) : ''}" placeholder="m" style="width:90px">${aviso}</td></tr>`;
+      }).join('') + '</tbody>';
+    $$('input[data-alt]', tbl).forEach(el => el.addEventListener('change', () => {
+      const rid = el.dataset.altr, k = el.dataset.alt, v = Number(el.value);
+      S.alturas[rid] = S.alturas[rid] || {};
+      if (el.value === '' || !(v > 0)) delete S.alturas[rid][k]; else S.alturas[rid][k] = v;
+      recalcular(); renderAlturas();
+    }));
+  }
   function renderEspecies() {
     renderAlertaAmenazadas();
+    renderAlturas();
     const tbl = $('#tblEspecies');
     const filas = Object.entries(S.nombres).sort((a, b) => b[1].n - a[1].n);
     const todasF = Object.values(C.FN).filter(f => !f.usuario);
-    tbl.innerHTML = `<thead><tr><th>Nombre en el inventario</th><th class="num">Árboles</th><th>Especie según D.S. 68/2009</th><th>Altura promedio (m)</th><th>Función de volumen</th><th>Categoría MMA (región ${esc(S.config.region)})</th></tr></thead><tbody>` +
+    tbl.innerHTML = `<thead><tr><th>Nombre en el inventario</th><th class="num">Árboles</th><th>Especie según D.S. 68/2009</th><th>Función de volumen</th><th>Categoría MMA (región ${esc(S.config.region)})</th></tr></thead><tbody>` +
       filas.map(([nm, info]) => {
         const key = info.key || ('X:' + C.norm(nm));
         const cat = C.categoriaEspecie(key, S.config.region, S.catOverride[key]);
@@ -568,7 +608,6 @@
           <td class="num">${info.n.toLocaleString('es-CL')}</td>
           <td><select data-nombre="${esc(nm)}"><option value="">— No figura en el D.S. 68 (no nativa) —</option>${opcionesD68.map(o => `<option value="${esc(o.s)}" ${info.key === o.s ? 'selected' : ''}>${esc(o.label)}</option>`).join('')}</select>
             ${info.key ? '' : '<div class="tag warn" style="margin-top:4px">No reconocida</div>'}</td>
-          <td><input type="number" step="any" min="0" max="90" data-alt="${esc(key)}" value="${S.alturas[key] != null ? esc(S.alturas[key]) : ''}" placeholder="m" style="width:90px">${fUsada && fUsada.usaH && !(S.alturas[key] > 0) ? '<div class="tag warn" style="margin-top:4px">Requerida para el volumen</div>' : (fUsada && !fUsada.usaH ? '<div class="muted" style="font-size:12px;margin-top:3px">La función usa sólo DAP</div>' : '')}</td>
           <td><select data-fun="${esc(key)}">${fOpts}</select>${avisoF}
             ${fUsada && fUsada.usuario ? `<div><button class="btn ghost small" data-fu="${esc(key)}" data-fu-nom="${esc(nm)}" style="margin-top:4px">Editar ecuación</button></div>` : fUsada ? `<div><button class="btn ghost small" data-verf="${fUsada.id}" style="margin-top:4px">Ver función N° ${fUsada.id}</button></div>` : ''}</td>
           <td><span class="tag cat-${cat.code}">${cat.code} · ${esc((N.CATEGORIAS[cat.code] || {}).nombre || '')}</span>
@@ -585,11 +624,6 @@
       const k = s.dataset.fun;
       if (s.value === 'usuario-editar') { const nm = Object.keys(S.nombres).find(n => (S.nombres[n].key || ('X:' + C.norm(n))) === k) || k; renderEspecies(); abrirFuncionUsuario(k, nm); return; }
       if (s.value === 'auto') delete S.funciones[k]; else if (s.value === 'usuario') S.funciones[k] = C.idUsuario(k); else S.funciones[k] = Number(s.value);
-      recalcular(); renderEspecies();
-    }));
-    $$('input[data-alt]', tbl).forEach(el => el.addEventListener('change', () => {
-      const k = el.dataset.alt; const v = Number(el.value);
-      if (el.value === '' || !(v > 0)) delete S.alturas[k]; else S.alturas[k] = v;
       recalcular(); renderEspecies();
     }));
     $$('select[data-cat]', tbl).forEach(s => s.addEventListener('change', () => {
@@ -614,7 +648,7 @@
     $('#fuRangoD').value = d.rangoD || '';
     const ds = S.arboles.filter(a => (a.key || ('X:' + C.norm(a.nombre))) === key).map(a => a.dap);
     $('#fuD').value = ds.length ? Math.round(ds.reduce((x, y) => x + y, 0) / ds.length * 10) / 10 : 20;
-    $('#fuH').value = S.alturas[key] || 10;
+    $('#fuH').value = S.rodales.map(rid => alturaDe(rid, key)).find(h => h > 0) || 10;
     $('#fuEliminar').hidden = !S.funcUsuario[key];
     previewFU();
     if (dlgFU.showModal) dlgFU.showModal(); else dlgFU.setAttribute('open', '');
@@ -631,7 +665,7 @@
     err.textContent = !isFinite(v) ? 'Con estos valores de prueba la ecuación no entrega un número (revise logaritmos de valores ≤ 0 o divisiones por cero).' : v < 0 ? 'Con estos valores de prueba el volumen resulta negativo; en el cálculo se reemplazará por 0.' : '';
     out.textContent = isFinite(v) ? v.toLocaleString('es-CL', { maximumFractionDigits: 5 }) + ' m³' : '—';
     $('#fuInterpretada').textContent = c.js.replace(/Math\./g, '').replace(/log10/g, 'log₁₀').replace(/\blog\(/g, 'ln(');
-    $('#fuUsaH').textContent = c.usaH ? 'Usa DAP y altura: se aplicará la altura promedio de la especie indicada en la columna "Altura promedio".' : 'Usa sólo el DAP.';
+    $('#fuUsaH').textContent = c.usaH ? 'Usa DAP y altura: se aplicará la altura promedio de la especie en cada rodal (cuadro «Altura promedio por rodal y especie»).' : 'Usa sólo el DAP.';
     $('#fuGuardar').disabled = false;
   }
   ['fuEcuacion', 'fuD', 'fuH'].forEach(id => $('#' + id).addEventListener('input', previewFU));
@@ -644,7 +678,7 @@
     if (!r.ok) { $('#fuError').hidden = false; $('#fuError').textContent = r.error; return; }
     S.funcUsuario[fuKey] = d; S.funciones[fuKey] = r.fid;
     cerrarFU(); recalcular(); renderEspecies();
-    toast('Función de volumen guardada para ' + nm + (r.usaH && !(S.alturas[fuKey] > 0) ? '. Indique la altura promedio de la especie para calcular el volumen.' : '.'));
+    toast('Función de volumen guardada para ' + nm + (r.usaH && !S.rodales.some(rid => alturaDe(rid, fuKey) > 0) ? '. Indique la altura promedio de la especie en cada rodal para calcular el volumen.' : '.'));
   });
   $('#fuEliminar').addEventListener('click', () => {
     C.eliminarFuncionUsuario(fuKey); delete S.funcUsuario[fuKey];
@@ -1145,7 +1179,6 @@
     try {
       const p = JSON.parse(await f.text());
       Object.assign(S, { config: p.config, nombres: p.nombres || {}, funciones: p.funciones || {}, catOverride: p.catOverride || {}, cfgRodal: p.cfgRodal || {}, alturas: p.alturas || {}, utm: Object.assign({ huso: '', parcelas: {} }, p.utm || {}), tieneExtraer: p.tieneExtraer, tieneArbol: p.tieneArbol, tieneAltura: p.tieneAltura, archivo: p.archivo, parcelasVacias: p.parcelasVacias || [] });
-      if (Object.values(S.alturas).some(v => v && typeof v === 'object')) { const g = {}; Object.values(S.alturas).forEach(o => { if (o && typeof o === 'object') Object.entries(o).forEach(([k, h]) => { if (h > 0 && g[k] == null) g[k] = h; }); }); S.alturas = g; }
       Object.keys(S.funciones).forEach(k => { if (S.funciones[k] === undefined) delete S.funciones[k]; });
       Object.keys(S.funcUsuario || {}).forEach(k => C.eliminarFuncionUsuario(k));
       S.funcUsuario = p.funcUsuario || {};

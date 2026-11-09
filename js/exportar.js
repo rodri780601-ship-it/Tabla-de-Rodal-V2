@@ -286,7 +286,7 @@
     const ins = {
       name: 'Instrucciones', cols: [110], rows: [[{ v: 'Instrucciones para el inventario de parcelas', s: s.title }], [],
         ...['Una fila por árbol. Columnas obligatorias: Rodal, Parcela, Especie y Dap (cm).',
-          'La altura promedio de cada especie se ingresa en la aplicación (sección 2 · Especies y volumen).',
+          'La altura promedio de cada especie se ingresa por rodal en la aplicación (sección 2 · Especies y volumen).',
           'Extraer, opcional: S/N para los árboles marcados para corta. Si no existe, la extracción se define en la aplicación (por regla o editando la tabla).',
           'La superficie y forma de la parcela y el tipo de muestreo se definen en los parámetros generales de la aplicación.',
           'Especie: nombre común o científico. Se reconoce exclusivamente con la nómina del D.S. N° 68/2009 (ver hoja "Especies D.S. 68").',

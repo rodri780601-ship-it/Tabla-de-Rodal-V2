@@ -46,13 +46,12 @@
   function construir(S) {
     const reg = (window.NORMATIVA.REGIONES.find(x => x.id === S.config.region) || {}).nombre || '';
     const rs = S.rodales.map(id => S.resultados[id]);
-    const hoy = new Date().toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' });
     let h = '';
     // ---------- Portada y resumen (oficio vertical) ----------
     h += `<section class="pg">
       <header class="ihead"><h1>Tabla de rodal y diagnóstico del bosque</h1>
-      <p>Región: <b>${esc(reg)}</b> · Tipo de muestreo: <b>${esc(MUESTREO[S.config.muestreo] || '')}</b>${S.config.fecha ? ` · Fecha de muestreo: <b>${esc(S.config.fecha.split('-').reverse().join('-'))}</b>` : ''} · Parcela ${esc(S.config.forma)} de ${fmt(S.config.area, 2)} m² (${esc(window.APP_descDims())}) · Factor de expansión ${fmt(10000 / S.config.area, 2)}</p>
-      <p>Inventario: ${esc(S.archivo || '')} · ${S.rodales.length} rodal(es) · ${S.arboles.length.toLocaleString('es-CL')} árboles · Emitido el ${esc(hoy)}</p></header>
+      <p>Inventario: predio <b>${esc((S.antecedentes || {}).predio || '—')}</b>, comuna de <b>${esc((S.antecedentes || {}).comuna || '—')}</b>, región de <b>${esc(reg || '—')}</b> · ${S.rodales.length} rodal(es) · ${S.arboles.length.toLocaleString('es-CL')} árboles</p>
+      <p>Tipo de muestreo: <b>${esc(MUESTREO[S.config.muestreo] || '')}</b>${S.config.fecha ? ` · Fecha de muestreo: <b>${esc(S.config.fecha.split('-').reverse().join('-'))}</b>` : ''} · Parcela ${esc(S.config.forma)} de ${fmt(S.config.area, 2)} m² (${esc(window.APP_descDims())}) · Factor de expansión ${fmt(10000 / S.config.area, 2)}</p></header>
       <h2>Resumen por rodal</h2>
       <table class="it"><thead><tr><th>Rodal</th><th>Sup. (ha)</th><th>Tipo forestal</th><th>Estado de desarrollo</th><th>Categoría (Ley 20.283)</th><th>DMC ini/res (cm)</th><th>N ini/res (árb/ha)</th><th>G ini/res (m²/ha)</th><th>V ini/res (m³/ha)</th><th>Actividad</th></tr></thead><tbody>
       ${rs.map(r => `<tr><td>${esc(r.id)}</td><td class="n">${r.cfg.superficie === '' ? '—' : fmt(Number(r.cfg.superficie), 2)}</td><td>${esc(r.tipo.nombre)}</td><td>${esc(r.estado.estado || '—')}</td><td>${esc(r.categoria.cat)}</td><td class="n">${fmt(r.DMCini)} / ${fmt(r.DMCres)}</td><td class="n">${fmt(r.tot.ini.n, 0)} / ${fmt(r.tot.res.n, 0)}</td><td class="n">${fmt(r.tot.ini.g, 2)} / ${fmt(r.tot.res.g, 2)}</td><td class="n">${r.tot.ini.v == null ? '—' : fmt(r.tot.ini.v, 1) + ' / ' + fmt(r.tot.res.v, 1)}</td><td>${esc(r.bases.actividad ? r.bases.actividad.nombre : '—')}</td></tr>`).join('')}
@@ -151,8 +150,7 @@
 #informe h2.rodal { margin-top: 0; border-bottom: 1.2pt solid #2f5d3a; padding-bottom: 3pt; margin-bottom: 8pt; }
 #informe h3 { margin: 12pt 0 5pt; break-after: avoid; }
 #informe .ihead { border-bottom: 2pt solid #2f5d3a; padding-bottom: 6pt; margin-bottom: 8pt; }
-#informe .ihead p { margin: 2pt 0; }
-#informe table { border-collapse: collapse; width: 100%; }
+#informe .ihead p { margin: 2pt 0; }#informe table { border-collapse: collapse; width: 100%; }
 #informe thead { display: table-header-group; }
 #informe tr, #informe figure, #informe .bloque, #informe .par { break-inside: avoid; }
 #informe table.it th, #informe table.it td, #informe table.kv th, #informe table.kv td { border: 0.5pt solid #9a9a9a; padding: 2.5pt 4pt; vertical-align: top; text-align: left; }
@@ -362,6 +360,12 @@
         const pie = 'Página ' + (i + 1) + ' de ' + hojas.length, gris = rgb(0.4, 0.4, 0.4), yPie = F.mB * PT / 2 - 3;
         page.drawText('Tabla de rodal · Bosque nativo', { x: F.mL * PT, y: yPie, size: 8, font: helv, color: gris });
         page.drawText(pie, { x: pw - F.mR * PT - helv.widthOfTextAtSize(pie, 8), y: yPie, size: 8, font: helv, color: gris });
+        // encabezado de cada página, a la derecha: versión de la aplicación
+        const v = window.APP_VERSION;
+        if (v) {
+          const enc = 'Tabla de Rodal · Bosque Nativo · Versión ' + v.numero + (v.fecha ? ' (' + v.fecha.split('-').reverse().join('-') + ')' : '');
+          page.drawText(enc, { x: pw - F.mR * PT - helv.widthOfTextAtSize(enc, 8), y: ph - F.mT * PT / 2, size: 8, font: helv, color: gris });
+        }
       }
       return new Blob([await pdf.save()], { type: 'application/pdf' });
     } finally {

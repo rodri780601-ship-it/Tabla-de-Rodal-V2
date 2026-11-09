@@ -53,10 +53,11 @@
       <p>Inventario: predio <b>${esc((S.antecedentes || {}).predio || '—')}</b>, comuna de <b>${esc((S.antecedentes || {}).comuna || '—')}</b>, región de <b>${esc(reg || '—')}</b> · ${S.rodales.length} rodal(es) · ${S.arboles.length.toLocaleString('es-CL')} árboles</p>
       <p>Tipo de muestreo: <b>${esc(MUESTREO[S.config.muestreo] || '')}</b>${S.config.fecha ? ` · Fecha de muestreo: <b>${esc(S.config.fecha.split('-').reverse().join('-'))}</b>` : ''} · Parcela ${esc(S.config.forma)} de ${fmt(S.config.area, 2)} m² (${esc(window.APP_descDims())}) · Factor de expansión ${fmt(10000 / S.config.area, 2)}</p></header>
       <h2>Resumen por rodal</h2>
-      <table class="it"><thead><tr><th>Rodal</th><th>Sup. (ha)</th><th>Tipo forestal</th><th>Estado de desarrollo</th><th>Categoría (Ley 20.283)</th><th>DMC ini/res (cm)</th><th>N ini/res (árb/ha)</th><th>G ini/res (m²/ha)</th><th>V ini/res (m³/ha)</th><th>Actividad inmediata</th></tr></thead><tbody>
+      <table class="it resumen"><thead><tr><th rowspan="2">Rodal</th><th rowspan="2">Sup. (ha)</th><th rowspan="2">Tipo forestal</th><th rowspan="2">Estado de desa­rrollo</th><th rowspan="2">Categoría de bosque</th><th colspan="2">DMC (cm)</th><th colspan="3">N (árb/ha)</th><th colspan="3">G (m²/ha)</th><th colspan="3">V (m³/ha)</th><th rowspan="2">Actividad inmediata</th></tr><tr><th>Ini.</th><th>Res.</th><th>Ini.</th><th>Ext.</th><th>Res.</th><th>Ini.</th><th>Ext.</th><th>Res.</th><th>Ini.</th><th>Ext.</th><th>Res.</th></tr></thead><tbody>
       ${rs.map(r => { const aj = window.APP_ajustesRodal ? window.APP_ajustesRodal(r) : {}; const c = (v, calc) => calc == null ? `<td>${esc(v)}</td>` : `<td class="ajuste">${esc(v)}<div class="calc">Calculado: ${esc(calc)}</div></td>`;
-        return `<tr><td>${esc(r.id)}</td><td class="n">${r.cfg.superficie === '' ? '—' : fmt(Number(r.cfg.superficie), 2)}</td>${c(r.tipo.nombre, aj.tipo)}${c(r.estado.estado || '—', aj.estado)}${c(r.categoria.cat, aj.categoria)}<td class="n">${fmt(r.DMCini)} / ${fmt(r.DMCres)}</td><td class="n">${fmt(r.tot.ini.n, 0)} / ${fmt(r.tot.res.n, 0)}</td><td class="n">${fmt(r.tot.ini.g, 2)} / ${fmt(r.tot.res.g, 2)}</td><td class="n">${r.tot.ini.v == null ? '—' : fmt(r.tot.ini.v, 1) + ' / ' + fmt(r.tot.res.v, 1)}</td><td>${esc(r.bases.actividad ? r.bases.actividad.nombre : '—')}</td></tr>`; }).join('')}
+        return `<tr><td>${esc(r.id)}</td><td class="n">${r.cfg.superficie === '' ? '—' : fmt(Number(r.cfg.superficie), 2)}</td>${c(r.tipo.nombre, aj.tipo)}${c(r.estado.estado || '—', aj.estado)}${c(r.categoria.cat, aj.categoria)}<td class="n">${fmt(r.DMCini)}</td><td class="n">${fmt(r.DMCres)}</td><td class="n">${fmt(r.tot.ini.n, 0)}</td><td class="n">${fmt(r.tot.ext.n, 0)}</td><td class="n">${fmt(r.tot.res.n, 0)}</td><td class="n">${fmt(r.tot.ini.g, 2)}</td><td class="n">${fmt(r.tot.ext.g, 2)}</td><td class="n">${fmt(r.tot.res.g, 2)}</td><td class="n">${r.tot.ini.v == null ? '—' : fmt(r.tot.ini.v, 1)}</td><td class="n">${r.tot.ext.v == null ? '—' : fmt(r.tot.ext.v, 1)}</td><td class="n">${r.tot.res.v == null ? '—' : fmt(r.tot.res.v, 1)}</td><td>${esc(r.bases.actividad ? r.bases.actividad.nombre : '—')}</td></tr>`; }).join('')}
       </tbody></table>
+      <p class="nota">Ini. = inicial · Ext. = extracción · Res. = residual.</p>
       ${window.APP_ajustesRodal && rs.some(r => Object.values(window.APP_ajustesRodal(r)).some(Boolean)) ? '<p class="nota"><span class="marca-ajuste"></span> Valor ajustado manualmente por el profesional (difiere del calculado a partir del inventario); debe justificarse en el estudio técnico.</p>' : ''}
       <h2>Estadísticos del muestreo</h2>
       <table class="it"><thead><tr><th rowspan="2">Rodal</th><th rowspan="2">Parcelas</th><th rowspan="2">Intensidad (%)</th><th rowspan="2">t de Student (95 %)</th><th colspan="2">Media</th><th colspan="2">Varianza</th><th colspan="2">Coeficiente de variación</th><th colspan="2">Error de muestreo</th></tr>
@@ -88,13 +89,13 @@
       // ---------- Diagnóstico (vertical) ----------
       h += `<section class="pg">
         <h2 class="rodal">Rodal ${esc(r.id)} · Diagnóstico</h2>
-        <table class="kv"><tbody>
-          <tr><th>Tipo forestal (D.S. 259)</th><td><b>${esc(r.tipo.nombre)}</b> — ${esc(r.tipo.motivo)}${r.tipo.alternativas.length ? ' También cumple: ' + esc(r.tipo.alternativas.join(', ')) + '.' : ''}</td></tr>
-          <tr><th>Estado de desarrollo</th><td><b>${esc(r.estado.estado || 'Indeterminado')}</b> — ${esc(r.estado.criterio)}. Estado residual: ${esc(r.estadoRes.estado || '—')}.</td></tr>
-          <tr><th>Categoría de bosque (Ley 20.283)</th><td><b>${esc(r.categoria.cat)}</b> — ${esc(r.categoria.art)}. ${esc(r.categoria.motivosP.concat(r.categoria.motivosCP).join(' ') || 'No presenta condiciones de preservación ni de conservación y protección.')}</td></tr>
-          <tr><th>Estructura / forma de crecimiento</th><td>${r.estructura === 'irregular' ? 'Irregular' : 'Regular'} · ${r.simpodico ? `Simpódico: densidad en individuos (cepas); área basal con todos los vástagos (${fmt(r.tot.ini.tallos, 0)} vástagos/ha, ${fmt(r.tot.ini.n ? r.tot.ini.tallos / r.tot.ini.n : 0, 1)} por individuo)` : 'Monopódico'}</td></tr>
+        <table class="kv"><tbody>${(() => { const aj = window.APP_ajustesRodal ? window.APP_ajustesRodal(r) : {}; const m = (x) => x != null ? ' <span class="aj-manual">(ajuste manual del consultor)</span>' : ''; const estAj = r.cfg.estructura && r.cfg.estructura !== 'auto'; return `
+          <tr><th>Tipo forestal (D.S. 259)</th><td><b>${esc(r.tipo.nombre)}</b>${m(aj.tipo)}</td></tr>
+          <tr><th>Estado de desarrollo</th><td><b>${esc(r.estado.estado || 'Indeterminado')}</b>${m(aj.estado)} · Estado residual: ${esc(r.estadoRes.estado || '—')}</td></tr>
+          <tr><th>Categoría de bosque (Ley 20.283)</th><td><b>${esc(r.categoria.cat)}</b>${m(aj.categoria)}</td></tr>
+          <tr><th>Estructura / forma de crecimiento</th><td>${r.estructura === 'irregular' ? 'Irregular' : 'Regular'}${m(estAj ? true : null)} · ${r.simpodico ? 'Simpódico' : 'Monopódico'}</td></tr>
           <tr><th>Superficie / pendiente</th><td>${r.cfg.superficie === '' ? '—' : fmt(Number(r.cfg.superficie), 2) + ' ha'} · ${window.CALC.rangoPendiente(r.cfg.pendiente) ? 'pendiente predominante ' + window.CALC.PENDIENTES[window.CALC.rangoPendiente(r.cfg.pendiente)] : 'pendiente predominante no informada'}</td></tr>
-          <tr><th>Existencias inicial → residual</th><td>N ${fmt(r.tot.ini.n, 0)} → ${fmt(r.tot.res.n, 0)} árb/ha · G ${fmt(r.tot.ini.g, 2)} → ${fmt(r.tot.res.g, 2)} m²/ha · V ${r.tot.ini.v == null ? '—' : fmt(r.tot.ini.v, 1) + ' → ' + fmt(r.tot.res.v, 1) + ' m³/ha'} · DMC ${fmt(r.DMCini)} → ${fmt(r.DMCres)} cm${r.simpodico ? (r.dmcPorVastago ? ' (calculado por vástago)' : ' (calculado por individuo, diámetro equivalente)') : ''}</td></tr>
+          <tr><th>Existencias inicial → residual</th><td>N ${fmt(r.tot.ini.n, 0)} → ${fmt(r.tot.res.n, 0)} árb/ha · G ${fmt(r.tot.ini.g, 2)} → ${fmt(r.tot.res.g, 2)} m²/ha · V ${r.tot.ini.v == null ? '—' : fmt(r.tot.ini.v, 1) + ' → ' + fmt(r.tot.res.v, 1) + ' m³/ha'} · DMC ${fmt(r.DMCini)} → ${fmt(r.DMCres)} cm</td></tr>`; })()}
         </tbody></table>
         <h3>Especies, categoría de conservación y volumen</h3>
         <table class="it"><thead><tr><th>Especie</th><th>Nombre científico</th><th>Categoría</th><th>N ini/res</th><th>G ini/res</th><th>V ini/res</th><th>Altura (m)</th><th>Función</th></tr></thead><tbody>${r.porEspecie.map(e => `<tr><td>${esc(e.nombre)}</td><td><i>${esc((S.especiesInfo[e.key] || {}).sci || 'No figura en D.S. 68')}</i></td><td>${esc(e.cat.code)}</td><td class="n">${fmt(e.ini.n, 0)} / ${fmt(e.res.n, 0)}</td><td class="n">${fmt(e.ini.g, 2)} / ${fmt(e.res.g, 2)}</td><td class="n">${e.ini.v == null ? '—' : fmt(e.ini.v, 1) + ' / ' + fmt(e.res.v, 1)}</td><td class="n">${fmt(e.h, 1)}</td><td>${esc(window.CALC.etiquetaFid(e.fid))}</td></tr>`).join('')}</tbody></table>
@@ -160,6 +161,11 @@
 #informe table.tr tr.tot td { text-align: right; }
 #informe table.tr tr.tot td:first-child { text-align: center; }
 #informe .nota { font-size: 7.8pt; color: #444; margin: 3pt 0; }
+#informe .aj-manual { font-style: italic; color: #7a5200; }
+#informe table.it.resumen { font-size: 7pt; table-layout: auto; }
+#informe table.it.resumen th, #informe table.it.resumen td { padding: 1.5pt 2pt; }
+#informe table.it.resumen th { text-align: center; vertical-align: middle; }
+#informe table.it.resumen td { overflow-wrap: anywhere; }
 #informe td.ajuste { background: #fbf0d6; box-shadow: inset 2.5pt 0 0 #9a6700; font-weight: bold; }
 #informe td.ajuste .calc { font-weight: normal; font-size: 7pt; color: #555; }
 #informe .marca-ajuste { display: inline-block; width: 8pt; height: 8pt; background: #fbf0d6; box-shadow: inset 2pt 0 0 #9a6700; border: 0.5pt solid #9a9a9a; vertical-align: -1pt; margin-right: 3pt; }

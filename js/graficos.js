@@ -43,17 +43,26 @@
   }
 
   /* ---------- barras verticales apiladas (residual + extraído) ---------- */
-  function barrasApiladas({ cats, res, ext, yLabel, dec = 0, xLabel, tipCat, ancho }) {
+  // fs: factor de tamaño de letra (1 en pantalla; mayor en el PDF, donde el gráfico se imprime más pequeño).
+  // intensidad: agrega un eje superior con la intensidad de extracción de cada barra (% extraído del inicial).
+  // anchoBarra: fracción de cada categoría que ocupa la barra (por defecto la de pantalla).
+  function barrasApiladas({ cats, res, ext, yLabel, dec = 0, xLabel, tipCat, ancho, fs = 1, intensidad = false, anchoBarra }) {
     const P = paleta();
-    const W = ancho || 680, H = 300, m = { l: 58, r: 12, t: 14, b: xLabel ? 54 : 40 };
+    const f = (v) => +(v * fs).toFixed(1), conInt = intensidad && ext.some(e => e > 0);
+    const W = ancho || 680, m = { l: Math.round(46 + 12 * fs), r: 12, t: conInt ? Math.round(30 * fs + 14) : 14, b: xLabel ? Math.round(24 + 30 * fs) : Math.round(18 + 22 * fs) };
+    const H = 300; // mismo alto que en pantalla: los márgenes mayores se toman del área del gráfico
     const iw = W - m.l - m.r, ih = H - m.t - m.b;
     const max = niceMax(Math.max(...cats.map((_, i) => res[i] + ext[i]), 0));
     const y = (v) => m.t + ih - v / max * ih;
-    const bw = iw / cats.length, pad = Math.min(10, bw * 0.18), w = Math.max(2, bw - 2 * pad);
+    const bw = iw / cats.length, pad = anchoBarra ? bw * (1 - anchoBarra) / 2 : Math.min(10, bw * 0.18), w = Math.max(2, bw - 2 * pad);
     let s = `<svg viewBox="0 0 ${W} ${H}" role="img" class="chart" xmlns="http://www.w3.org/2000/svg" font-family="system-ui, -apple-system, 'Segoe UI', sans-serif">`;
-    ticks(max).forEach(t => { s += `<line x1="${m.l}" x2="${W - m.r}" y1="${y(t)}" y2="${y(t)}" stroke="${t === 0 ? P.axis : P.grid}" stroke-width="1"/><text x="${m.l - 8}" y="${y(t) + 4}" text-anchor="end" font-size="11" fill="${P.muted}">${fmt(t, decTick(max))}</text>`; });
-    s += `<text transform="translate(14 ${m.t + ih / 2}) rotate(-90)" text-anchor="middle" font-size="11.5" fill="${P.ink2}">${esc(yLabel)}</text>`;
-    const cada = Math.ceil(cats.length / 18);
+    ticks(max).forEach(t => { s += `<line x1="${m.l}" x2="${W - m.r}" y1="${y(t)}" y2="${y(t)}" stroke="${t === 0 ? P.axis : P.grid}" stroke-width="1"/><text x="${m.l - 8}" y="${y(t) + f(4)}" text-anchor="end" font-size="${f(11)}" fill="${P.muted}">${fmt(t, decTick(max))}</text>`; });
+    s += `<text transform="translate(${f(14)} ${m.t + ih / 2}) rotate(-90)" text-anchor="middle" font-size="${f(11.5)}" fill="${P.ink2}">${esc(yLabel)}</text>`;
+    const cada = Math.ceil(cats.length / (fs > 1 ? 14 : 18));
+    if (conInt) {
+      s += `<line x1="${m.l}" x2="${W - m.r}" y1="${m.t - 4}" y2="${m.t - 4}" stroke="${P.axis}"/>`;
+      s += `<text x="${m.l + iw / 2}" y="${f(12)}" text-anchor="middle" font-size="${f(11)}" fill="${P.ink2}">Intensidad de extracción (%)</text>`;
+    }
     cats.forEach((c, i) => {
       const x = m.l + i * bw + pad, r0 = res[i], e0 = ext[i];
       const yr = y(r0), ye = y(r0 + e0), gap = r0 > 0 && e0 > 0 ? 2 : 0;
@@ -61,9 +70,10 @@
       if (e0 > 0) s += `<path d="${barPath(x, ye, w, (yr - ye) - gap, false)}" fill="${P.ext}"/>`;
       if (r0 > 0) s += e0 > 0 ? `<rect x="${x}" y="${yr}" width="${w}" height="${m.t + ih - yr}" fill="${P.res}"/>` : `<path d="${barPath(x, yr, w, m.t + ih - yr, false)}" fill="${P.res}"/>`;
       s += `<rect x="${m.l + i * bw}" y="${m.t}" width="${bw}" height="${ih}" fill="transparent" data-tip="${esc(tip)}"/>`;
-      if (i % cada === 0) s += `<text x="${m.l + i * bw + bw / 2}" y="${m.t + ih + 16}" text-anchor="middle" font-size="11" fill="${P.muted}">${esc(c)}</text>`;
+      if (i % cada === 0) s += `<text x="${m.l + i * bw + bw / 2}" y="${m.t + ih + f(16)}" text-anchor="middle" font-size="${f(11)}" fill="${P.muted}">${esc(c)}</text>`;
+      if (conInt && i % cada === 0 && r0 + e0 > 0) s += `<line x1="${m.l + i * bw + bw / 2}" x2="${m.l + i * bw + bw / 2}" y1="${m.t - 4}" y2="${m.t}" stroke="${P.axis}"/><text x="${m.l + i * bw + bw / 2}" y="${m.t - 8}" text-anchor="middle" font-size="${f(10)}" fill="${P.ext}">${fmt(e0 / (r0 + e0) * 100, 0)}</text>`;
     });
-    if (xLabel) s += `<text x="${m.l + iw / 2}" y="${H - 8}" text-anchor="middle" font-size="11.5" fill="${P.ink2}">${esc(xLabel)}</text>`;
+    if (xLabel) s += `<text x="${m.l + iw / 2}" y="${H - 8}" text-anchor="middle" font-size="${f(11.5)}" fill="${P.ink2}">${esc(xLabel)}</text>`;
     return s + '</svg>';
   }
 
@@ -93,32 +103,33 @@
   /* ---------- líneas por clase diamétrica, una por especie (pauta CONAF 12.3.6) ----------
      var = 'n' (densidad, árb/ha) o 'g' (área basal, m²/ha). Línea continua = inicial; segmentada = residual
      (sólo si hay intervención). La leyenda va dentro del SVG para que se conserve en el PDF y en el PNG. */
-  function lineasEspecies({ filas, especies, variable, xLabel, yLabel, ancho }) {
+  function lineasEspecies({ filas, especies, variable, xLabel, yLabel, ancho, fs = 1 }) {
+    const fz = (v) => +(v * fs).toFixed(1);
     const P = paleta();
     const vk = variable || 'n', dec = vk === 'g' ? 2 : 0, unidad = vk === 'g' ? 'm²/ha' : 'árb/ha';
     const val = (f, e, c) => (f.sp[e.key] && f.sp[e.key][c]) ? f.sp[e.key][c][vk] || 0 : 0;
     const conRes = especies.some(e => filas.some(f => Math.abs(val(f, e, 'ini') - val(f, e, 'res')) > 1e-9));
-    const W = ancho || 680, porFila = Math.max(1, Math.floor((W - 60) / 150)), filasLey = Math.ceil(especies.length / porFila) + (conRes ? 1 : 0);
-    const m = { l: 58, r: 14, t: 14 + filasLey * 18, b: 54 }, H = 300 + filasLey * 18;
+    const W = ancho || 680, porFila = Math.max(1, Math.floor((W - 60) / fz(150))), filasLey = Math.ceil(especies.length / porFila) + (conRes ? 1 : 0);
+    const m = { l: Math.round(46 + 12 * fs), r: Math.round(14 * fs + 8), t: 14 + filasLey * fz(18), b: Math.round(24 + 30 * fs) }, H = 300 + filasLey * fz(18);
     const iw = W - m.l - m.r, ih = H - m.t - m.b;
     const fmtC = (x) => fmt(x, x % 1 ? 1 : 0);
     const top = niceMax(Math.max(...especies.flatMap(e => filas.map(f => Math.max(val(f, e, 'ini'), val(f, e, 'res')))), 0));
     const n = filas.length, x = (i) => m.l + (n === 1 ? iw / 2 : i * iw / (n - 1)), y = (v) => m.t + ih - v / top * ih;
     let s = `<svg viewBox="0 0 ${W} ${H}" role="img" class="chart" xmlns="http://www.w3.org/2000/svg" font-family="system-ui, -apple-system, 'Segoe UI', sans-serif">`;
     especies.forEach((e, i) => {
-      const lx = 12 + (i % porFila) * 150, ly = 10 + Math.floor(i / porFila) * 18, nom = e.nombre.length > 18 ? e.nombre.slice(0, 17) + '…' : e.nombre;
-      s += `<line x1="${lx}" x2="${lx + 18}" y1="${ly + 4}" y2="${ly + 4}" stroke="${colorEspecie(i)}" stroke-width="2.5"/><circle cx="${lx + 9}" cy="${ly + 4}" r="3" fill="${colorEspecie(i)}"/><text x="${lx + 24}" y="${ly + 8}" font-size="11" fill="${P.ink}">${esc(nom)}</text>`;
+      const lx = 12 + (i % porFila) * fz(150), ly = 10 + Math.floor(i / porFila) * fz(18), nom = e.nombre.length > 18 ? e.nombre.slice(0, 17) + '…' : e.nombre;
+      s += `<line x1="${lx}" x2="${lx + 18}" y1="${ly + 4}" y2="${ly + 4}" stroke="${colorEspecie(i)}" stroke-width="2.5"/><circle cx="${lx + 9}" cy="${ly + 4}" r="3" fill="${colorEspecie(i)}"/><text x="${lx + 24}" y="${ly + fz(8)}" font-size="${fz(11)}" fill="${P.ink}">${esc(nom)}</text>`;
     });
     if (conRes) {
-      const ly = 10 + Math.ceil(especies.length / porFila) * 18;
-      s += `<line x1="12" x2="30" y1="${ly + 4}" y2="${ly + 4}" stroke="${P.ink2}" stroke-opacity="0.38" stroke-width="1.6"/><text x="36" y="${ly + 8}" font-size="11" fill="${P.ink2}">Inicial</text>`;
-      s += `<line x1="100" x2="118" y1="${ly + 4}" y2="${ly + 4}" stroke="${P.ink2}" stroke-width="2.4" stroke-dasharray="6 3"/><text x="124" y="${ly + 8}" font-size="11" fill="${P.ink2}">Residual</text>`;
+      const ly = 10 + Math.ceil(especies.length / porFila) * fz(18);
+      s += `<line x1="12" x2="30" y1="${ly + 4}" y2="${ly + 4}" stroke="${P.ink2}" stroke-opacity="0.38" stroke-width="1.6"/><text x="36" y="${ly + fz(8)}" font-size="${fz(11)}" fill="${P.ink2}">Inicial</text>`;
+      s += `<line x1="${fz(100)}" x2="${fz(100) + 18}" y1="${ly + 4}" y2="${ly + 4}" stroke="${P.ink2}" stroke-width="2.4" stroke-dasharray="6 3"/><text x="${fz(100) + 24}" y="${ly + fz(8)}" font-size="${fz(11)}" fill="${P.ink2}">Residual</text>`;
     }
-    ticks(top).forEach(t => { s += `<line x1="${m.l}" x2="${W - m.r}" y1="${y(t)}" y2="${y(t)}" stroke="${t === 0 ? P.axis : P.grid}"/><text x="${m.l - 8}" y="${y(t) + 4}" text-anchor="end" font-size="11" fill="${P.muted}">${fmt(t, decTick(top))}</text>`; });
-    s += `<text transform="translate(14 ${m.t + ih / 2}) rotate(-90)" text-anchor="middle" font-size="11.5" fill="${P.ink2}">${esc(yLabel)}</text>`;
+    ticks(top).forEach(t => { s += `<line x1="${m.l}" x2="${W - m.r}" y1="${y(t)}" y2="${y(t)}" stroke="${t === 0 ? P.axis : P.grid}"/><text x="${m.l - 8}" y="${y(t) + fz(4)}" text-anchor="end" font-size="${fz(11)}" fill="${P.muted}">${fmt(t, decTick(top))}</text>`; });
+    s += `<text transform="translate(${fz(14)} ${m.t + ih / 2}) rotate(-90)" text-anchor="middle" font-size="${fz(11.5)}" fill="${P.ink2}">${esc(yLabel)}</text>`;
     const cada = Math.ceil(n / 16);
-    filas.forEach((f, i) => { if (i % cada === 0) s += `<text x="${x(i)}" y="${m.t + ih + 16}" text-anchor="middle" font-size="11" fill="${P.muted}">${fmtC(f.clase.mc)}</text>`; });
-    s += `<text x="${m.l + iw / 2}" y="${H - 8}" text-anchor="middle" font-size="11.5" fill="${P.ink2}">${esc(xLabel)}</text>`;
+    filas.forEach((f, i) => { if (i % cada === 0) s += `<text x="${x(i)}" y="${m.t + ih + fz(16)}" text-anchor="middle" font-size="${fz(11)}" fill="${P.muted}">${fmtC(f.clase.mc)}</text>`; });
+    s += `<text x="${m.l + iw / 2}" y="${H - 8}" text-anchor="middle" font-size="${fz(11.5)}" fill="${P.ink2}">${esc(xLabel)}</text>`;
     especies.forEach((e, i) => {
       const col = colorEspecie(i);
       (conRes ? ['ini', 'res'] : ['ini']).forEach(c => {
@@ -144,9 +155,10 @@
   const colorEspecie = (i) => COLORES_ESPECIE[i % COLORES_ESPECIE.length];
   const mezclar = (hex, t) => { const n = parseInt(hex.replace('#', ''), 16), b = [243, 245, 241]; const c = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((x, k) => Math.round(b[k] + (x - b[k]) * t)); return '#' + c.map(x => x.toString(16).padStart(2, '0')).join(''); };
   const TRAMOS = [0.28, 0.46, 0.64, 0.82, 1];
-  function mapaCalor({ especies, parcelas, valor, valorRes }) {
+  function mapaCalor({ especies, parcelas, valor, valorRes, fs = 1 }) {
+    const f = (v) => +(v * fs).toFixed(1);
     const P = paleta();
-    const cw = Math.max(30, Math.min(54, 560 / Math.max(1, parcelas.length))), ch = 26, m = { l: 150, t: 34, r: 10, b: 10 };
+    const cw = Math.max(f(30), Math.min(f(54), 560 / Math.max(1, parcelas.length))), ch = f(26), m = { l: f(150), t: f(34), r: 10, b: 10 };
     const W = m.l + parcelas.length * cw + m.r, H = m.t + especies.length * ch + m.b;
     const max = Math.max(...especies.flatMap(e => parcelas.map(p => valor(e, p))), 0);
     const maxSp = especies.map(e => Math.max(...parcelas.map(p => valor(e, p)), 0));
@@ -154,17 +166,17 @@
     const lum = (hex) => { const n = parseInt(hex.replace('#', ''), 16); const c = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map(x => { x /= 255; return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4); }); return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]; };
     const tinta = (i, v) => { if (!(v > 0)) return P.muted; return lum(colorCelda(i, v)) < 0.22 ? '#ffffff' : '#0b0b0b'; };
     let s = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" class="chart heat" xmlns="http://www.w3.org/2000/svg" font-family="system-ui, -apple-system, 'Segoe UI', sans-serif">`;
-    s += `<text x="${m.l}" y="12" font-size="11" fill="${P.ink2}">Parcela</text>`;
-    parcelas.forEach((p, j) => { s += `<text x="${m.l + j * cw + cw / 2}" y="${m.t - 8}" text-anchor="middle" font-size="11" fill="${P.muted}">${esc(p)}</text>`; });
+    s += `<text x="${m.l}" y="${f(12)}" font-size="${f(11)}" fill="${P.ink2}">Parcela</text>`;
+    parcelas.forEach((p, j) => { s += `<text x="${m.l + j * cw + cw / 2}" y="${m.t - 8}" text-anchor="middle" font-size="${f(11)}" fill="${P.muted}">${esc(p)}</text>`; });
     especies.forEach((e, i) => {
       const nom = e.nombre.length > 22 ? e.nombre.slice(0, 21) + '…' : e.nombre;
-      s += `<rect x="${m.l - 16}" y="${m.t + i * ch + ch / 2 - 5}" width="10" height="10" rx="2" fill="${colorEspecie(i)}"/>`;
-      s += `<text x="${m.l - 22}" y="${m.t + i * ch + ch / 2 + 4}" text-anchor="end" font-size="11.5" fill="${P.ink}">${esc(nom)}</text>`;
+      s += `<rect x="${m.l - f(16)}" y="${m.t + i * ch + ch / 2 - f(5)}" width="${f(10)}" height="${f(10)}" rx="2" fill="${colorEspecie(i)}"/>`;
+      s += `<text x="${m.l - f(22)}" y="${m.t + i * ch + ch / 2 + f(4)}" text-anchor="end" font-size="${f(11.5)}" fill="${P.ink}">${esc(nom)}</text>`;
       parcelas.forEach((p, j) => {
         const v = valor(e, p), vr = valorRes(e, p);
         const x = m.l + j * cw + 1, y = m.t + i * ch + 1;
         s += `<rect x="${x}" y="${y}" width="${cw - 2}" height="${ch - 2}" rx="3" fill="${colorCelda(i, v)}" data-tip="${esc(`${e.nombre} · parcela ${p}|Inicial: ${fmt(v, 0)} árb/ha|Residual: ${fmt(vr, 0)} árb/ha`)}"/>`;
-        if (cw >= 30) s += `<text x="${x + (cw - 2) / 2}" y="${y + ch / 2 + 2}" text-anchor="middle" font-size="10" fill="${tinta(i, v)}" pointer-events="none">${v > 0 ? fmt(v, 0) : '·'}</text>`;
+        if (cw >= f(30)) s += `<text x="${x + (cw - 2) / 2}" y="${y + ch / 2 + f(3)}" text-anchor="middle" font-size="${f(10)}" fill="${tinta(i, v)}" pointer-events="none">${v > 0 ? fmt(v, 0) : '·'}</text>`;
       });
     });
     return { svg: s + '</svg>', max };
@@ -247,24 +259,34 @@
     const disp = sp.map(e => ({ nombre: e.nombre, d: dispersion(parcelasId.map(p => (ps.find(x => x.parcela === p).cuenta || {})[e.key] || 0)) }));
     return { filas, ps, sp, parcelasId, cuentaRes, estructura, disp };
   }
+  // En el PDF los gráficos se imprimen a media hoja: letra de ejes mayor, barras más anchas y eje de intensidad de extracción
+  // Todos los gráficos se imprimen al mismo ancho de columna: para que la letra se vea del mismo tamaño que en el
+  // gráfico 1 (viewBox de 900 de ancho, factor 1,5), el factor de cada gráfico se ajusta al ancho de su viewBox.
+  const PDF_FS = 1.5, PDF_FS_680 = PDF_FS * 680 / 900;
+  // la matriz espacial cambia de ancho con el factor: se resuelve por iteración (ancho = 150·fs + parcelas·celda + 10)
+  const fsMapa = (nParcelas) => { let fs = 1; for (let k = 0; k < 20; k++) { const cw = Math.max(30 * fs, Math.min(54 * fs, 560 / Math.max(1, nParcelas))); fs = PDF_FS * (150 * fs + nParcelas * cw + 10) / 900; } return fs; };
   function figurasRodal(r) {
     FORZAR_CLARA = true;
     try {
       const D = datosRodal(r), fmtC = (x) => fmt(x, x % 1 ? 1 : 0);
       const figs = [
         { id: 'dd', titulo: '1. Efecto de la intervención sobre la distribución diamétrica', sub: `DMC ${fmt(r.DMCini)} → ${fmt(r.DMCres)} cm · densidad ${fmt(r.tot.ini.n, 0)} → ${fmt(r.tot.res.n, 0)} árb/ha`, leyenda: true, ancho: 'completo',
-          svg: barrasApiladas({ cats: D.filas.map(f => fmtC(f.clase.mc)), res: D.filas.map(f => f.tot.res.n), ext: D.filas.map(f => f.tot.ini.n - f.tot.res.n), yLabel: 'Densidad (árb/ha)', xLabel: 'Marca de clase diamétrica (cm)', ancho: 900 }) },
+          svg: barrasApiladas({ cats: D.filas.map(f => fmtC(f.clase.mc)), res: D.filas.map(f => f.tot.res.n), ext: D.filas.map(f => f.tot.ini.n - f.tot.res.n), yLabel: 'Densidad (árb/ha)', xLabel: 'Marca de clase diamétrica (cm)', ancho: 900, fs: PDF_FS, intensidad: true, anchoBarra: 0.8 }) },
         { id: 'np', titulo: '2a. Densidad por parcela', sub: `Media ${fmt(r.tot.ini.n, 0)} → ${fmt(r.tot.res.n, 0)} árb/ha`, leyenda: true,
-          svg: barrasApiladas({ cats: D.ps.map(p => p.parcela), res: D.ps.map(p => p.nRes || 0), ext: D.ps.map(p => p.n - (p.nRes || 0)), yLabel: 'Densidad (árb/ha)', xLabel: 'Parcela' }) },
+          svg: barrasApiladas({ cats: D.ps.map(p => p.parcela), res: D.ps.map(p => p.nRes || 0), ext: D.ps.map(p => p.n - (p.nRes || 0)), yLabel: 'Densidad (árb/ha)', xLabel: 'Parcela', fs: PDF_FS_680, intensidad: true, anchoBarra: 0.72 }) },
         { id: 'gp', titulo: '2b. Área basal por parcela', sub: `Media ${fmt(r.tot.ini.g, 2)} → ${fmt(r.tot.res.g, 2)} m²/ha`, leyenda: true,
-          svg: barrasApiladas({ cats: D.ps.map(p => p.parcela), res: D.ps.map(p => p.gRes || 0), ext: D.ps.map(p => p.g - (p.gRes || 0)), yLabel: 'Área basal (m²/ha)', xLabel: 'Parcela', dec: 2 }) },
+          svg: barrasApiladas({ cats: D.ps.map(p => p.parcela), res: D.ps.map(p => p.gRes || 0), ext: D.ps.map(p => p.g - (p.gRes || 0)), yLabel: 'Área basal (m²/ha)', xLabel: 'Parcela', dec: 2, fs: PDF_FS_680, intensidad: true, anchoBarra: 0.72 }) },
         { id: 'ne', titulo: '3a. Densidad por clase diamétrica y especie', sub: 'Línea continua = inicial; segmentada = residual.', leyenda: false,
-          svg: lineasEspecies({ filas: D.filas, especies: D.sp, variable: 'n', xLabel: 'Marca de clase diamétrica (cm)', yLabel: 'Densidad (árb/ha)' }) },
+          svg: lineasEspecies({ filas: D.filas, especies: D.sp, variable: 'n', xLabel: 'Marca de clase diamétrica (cm)', yLabel: 'Densidad (árb/ha)', fs: PDF_FS_680 }) },
         { id: 'ge', titulo: '3b. Área basal por clase diamétrica y especie', sub: 'Línea continua = inicial; segmentada = residual.', leyenda: false,
-          svg: lineasEspecies({ filas: D.filas, especies: D.sp, variable: 'g', xLabel: 'Marca de clase diamétrica (cm)', yLabel: 'Área basal (m²/ha)' }) }
+          svg: lineasEspecies({ filas: D.filas, especies: D.sp, variable: 'g', xLabel: 'Marca de clase diamétrica (cm)', yLabel: 'Área basal (m²/ha)', fs: PDF_FS_680 }) }
       ];
-      const hm = mapaCalor({ especies: D.sp, parcelas: D.parcelasId, valor: (e, p) => ((D.ps.find(x => x.parcela === p).cuenta || {})[e.key] || 0) * r.FE, valorRes: (e, p) => (D.cuentaRes[e.key + '|' + p] || 0) * r.FE });
+      const hm = mapaCalor({ especies: D.sp, parcelas: D.parcelasId, valor: (e, p) => ((D.ps.find(x => x.parcela === p).cuenta || {})[e.key] || 0) * r.FE, valorRes: (e, p) => (D.cuentaRes[e.key + '|' + p] || 0) * r.FE, fs: fsMapa(D.parcelasId.length) });
       figs.push({ id: 'esp', titulo: '4. Distribución espacial por especie (densidad inicial, árb/ha por parcela)', sub: 'Cada fila es una especie, con su propio color; cada celda es una parcela y la intensidad del tono indica la densidad de la especie en esa parcela, relativa a su máximo.', leyenda: false, ancho: 'completo', svg: hm.svg });
+      // ejes en negrita: valores y títulos de los ejes, rótulos de clase o parcela e intensidad de extracción
+      // (textos en los colores de eje; no se cambian las leyendas de especies ni los números de las celdas del mapa)
+      const ejes = [CLARA.muted, CLARA.ink2, CLARA.ext];
+      figs.forEach(f => { f.svg = f.svg.replace(/<text ([^>]*?)fill="([^"]+)"([^>]*)>/g, (m, a, col, b) => ejes.includes(col) && !/pointer-events/.test(a + b) ? `<text ${a}fill="${col}" font-weight="bold"${b}>` : m); });
       return { figs, datos: D };
     } finally { FORZAR_CLARA = false; }
   }

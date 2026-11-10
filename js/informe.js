@@ -124,9 +124,7 @@
       </section>
       <section class="pg">
         <h2 class="rodal">Rodal ${esc(r.id)} · Distribución espacial por especie y estado de desarrollo por parcela</h2>
-        ${figura(F.esp)}
-        <p class="nota">Distribución de los individuos entre las parcelas del rodal (el inventario no registra coordenadas).</p>
-        ${figura(F.ep)}
+        <div class="cols2">${figura(F.esp, true)}${figura(F.ep, true)}</div>
       </section>`;
     });
     h += `<section class="pg"><p class="nota">Los resultados son una ayuda para el profesional y deben revisarse antes de su presentación.</p></section>`;

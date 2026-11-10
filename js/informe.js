@@ -124,7 +124,7 @@
       </section>
       <section class="pg">
         <h2 class="rodal">Rodal ${esc(r.id)} · Distribución espacial por especie</h2>
-        <div class="cols2">${figura(F.esp, true)}</div>
+        ${figura(F.esp)}
         <table class="it bloque"><thead><tr><th>Especie</th><th>Árboles</th><th>Frecuencia (%)</th><th>Media/parcela</th><th>Varianza</th><th>Distribución espacial</th></tr></thead><tbody>${datos.disp.map(({ nombre, d }) => `<tr><td>${esc(nombre)}</td><td class="n">${d.Nt}</td><td class="n">${d.presencia == null ? '—' : fmt(d.presencia, 0)}</td><td class="n">${d.media == null ? '—' : fmt(d.media, 2)}</td><td class="n">${d.var == null ? '—' : fmt(d.var, 2)}</td><td>${esc(d.patron)}</td></tr>`).join('')}</tbody></table>
         <p class="nota">Distribución de los individuos entre las parcelas del rodal (el inventario no registra coordenadas). La distribución espacial (agregada, aleatoria o regular) se clasifica comparando la varianza con la media por parcela, al 95 % de confianza.</p>
       </section>`;

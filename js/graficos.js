@@ -218,22 +218,26 @@
   const mezclar = (hex, t) => { const n = parseInt(hex.replace('#', ''), 16), b = [243, 245, 241]; const c = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((x, k) => Math.round(b[k] + (x - b[k]) * t)); return '#' + c.map(x => x.toString(16).padStart(2, '0')).join(''); };
   const TRAMOS = [0.28, 0.46, 0.64, 0.82, 1];
   const nombreMapa = (n) => n.length > 22 ? n.slice(0, 21) + '…' : n;
-  // geometría de la matriz: el margen izquierdo se ajusta al nombre de especie más largo
-  function geoMapa(nombres, nParcelas, fs) {
-    const f = (v) => +(v * fs).toFixed(1), tv = f(ROT.val), tt = f(ROT.tit);
-    const cw = Math.max(f(30), Math.min(f(54), 560 / Math.max(1, nParcelas))), ch = f(26);
+  // geometría de la matriz: el margen izquierdo se ajusta al nombre de especie más largo. Con anchoTotal (informe
+  // PDF), las celdas son más altas y se ensanchan hasta llenar ese ancho, sin pasar de 2,6 veces su alto.
+  function geoMapa(nombres, nParcelas, fs, anchoTotal) {
+    const f = (v) => +(v * fs).toFixed(1), tv = f(ROT.val), tt = f(ROT.tit), np = Math.max(1, nParcelas);
     const m = { l: Math.ceil(anchoMax(nombres.map(nombreMapa), tv) + f(22) + 6), t: Math.ceil(tt + tv + 14), r: 10, b: 10 };
+    const ch = anchoTotal ? f(34) : f(26);
+    const cw = anchoTotal ? Math.max(f(30), Math.min(ch * 2.6, (anchoTotal - m.l - m.r) / np)) : Math.max(f(30), Math.min(f(54), 560 / np));
     return { f, tv, tt, cw, ch, m, W: m.l + nParcelas * cw + m.r };
   }
-  function mapaCalor({ especies, parcelas, valor, valorRes, fs = 1 }) {
+  // escalaAttr: factor para los atributos width/height del SVG (el informe fija con ellos el tamaño impreso)
+  function mapaCalor({ especies, parcelas, valor, valorRes, fs = 1, anchoTotal, escalaAttr = 1 }) {
     const P = paleta();
-    const { f, tv, tt, cw, ch, m, W } = geoMapa(especies.map(e => e.nombre), parcelas.length, fs), H = m.t + especies.length * ch + m.b;
+    const { f, tv, tt, cw, ch, m, W } = geoMapa(especies.map(e => e.nombre), parcelas.length, fs, anchoTotal), H = m.t + especies.length * ch + m.b;
+    const tn = anchoTotal ? Math.min(f(14), ch * 0.42) : f(10); // números de las celdas
     const max = Math.max(...especies.flatMap(e => parcelas.map(p => valor(e, p))), 0);
     const maxSp = especies.map(e => Math.max(...parcelas.map(p => valor(e, p)), 0));
     const colorCelda = (i, v) => { if (!(v > 0)) return P.empty; const k = Math.min(TRAMOS.length - 1, Math.floor(v / maxSp[i] * TRAMOS.length - 1e-9)); return mezclar(colorEspecie(i), TRAMOS[Math.max(0, k)]); };
     const lum = (hex) => { const n = parseInt(hex.replace('#', ''), 16); const c = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map(x => { x /= 255; return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4); }); return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]; };
     const tinta = (i, v) => { if (!(v > 0)) return P.muted; return lum(colorCelda(i, v)) < 0.22 ? '#ffffff' : '#0b0b0b'; };
-    let s = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" class="chart heat" xmlns="http://www.w3.org/2000/svg" font-family="system-ui, -apple-system, 'Segoe UI', sans-serif">`;
+    let s = `<svg viewBox="0 0 ${W} ${H}" width="${+(W * escalaAttr).toFixed(1)}" height="${+(H * escalaAttr).toFixed(1)}" role="img" class="chart heat" xmlns="http://www.w3.org/2000/svg" font-family="system-ui, -apple-system, 'Segoe UI', sans-serif">`;
     s += `<text x="${m.l}" y="${+(2 + tt * 0.8).toFixed(1)}" font-size="${tt}" fill="${P.ink2}">Parcela</text>`;
     const cadaP = Math.max(1, Math.ceil((anchoMax(parcelas, tv) + 4) / cw));
     parcelas.forEach((p, j) => { if (j % cadaP === 0) s += `<text x="${m.l + j * cw + cw / 2}" y="${m.t - 6}" text-anchor="middle" font-size="${tv}" fill="${P.muted}">${esc(p)}</text>`; });
@@ -245,7 +249,7 @@
         const v = valor(e, p), vr = valorRes(e, p);
         const x = m.l + j * cw + 1, y = m.t + i * ch + 1;
         s += `<rect x="${x}" y="${y}" width="${cw - 2}" height="${ch - 2}" rx="3" fill="${colorCelda(i, v)}" data-tip="${esc(`${e.nombre} · parcela ${p}|Inicial: ${fmt(v, 0)} árb/ha|Residual: ${fmt(vr, 0)} árb/ha`)}"/>`;
-        if (cw >= f(30)) s += `<text x="${x + (cw - 2) / 2}" y="${y + ch / 2 + f(3)}" text-anchor="middle" font-size="${f(10)}" fill="${tinta(i, v)}" pointer-events="none">${v > 0 ? fmt(v, 0) : '·'}</text>`;
+        if (cw >= f(30)) s += `<text x="${x + (cw - 2) / 2}" y="${+(y + ch / 2 + tn * 0.3).toFixed(1)}" text-anchor="middle" font-size="${tn}" fill="${tinta(i, v)}" pointer-events="none">${v > 0 ? fmt(v, 0) : '·'}</text>`;
       });
     });
     return { svg: s + '</svg>', max };
@@ -330,8 +334,12 @@
   // Todos los gráficos se imprimen al mismo ancho de columna: para que la letra se vea del mismo tamaño que en el
   // gráfico 1 (viewBox de 900 de ancho, factor 1,5), el factor de cada gráfico se ajusta al ancho de su viewBox.
   const PDF_FS = 1.5, PDF_FS_680 = PDF_FS * 680 / 900;
-  // la matriz espacial cambia de ancho con el factor: se resuelve por iteración (ancho = nombres + parcelas·celda + 10)
-  const fsMapa = (nombres, nParcelas) => { let fs = 1; for (let k = 0; k < 20; k++) fs = PDF_FS * geoMapa(nombres, nParcelas, fs).W / 900; return fs; };
+  // La matriz espacial (5) se imprime a todo el ancho útil de la hoja (188 mm) en vez de media columna (91 mm):
+  // con el mismo factor PDF_FS sobre un viewBox proporcionalmente más ancho, la letra queda del mismo tamaño
+  // impreso que en el resto de los gráficos. El informe toma el tamaño de los atributos width/height del SVG
+  // (en px de 0,75 pt), por lo que se escalan para que 1 unidad del viewBox mida lo mismo que en los demás.
+  const ANCHO_HOJA_MM = 188, MEDIA_COL_MM = 91, PDF_ANCHO_MAPA = Math.round(900 * ANCHO_HOJA_MM / MEDIA_COL_MM);
+  const ESCALA_ATTR_MAPA = (ANCHO_HOJA_MM * 72 / 25.4 / PDF_ANCHO_MAPA) / 0.75;
   function figurasRodal(r) {
     FORZAR_CLARA = true;
     try {
@@ -350,7 +358,7 @@
         { id: 'nr', titulo: '4b. Densidad residual por clase diamétrica y especie', sub: 'Después de la intervención. Misma escala que el 4a.', leyenda: false,
           svg: lineasEspecies({ filas: D.filas, especies: D.sp, variable: 'n', serie: 'res', xLabel: 'Marca de clase diamétrica (cm)', yLabel: 'Densidad (árb/ha)', fs: PDF_FS_680 }) }
       ];
-      const hm = mapaCalor({ especies: D.sp, parcelas: D.parcelasId, valor: (e, p) => ((D.ps.find(x => x.parcela === p).cuenta || {})[e.key] || 0) * r.FE, valorRes: (e, p) => (D.cuentaRes[e.key + '|' + p] || 0) * r.FE, fs: fsMapa(D.sp.map(e => e.nombre), D.parcelasId.length) });
+      const hm = mapaCalor({ especies: D.sp, parcelas: D.parcelasId, valor: (e, p) => ((D.ps.find(x => x.parcela === p).cuenta || {})[e.key] || 0) * r.FE, valorRes: (e, p) => (D.cuentaRes[e.key + '|' + p] || 0) * r.FE, fs: PDF_FS, anchoTotal: PDF_ANCHO_MAPA, escalaAttr: ESCALA_ATTR_MAPA });
       figs.push({ id: 'esp', titulo: '5. Distribución espacial por especie (densidad inicial, árb/ha por parcela)', sub: 'Cada fila es una especie, con su propio color; cada celda es una parcela y la intensidad del tono indica la densidad de la especie en esa parcela, relativa a su máximo.', leyenda: false, ancho: 'completo', svg: hm.svg });
       // ejes en negrita: valores y títulos de los ejes, rótulos de clase o parcela e intensidad de extracción
       // (textos en los colores de eje; no se cambian las leyendas de especies ni los números de las celdas del mapa)

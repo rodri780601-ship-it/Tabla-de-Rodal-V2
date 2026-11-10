@@ -255,6 +255,55 @@
     return { svg: s + '</svg>', max };
   }
 
+  /* ---------- estado de desarrollo por parcela ----------
+     Se aplica a cada parcela la misma regla que al rodal (Bases 2.5, Cuadro 2): DMC de los árboles de la parcela
+     y altura promedio ponderada por el número de árboles de cada especie; residual = árboles que quedan. */
+  function estadosParcelas(r) {
+    const N = window.NORMATIVA, esc = !!(r.tipo && r.tipo.id === 'ESC');
+    const estado = (ab, res) => {
+      let s2 = 0, w = 0, sh = 0, wh = 0;
+      if (r.dmcPorVastago) ab.forEach(a => a.tallos.forEach(t => { const p = res ? (t.extraido ? 0 : a.res) : 1; s2 += p * t.dap * t.dap; w += p; }));
+      else ab.forEach(a => { const p = res ? a.res : 1, d = res ? a.dapRes : a.dap; s2 += p * d * d; w += p; });
+      if (!(w > 0)) return 'Sin árboles';
+      ab.forEach(a => { const h = r.alt && r.alt[a.key], p = res ? a.res : 1; if (h > 0) { sh += h * p; wh += p; } });
+      return N.estadoDesarrollo(esc, Math.sqrt(s2 / w), wh > 0 ? sh / wh : null).estado || 'Indeterminado';
+    };
+    const filas = r.parcelas.map(p => { const ab = r.arboles.filter(a => String(a.parcela) === String(p.parcela)); return { parcela: p.parcela, ini: estado(ab, false), res: estado(ab, true) }; });
+    // todos los estados del Cuadro 2, en orden, más los casos sin estado que aparezcan
+    const cats = [...N.ESTADOS, ...['Indeterminado', 'Sin árboles'].filter(x => filas.some(f => f.ini === x || f.res === x))];
+    const cuenta = (c, k) => filas.filter(f => f[k] === c).map(f => f.parcela);
+    return { filas, cats, ini: cats.map(c => cuenta(c, 'ini')), res: cats.map(c => cuenta(c, 'res')) };
+  }
+
+  /* ---------- barras horizontales agrupadas: n.º de parcelas por estado (inicial y residual) ---------- */
+  function barrasEstados({ cats, ini, res, xLabel = 'Número de parcelas', fs = 1, anchoTotal, escalaAttr = 1 }) {
+    const f = (v) => +(v * fs).toFixed(1), P = paleta();
+    const tv = f(ROT.val), tt = f(ROT.tit), colIni = P.ramp[1], colRes = P.res;
+    const nIni = ini.map(x => x.length), nRes = res.map(x => x.length), max = Math.max(1, ...nIni, ...nRes);
+    const st = [1, 2, 5, 10, 20, 25, 50, 100, 200, 500].find(x => max / x <= 6) || Math.ceil(max / 6), top = Math.ceil(max / st) * st;
+    const tk = []; for (let t = 0; t <= top; t += st) tk.push(t);
+    const W = anchoTotal || 680, rowH = f(36), bh = f(14);
+    const m = { l: Math.ceil(anchoMax(cats, tv) + 14), r: Math.ceil(anchoTexto(String(max), tv) + 16), t: Math.ceil(tv + 18), b: Math.ceil(14 + tv + tt) };
+    const iw = W - m.l - m.r, H = m.t + cats.length * rowH + m.b, x = (v) => m.l + v / top * iw;
+    let s = `<svg viewBox="0 0 ${W} ${H}" width="${+(W * escalaAttr).toFixed(1)}" height="${+(H * escalaAttr).toFixed(1)}" role="img" class="chart" xmlns="http://www.w3.org/2000/svg" font-family="${FUENTE}">`;
+    // leyenda
+    const ly = 4, cq = +(tv * 0.8).toFixed(1), lx2 = m.l + cq + 8 + anchoTexto('Inicial', tv) + f(24);
+    s += `<rect x="${m.l}" y="${ly + tv * 0.1}" width="${cq}" height="${cq}" rx="2" fill="${colIni}"/><text x="${m.l + cq + 8}" y="${+(ly + tv * 0.85).toFixed(1)}" font-size="${tv}" fill="${P.ink}">Inicial</text>`;
+    s += `<rect x="${lx2}" y="${ly + tv * 0.1}" width="${cq}" height="${cq}" rx="2" fill="${colRes}"/><text x="${lx2 + cq + 8}" y="${+(ly + tv * 0.85).toFixed(1)}" font-size="${tv}" fill="${P.ink}">Residual</text>`;
+    const yb = m.t + cats.length * rowH;
+    tk.forEach(t => { s += `<line x1="${x(t)}" x2="${x(t)}" y1="${m.t}" y2="${yb}" stroke="${t === 0 ? P.axis : P.grid}"/><text x="${x(t)}" y="${+(yb + 6 + tv * 0.8).toFixed(1)}" text-anchor="middle" font-size="${tv}" fill="${P.muted}">${t}</text>`; });
+    s += `<text x="${m.l + iw / 2}" y="${+(H - 4 - tt * 0.22).toFixed(1)}" text-anchor="middle" font-size="${tt}" fill="${P.ink2}">${esc(xLabel)}</text>`;
+    cats.forEach((c, i) => {
+      const y0 = m.t + i * rowH, yc = y0 + rowH / 2;
+      s += `<text x="${m.l - 8}" y="${+(yc + tv * 0.35).toFixed(1)}" text-anchor="end" font-size="${tv}" fill="${P.ink2}">${esc(c)}</text>`;
+      [[nIni[i], ini[i], colIni, yc - bh - 1, 'Inicial'], [nRes[i], res[i], colRes, yc + 1, 'Residual']].forEach(([n, ps, col, yy, rot]) => {
+        if (n > 0) s += `<path d="${barPath(m.l, yy, x(n) - m.l, bh, true)}" fill="${col}"/><text x="${+(x(n) + 5).toFixed(1)}" y="${+(yy + bh / 2 + tv * 0.33).toFixed(1)}" font-size="${tv}" fill="${P.ink2}">${n}</text>`;
+        s += `<rect x="${m.l}" y="${yy}" width="${iw}" height="${bh}" fill="transparent" data-tip="${esc(`${c} · ${rot.toLowerCase()}|${n} parcela${n === 1 ? '' : 's'}${n ? ': ' + ps.join(', ') : ''}`)}"/>`;
+      });
+    });
+    return s + '</svg>';
+  }
+
   /* ---------- índices de dispersión espacial ---------- */
   function chi2q(p, df) { const z = p > 0.5 ? 1.959964 : -1.959964; const a = 2 / (9 * df); return df * Math.pow(1 - a + z * Math.sqrt(a), 3); }
   function dispersion(conteos) {
@@ -359,7 +408,12 @@
           svg: lineasEspecies({ filas: D.filas, especies: D.sp, variable: 'n', serie: 'res', xLabel: 'Marca de clase diamétrica (cm)', yLabel: 'Densidad (árb/ha)', fs: PDF_FS_680 }) }
       ];
       const hm = mapaCalor({ especies: D.sp, parcelas: D.parcelasId, valor: (e, p) => ((D.ps.find(x => x.parcela === p).cuenta || {})[e.key] || 0) * r.FE, valorRes: (e, p) => (D.cuentaRes[e.key + '|' + p] || 0) * r.FE, fs: PDF_FS, anchoTotal: PDF_ANCHO_MAPA, escalaAttr: ESCALA_ATTR_MAPA });
-      figs.push({ id: 'esp', titulo: '5. Distribución espacial por especie (densidad inicial, árb/ha por parcela)', sub: 'Cada fila es una especie, con su propio color; cada celda es una parcela y la intensidad del tono indica la densidad de la especie en esa parcela, relativa a su máximo.', leyenda: false, ancho: 'completo', svg: hm.svg });
+      const ep = estadosParcelas(r);
+      const epFig = { id: 'ep', titulo: '5b. Número de parcelas por estado de desarrollo, antes y después de la intervención', leyenda: false,
+        sub: 'Estado de cada parcela según su DMC y altura promedio (Bases 2.5, Cuadro 2).' + (r.estructura === 'irregular' ? ' El rodal es de estructura irregular, por lo que su estado de desarrollo no aplica: los estados por parcela son sólo referenciales.' : ''),
+        svg: barrasEstados({ cats: ep.cats, ini: ep.ini, res: ep.res, fs: PDF_FS, anchoTotal: PDF_ANCHO_MAPA, escalaAttr: ESCALA_ATTR_MAPA }) };
+      figs.push({ id: 'esp', titulo: '5a. Distribución espacial por especie (densidad inicial, árb/ha por parcela)', sub: 'Cada fila es una especie, con su propio color; cada celda es una parcela y la intensidad del tono indica la densidad de la especie en esa parcela, relativa a su máximo.', leyenda: false, ancho: 'completo', svg: hm.svg });
+      figs.push(epFig);
       // ejes en negrita: valores y títulos de los ejes, rótulos de clase o parcela e intensidad de extracción
       // (textos en los colores de eje; no se cambian las leyendas de especies ni los números de las celdas del mapa)
       const ejes = [CLARA.muted, CLARA.ink2, CLARA.ext];

@@ -84,7 +84,7 @@
       </tbody></table></section>`;
 
     rs.forEach(r => {
-      const { figs, datos } = window.GRAFICOS.figurasRodal(r);
+      const { figs } = window.GRAFICOS.figurasRodal(r);
       const F = Object.fromEntries(figs.map(f => [f.id, f]));
       // ---------- Diagnóstico (vertical) ----------
       h += `<section class="pg">
@@ -123,10 +123,10 @@
         </div>
       </section>
       <section class="pg">
-        <h2 class="rodal">Rodal ${esc(r.id)} · Distribución espacial por especie</h2>
+        <h2 class="rodal">Rodal ${esc(r.id)} · Distribución espacial por especie y estado de desarrollo por parcela</h2>
         ${figura(F.esp)}
-        <table class="it bloque"><thead><tr><th>Especie</th><th>Árboles</th><th>Frecuencia (%)</th><th>Media/parcela</th><th>Varianza</th><th>Distribución espacial</th></tr></thead><tbody>${datos.disp.map(({ nombre, d }) => `<tr><td>${esc(nombre)}</td><td class="n">${d.Nt}</td><td class="n">${d.presencia == null ? '—' : fmt(d.presencia, 0)}</td><td class="n">${d.media == null ? '—' : fmt(d.media, 2)}</td><td class="n">${d.var == null ? '—' : fmt(d.var, 2)}</td><td>${esc(d.patron)}</td></tr>`).join('')}</tbody></table>
-        <p class="nota">Distribución de los individuos entre las parcelas del rodal (el inventario no registra coordenadas). La distribución espacial (agregada, aleatoria o regular) se clasifica comparando la varianza con la media por parcela, al 95 % de confianza.</p>
+        <p class="nota">Distribución de los individuos entre las parcelas del rodal (el inventario no registra coordenadas).</p>
+        ${figura(F.ep)}
       </section>`;
     });
     h += `<section class="pg"><p class="nota">Los resultados son una ayuda para el profesional y deben revisarse antes de su presentación.</p></section>`;

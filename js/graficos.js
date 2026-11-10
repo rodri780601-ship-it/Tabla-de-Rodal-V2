@@ -339,19 +339,19 @@
       const figs = [
         { id: 'dd', titulo: '1. Efecto de la intervención sobre la distribución diamétrica', sub: `DMC ${fmt(r.DMCini)} → ${fmt(r.DMCres)} cm · densidad ${fmt(r.tot.ini.n, 0)} → ${fmt(r.tot.res.n, 0)} árb/ha`, leyenda: true, ancho: 'completo',
           svg: barrasApiladas({ cats: D.filas.map(f => fmtC(f.clase.mc)), res: D.filas.map(f => f.tot.res.n), ext: D.filas.map(f => f.tot.ini.n - f.tot.res.n), yLabel: 'Densidad (árb/ha)', xLabel: 'Marca de clase diamétrica (cm)', ancho: 900, fs: PDF_FS, intensidad: true, anchoBarra: 0.8 }) },
-        { id: 'np', titulo: '2a. Densidad por parcela', sub: `Media ${fmt(r.tot.ini.n, 0)} → ${fmt(r.tot.res.n, 0)} árb/ha`, leyenda: true,
+        { id: 'tc', titulo: '2. Composición de la densidad por especie', sub: 'Porcentaje de la densidad (árb/ha) de cada especie, antes y después de la intervención.', leyenda: false,
+          svg: tortasEspecies({ especies: D.sp, fs: PDF_FS_680 }) },
+        { id: 'np', titulo: '3a. Densidad por parcela', sub: `Media ${fmt(r.tot.ini.n, 0)} → ${fmt(r.tot.res.n, 0)} árb/ha`, leyenda: true,
           svg: barrasApiladas({ cats: D.ps.map(p => p.parcela), res: D.ps.map(p => p.nRes || 0), ext: D.ps.map(p => p.n - (p.nRes || 0)), yLabel: 'Densidad (árb/ha)', xLabel: 'Parcela', fs: PDF_FS_680, intensidad: true, anchoBarra: 0.72 }) },
-        { id: 'gp', titulo: '2b. Área basal por parcela', sub: `Media ${fmt(r.tot.ini.g, 2)} → ${fmt(r.tot.res.g, 2)} m²/ha`, leyenda: true,
+        { id: 'gp', titulo: '3b. Área basal por parcela', sub: `Media ${fmt(r.tot.ini.g, 2)} → ${fmt(r.tot.res.g, 2)} m²/ha`, leyenda: true,
           svg: barrasApiladas({ cats: D.ps.map(p => p.parcela), res: D.ps.map(p => p.gRes || 0), ext: D.ps.map(p => p.g - (p.gRes || 0)), yLabel: 'Área basal (m²/ha)', xLabel: 'Parcela', dec: 2, fs: PDF_FS_680, intensidad: true, anchoBarra: 0.72 }) },
-        { id: 'ni', titulo: '3a. Densidad inicial por clase diamétrica y especie', sub: 'Antes de la intervención. Misma escala que el 3b.', leyenda: false,
+        { id: 'ni', titulo: '4a. Densidad inicial por clase diamétrica y especie', sub: 'Antes de la intervención. Misma escala que el 4b.', leyenda: false,
           svg: lineasEspecies({ filas: D.filas, especies: D.sp, variable: 'n', serie: 'ini', xLabel: 'Marca de clase diamétrica (cm)', yLabel: 'Densidad (árb/ha)', fs: PDF_FS_680 }) },
-        { id: 'nr', titulo: '3b. Densidad residual por clase diamétrica y especie', sub: 'Después de la intervención. Misma escala que el 3a.', leyenda: false,
-          svg: lineasEspecies({ filas: D.filas, especies: D.sp, variable: 'n', serie: 'res', xLabel: 'Marca de clase diamétrica (cm)', yLabel: 'Densidad (árb/ha)', fs: PDF_FS_680 }) },
-        { id: 'tc', titulo: '3c. Composición de la densidad por especie', sub: 'Porcentaje de la densidad (árb/ha) de cada especie, antes y después de la intervención.', leyenda: false,
-          svg: tortasEspecies({ especies: D.sp, fs: PDF_FS_680 }) }
+        { id: 'nr', titulo: '4b. Densidad residual por clase diamétrica y especie', sub: 'Después de la intervención. Misma escala que el 4a.', leyenda: false,
+          svg: lineasEspecies({ filas: D.filas, especies: D.sp, variable: 'n', serie: 'res', xLabel: 'Marca de clase diamétrica (cm)', yLabel: 'Densidad (árb/ha)', fs: PDF_FS_680 }) }
       ];
       const hm = mapaCalor({ especies: D.sp, parcelas: D.parcelasId, valor: (e, p) => ((D.ps.find(x => x.parcela === p).cuenta || {})[e.key] || 0) * r.FE, valorRes: (e, p) => (D.cuentaRes[e.key + '|' + p] || 0) * r.FE, fs: fsMapa(D.sp.map(e => e.nombre), D.parcelasId.length) });
-      figs.push({ id: 'esp', titulo: '4. Distribución espacial por especie (densidad inicial, árb/ha por parcela)', sub: 'Cada fila es una especie, con su propio color; cada celda es una parcela y la intensidad del tono indica la densidad de la especie en esa parcela, relativa a su máximo.', leyenda: false, ancho: 'completo', svg: hm.svg });
+      figs.push({ id: 'esp', titulo: '5. Distribución espacial por especie (densidad inicial, árb/ha por parcela)', sub: 'Cada fila es una especie, con su propio color; cada celda es una parcela y la intensidad del tono indica la densidad de la especie en esa parcela, relativa a su máximo.', leyenda: false, ancho: 'completo', svg: hm.svg });
       // ejes en negrita: valores y títulos de los ejes, rótulos de clase o parcela e intensidad de extracción
       // (textos en los colores de eje; no se cambian las leyendas de especies ni los números de las celdas del mapa)
       const ejes = [CLARA.muted, CLARA.ink2, CLARA.ext];

@@ -115,11 +115,11 @@
         <p class="nota">${r.simpodico ? 'Bosque simpódico: N = individuos (cepas)/ha; G y V incluyen todos los vástagos; clase según diámetro equivalente √(Σ d²). ' : ''}Densidad en árboles enteros por hectárea: en cada especie los valores por clase se redondean de modo que sumen el total de la especie redondeado. Columnas Res. = residual.${r.tot.ini.vCompleto ? '' : ' Hay especies sin función de volumen o sin altura: volumen parcial.'}</p>
       </section>`;
       // ---------- Gráficos (vertical) ----------
-      // Gráficos 1, 2a, 2b, 3a, 3b y 3c en una sola grilla de dos columnas (sin huecos entre secciones);
-      // las tortas de composición por especie (3c) ocupan la media columna junto al 3b.
+      // Gráficos en una sola grilla de dos columnas, por pares: 1 y 2 (distribución diamétrica y composición por
+      // especie), 3a y 3b (por parcela) y 4a y 4b (densidad inicial y residual por clase y especie).
       h += `<section class="pg">
         <h2 class="rodal">Rodal ${esc(r.id)} · Efectos de la intervención y sobre la estructura por especie</h2>
-        <div class="cols2">${figura(F.dd, true)}${figura(F.np, true)}${figura(F.gp, true)}${figura(F.ni, true)}${figura(F.nr, true)}${figura(F.tc, true)}
+        <div class="cols2">${figura(F.dd, true)}${figura(F.tc, true)}${figura(F.np, true)}${figura(F.gp, true)}${figura(F.ni, true)}${figura(F.nr, true)}
         </div>
       </section>
       <section class="pg">

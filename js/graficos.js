@@ -171,6 +171,45 @@
     });
     return s + '</svg>';
   }
+  /* ---------- tortas de composición por especie (densidad inicial y residual) ----------
+     Mismo ancho y alto que el gráfico de líneas por especie (con la misma leyenda), para ocupar la misma celda
+     de la grilla del informe. El porcentaje va dentro del sector, o fuera si el sector es pequeño. */
+  function tortasEspecies({ especies, ancho, fs = 1 }) {
+    const fz = (v) => +(v * fs).toFixed(1);
+    const P = paleta();
+    const W = ancho || 680, porFila = Math.max(1, Math.floor((W - 60) / fz(150))), filasLey = Math.ceil(especies.length / porFila);
+    const tv = fz(ROT.val), tt = fz(ROT.tit), H = 300 + filasLey * fz(18), t0 = 14 + filasLey * fz(18);
+    const lum = (hex) => { const n = parseInt(hex.replace('#', ''), 16); const c = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map(x => { x /= 255; return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4); }); return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]; };
+    const pct = (x) => fmt(x, x < 10 ? 1 : 0) + ' %';
+    // espacio libre bajo la leyenda: título de cada torta + torta con margen para los rótulos exteriores
+    const ext = tv * 1.6, r = Math.max(30, Math.min(W / 4 - ext - 6, (H - t0 - tt * 1.4 - 8) / 2 - ext));
+    let s = `<svg viewBox="0 0 ${W} ${H}" role="img" class="chart" xmlns="http://www.w3.org/2000/svg" font-family="${FUENTE}">`;
+    especies.forEach((e, i) => {
+      const lx = 12 + (i % porFila) * fz(150), ly = 10 + Math.floor(i / porFila) * fz(18), nom = e.nombre.length > 18 ? e.nombre.slice(0, 17) + '…' : e.nombre;
+      s += `<rect x="${lx + 3}" y="${ly - 1}" width="${fz(10)}" height="${fz(10)}" rx="2" fill="${colorEspecie(i)}"/><text x="${lx + 24}" y="${ly + fz(8)}" font-size="${fz(11)}" fill="${P.ink}">${esc(nom)}</text>`;
+    });
+    [['ini', 'Inicial'], ['res', 'Residual']].forEach(([c, rot], k) => {
+      const cx = W / 4 + k * W / 2, cy = t0 + tt * 1.4 + 4 + ext + r;
+      const vals = especies.map((e, i) => ({ i, nombre: e.nombre, v: (e[c] && e[c].n) || 0 })).filter(x => x.v > 0), tot = vals.reduce((a, x) => a + x.v, 0);
+      s += `<text x="${cx}" y="${+(t0 + tt).toFixed(1)}" text-anchor="middle" font-size="${tt}" fill="${P.ink2}">${rot} · ${fmt(tot, 0)} árb/ha</text>`;
+      if (!(tot > 0)) { s += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${P.empty}"/><text x="${cx}" y="${cy + tv * 0.35}" text-anchor="middle" font-size="${tv}" fill="${P.muted}">Sin densidad</text>`; return; }
+      let a = -Math.PI / 2;
+      const rotulos = [];
+      vals.forEach(x => {
+        const fr = x.v / tot, a1 = a + fr * 2 * Math.PI, am = (a + a1) / 2, col = colorEspecie(x.i);
+        const tip = `${x.nombre} · ${rot.toLowerCase()}|${fmt(x.v, 0)} árb/ha (${pct(fr * 100)})`;
+        if (fr > 0.9999) s += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${col}" data-tip="${esc(tip)}"/>`;
+        else s += `<path d="M${cx},${cy}L${+(cx + r * Math.cos(a)).toFixed(2)},${+(cy + r * Math.sin(a)).toFixed(2)}A${r},${r} 0 ${fr > 0.5 ? 1 : 0} 1 ${+(cx + r * Math.cos(a1)).toFixed(2)},${+(cy + r * Math.sin(a1)).toFixed(2)}Z" fill="${col}" stroke="${P.surface}" stroke-width="1.2" data-tip="${esc(tip)}"/>`;
+        // dentro del sector si cabe; si no, fuera, junto al borde
+        if (fr >= 0.07) rotulos.push(`<text x="${+(cx + r * 0.62 * Math.cos(am)).toFixed(1)}" y="${+(cy + r * 0.62 * Math.sin(am) + tv * 0.35).toFixed(1)}" text-anchor="middle" font-size="${tv}" font-weight="bold" fill="${lum(col) < 0.22 ? '#ffffff' : '#0b0b0b'}" pointer-events="none">${pct(fr * 100)}</text>`);
+        else if (fr >= 0.01) { const ca = Math.cos(am), re = r + tv * 0.5; rotulos.push(`<text x="${+(cx + re * ca).toFixed(1)}" y="${+(cy + re * Math.sin(am) + tv * 0.35).toFixed(1)}" text-anchor="${ca > 0.25 ? 'start' : ca < -0.25 ? 'end' : 'middle'}" font-size="${fz(11)}" fill="${P.ink}" pointer-events="none">${pct(fr * 100)}</text>`); }
+        a = a1;
+      });
+      s += rotulos.join('');
+    });
+    return s + '</svg>';
+  }
+
   /* ---------- mapa de calor especie × parcela ----------
      Cada especie (fila) tiene su propio color; la intensidad del tono indica la densidad de esa especie en la
      parcela, en 5 tramos relativos a su máximo (para ver dónde se concentra cada especie). */
@@ -284,10 +323,8 @@
     const filas = r.tabla.filter((f, i) => r.tabla.slice(i).some(x => x.tot.ini.n > 0) && r.tabla.slice(0, i + 1).some(x => x.tot.ini.n > 0));
     const ps = r.parcelas, sp = r.porEspecie.filter(e => e.ini.n > 0), parcelasId = ps.map(p => p.parcela);
     const cuentaRes = {}; r.arboles.forEach(a => { const k = a.key + '|' + a.parcela; cuentaRes[k] = (cuentaRes[k] || 0) + a.res; });
-    const dmcSp = (e, w, res) => { let s2 = 0, q = 0; r.arboles.filter(t => t.key === e.key).forEach(t => { const p = w(t); const d = res ? t.dapRes : t.dap; s2 += p * d * d; q += p; }); return q > 0 ? Math.sqrt(s2 / q) : null; };
-    const estructura = sp.map(e => ({ nombre: e.nombre, nIni: r.tot.ini.n ? e.ini.n / r.tot.ini.n * 100 : 0, nRes: r.tot.res.n ? e.res.n / r.tot.res.n * 100 : 0, gIni: r.tot.ini.g ? e.ini.g / r.tot.ini.g * 100 : 0, gRes: r.tot.res.g ? e.res.g / r.tot.res.g * 100 : 0, dmcIni: dmcSp(e, () => 1), dmcRes: dmcSp(e, t => t.res, true) }));
     const disp = sp.map(e => ({ nombre: e.nombre, d: dispersion(parcelasId.map(p => (ps.find(x => x.parcela === p).cuenta || {})[e.key] || 0)) }));
-    return { filas, ps, sp, parcelasId, cuentaRes, estructura, disp };
+    return { filas, ps, sp, parcelasId, cuentaRes, disp };
   }
   // En el PDF los gráficos se imprimen a media hoja: letra de ejes mayor, barras más anchas y eje de intensidad de extracción
   // Todos los gráficos se imprimen al mismo ancho de columna: para que la letra se vea del mismo tamaño que en el
@@ -309,7 +346,9 @@
         { id: 'ni', titulo: '3a. Densidad inicial por clase diamétrica y especie', sub: 'Antes de la intervención. Misma escala que el 3b.', leyenda: false,
           svg: lineasEspecies({ filas: D.filas, especies: D.sp, variable: 'n', serie: 'ini', xLabel: 'Marca de clase diamétrica (cm)', yLabel: 'Densidad (árb/ha)', fs: PDF_FS_680 }) },
         { id: 'nr', titulo: '3b. Densidad residual por clase diamétrica y especie', sub: 'Después de la intervención. Misma escala que el 3a.', leyenda: false,
-          svg: lineasEspecies({ filas: D.filas, especies: D.sp, variable: 'n', serie: 'res', xLabel: 'Marca de clase diamétrica (cm)', yLabel: 'Densidad (árb/ha)', fs: PDF_FS_680 }) }
+          svg: lineasEspecies({ filas: D.filas, especies: D.sp, variable: 'n', serie: 'res', xLabel: 'Marca de clase diamétrica (cm)', yLabel: 'Densidad (árb/ha)', fs: PDF_FS_680 }) },
+        { id: 'tc', titulo: '3c. Composición de la densidad por especie', sub: 'Porcentaje de la densidad (árb/ha) de cada especie, antes y después de la intervención.', leyenda: false,
+          svg: tortasEspecies({ especies: D.sp, fs: PDF_FS_680 }) }
       ];
       const hm = mapaCalor({ especies: D.sp, parcelas: D.parcelasId, valor: (e, p) => ((D.ps.find(x => x.parcela === p).cuenta || {})[e.key] || 0) * r.FE, valorRes: (e, p) => (D.cuentaRes[e.key + '|' + p] || 0) * r.FE, fs: fsMapa(D.sp.map(e => e.nombre), D.parcelasId.length) });
       figs.push({ id: 'esp', titulo: '4. Distribución espacial por especie (densidad inicial, árb/ha por parcela)', sub: 'Cada fila es una especie, con su propio color; cada celda es una parcela y la intensidad del tono indica la densidad de la especie en esa parcela, relativa a su máximo.', leyenda: false, ancho: 'completo', svg: hm.svg });

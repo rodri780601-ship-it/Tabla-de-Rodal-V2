@@ -115,14 +115,11 @@
         <p class="nota">${r.simpodico ? 'Bosque simpódico: N = individuos (cepas)/ha; G y V incluyen todos los vástagos; clase según diámetro equivalente √(Σ d²). ' : ''}Densidad en árboles enteros por hectárea: en cada especie los valores por clase se redondean de modo que sumen el total de la especie redondeado. Columnas Res. = residual.${r.tot.ini.vCompleto ? '' : ' Hay especies sin función de volumen o sin altura: volumen parcial.'}</p>
       </section>`;
       // ---------- Gráficos (vertical) ----------
-      // Gráficos 1, 2a, 2b, 3a y 3b en una sola grilla de dos columnas (sin huecos entre secciones);
-      // la tabla de estructura por especie, compacta, ocupa la media columna que queda junto al 3b.
+      // Gráficos 1, 2a, 2b, 3a, 3b y 3c en una sola grilla de dos columnas (sin huecos entre secciones);
+      // las tortas de composición por especie (3c) ocupan la media columna junto al 3b.
       h += `<section class="pg">
         <h2 class="rodal">Rodal ${esc(r.id)} · Efectos de la intervención y sobre la estructura por especie</h2>
-        <div class="cols2">${figura(F.dd, true)}${figura(F.np, true)}${figura(F.gp, true)}${figura(F.ni, true)}${figura(F.nr, true)}
-          <figure class="if mitad"><figcaption>3c. Estructura por especie</figcaption>
-            <table class="it compacta"><thead><tr><th>Especie</th><th>N ini %</th><th>N res %</th><th>G ini %</th><th>G res %</th><th>DMC ini (cm)</th><th>DMC res (cm)</th></tr></thead><tbody>${datos.estructura.map(e => `<tr><td>${esc(e.nombre)}</td><td class="n">${fmt(e.nIni)}</td><td class="n">${fmt(e.nRes)}</td><td class="n">${fmt(e.gIni)}</td><td class="n">${fmt(e.gRes)}</td><td class="n">${fmt(e.dmcIni)}</td><td class="n">${fmt(e.dmcRes)}</td></tr>`).join('')}</tbody></table>
-          </figure>
+        <div class="cols2">${figura(F.dd, true)}${figura(F.np, true)}${figura(F.gp, true)}${figura(F.ni, true)}${figura(F.nr, true)}${figura(F.tc, true)}
         </div>
       </section>
       <section class="pg">

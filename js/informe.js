@@ -119,7 +119,7 @@
       // la tabla de estructura por especie, compacta, ocupa la media columna que queda junto al 3b.
       h += `<section class="pg">
         <h2 class="rodal">Rodal ${esc(r.id)} · Efectos de la intervención y sobre la estructura por especie</h2>
-        <div class="cols2">${figura(F.dd, true)}${figura(F.np, true)}${figura(F.gp, true)}${figura(F.ne, true)}${figura(F.ge, true)}
+        <div class="cols2">${figura(F.dd, true)}${figura(F.np, true)}${figura(F.gp, true)}${figura(F.ni, true)}${figura(F.nr, true)}
           <figure class="if mitad"><figcaption>3c. Estructura por especie</figcaption>
             <table class="it compacta"><thead><tr><th>Especie</th><th>N ini %</th><th>N res %</th><th>G ini %</th><th>G res %</th><th>DMC ini (cm)</th><th>DMC res (cm)</th></tr></thead><tbody>${datos.estructura.map(e => `<tr><td>${esc(e.nombre)}</td><td class="n">${fmt(e.nIni)}</td><td class="n">${fmt(e.nRes)}</td><td class="n">${fmt(e.gIni)}</td><td class="n">${fmt(e.gRes)}</td><td class="n">${fmt(e.dmcIni)}</td><td class="n">${fmt(e.dmcRes)}</td></tr>`).join('')}</tbody></table>
           </figure>

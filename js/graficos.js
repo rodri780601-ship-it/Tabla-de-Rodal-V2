@@ -122,12 +122,14 @@
   /* ---------- líneas por clase diamétrica, una por especie (pauta CONAF 12.3.6) ----------
      var = 'n' (densidad, árb/ha) o 'g' (área basal, m²/ha). Línea continua = inicial; segmentada = residual
      (sólo si hay intervención). La leyenda va dentro del SVG para que se conserve en el PDF y en el PNG. */
-  function lineasEspecies({ filas, especies, variable, xLabel, yLabel, ancho, fs = 1 }) {
+  // serie = 'ini' o 'res' dibuja sólo esa serie, con línea continua (la escala del eje Y sigue considerando ambas,
+  // para que el gráfico inicial y el residual se puedan comparar directamente).
+  function lineasEspecies({ filas, especies, variable, xLabel, yLabel, ancho, fs = 1, serie }) {
     const fz = (v) => +(v * fs).toFixed(1);
     const P = paleta();
     const vk = variable || 'n', dec = vk === 'g' ? 2 : 0, unidad = vk === 'g' ? 'm²/ha' : 'árb/ha';
     const val = (f, e, c) => (f.sp[e.key] && f.sp[e.key][c]) ? f.sp[e.key][c][vk] || 0 : 0;
-    const conRes = especies.some(e => filas.some(f => Math.abs(val(f, e, 'ini') - val(f, e, 'res')) > 1e-9));
+    const conRes = !serie && especies.some(e => filas.some(f => Math.abs(val(f, e, 'ini') - val(f, e, 'res')) > 1e-9));
     const W = ancho || 680, porFila = Math.max(1, Math.floor((W - 60) / fz(150))), filasLey = Math.ceil(especies.length / porFila) + (conRes ? 1 : 0);
     const tv = fz(ROT.val), tt = fz(ROT.tit), fmtC = (x) => fmt(x, x % 1 ? 1 : 0);
     const top = niceMax(Math.max(...especies.flatMap(e => filas.map(f => Math.max(val(f, e, 'ini'), val(f, e, 'res')))), 0)), tk = ticks(top), dt = decTick(top);
@@ -153,18 +155,18 @@
     s += `<text x="${m.l + iw / 2}" y="${+(H - 4 - tt * 0.22).toFixed(1)}" text-anchor="middle" font-size="${tt}" fill="${P.ink2}">${esc(xLabel)}</text>`;
     especies.forEach((e, i) => {
       const col = colorEspecie(i);
-      (conRes ? ['ini', 'res'] : ['ini']).forEach(c => {
+      (serie ? [serie] : conRes ? ['ini', 'res'] : ['ini']).forEach(c => {
         const vals = filas.map(f => val(f, e, c));
         // con intervención, la inicial va tenue y la residual destacada; sin intervención, la inicial va con color pleno
         const tenue = conRes && c === 'ini', op = tenue ? 0.38 : 1;
-        s += `<polyline points="${vals.map((v, j) => `${x(j)},${y(v)}`).join(' ')}" fill="none" stroke="${col}" stroke-opacity="${op}" stroke-width="${tenue ? 1.6 : 2.4}" ${c === 'res' ? 'stroke-dasharray="6 3"' : ''} stroke-linejoin="round" stroke-linecap="round"/>`;
+        s += `<polyline points="${vals.map((v, j) => `${x(j)},${y(v)}`).join(' ')}" fill="none" stroke="${col}" stroke-opacity="${op}" stroke-width="${tenue ? 1.6 : 2.4}" ${c === 'res' && !serie ? 'stroke-dasharray="6 3"' : ''} stroke-linejoin="round" stroke-linecap="round"/>`;
         vals.forEach((v, j) => { s += `<circle cx="${x(j)}" cy="${y(v)}" r="${tenue ? 2.4 : 3.2}" fill="${col}" fill-opacity="${op}" stroke="#fff" stroke-width="1"/>`; });
       });
     });
     // franjas transparentes por clase para el tooltip con todas las especies
     filas.forEach((f, j) => {
       const w = n === 1 ? iw : iw / (n - 1), x0 = x(j) - w / 2;
-      const tip = `Clase ${fmtC(f.clase.li)} – ${fmtC(f.clase.ls)} cm|` + especies.map(e => `${e.nombre}: ${fmt(val(f, e, 'ini'), dec)}${conRes ? ' → ' + fmt(val(f, e, 'res'), dec) : ''} ${unidad}`).join('|');
+      const tip = `Clase ${fmtC(f.clase.li)} – ${fmtC(f.clase.ls)} cm|` + especies.map(e => `${e.nombre}: ${fmt(val(f, e, serie || 'ini'), dec)}${conRes ? ' → ' + fmt(val(f, e, 'res'), dec) : ''} ${unidad}`).join('|');
       s += `<rect x="${x0}" y="${m.t}" width="${w}" height="${ih}" fill="transparent" data-tip="${esc(tip)}"/>`;
     });
     return s + '</svg>';
@@ -304,10 +306,10 @@
           svg: barrasApiladas({ cats: D.ps.map(p => p.parcela), res: D.ps.map(p => p.nRes || 0), ext: D.ps.map(p => p.n - (p.nRes || 0)), yLabel: 'Densidad (árb/ha)', xLabel: 'Parcela', fs: PDF_FS_680, intensidad: true, anchoBarra: 0.72 }) },
         { id: 'gp', titulo: '2b. Área basal por parcela', sub: `Media ${fmt(r.tot.ini.g, 2)} → ${fmt(r.tot.res.g, 2)} m²/ha`, leyenda: true,
           svg: barrasApiladas({ cats: D.ps.map(p => p.parcela), res: D.ps.map(p => p.gRes || 0), ext: D.ps.map(p => p.g - (p.gRes || 0)), yLabel: 'Área basal (m²/ha)', xLabel: 'Parcela', dec: 2, fs: PDF_FS_680, intensidad: true, anchoBarra: 0.72 }) },
-        { id: 'ne', titulo: '3a. Densidad por clase diamétrica y especie', sub: 'Línea continua = inicial; segmentada = residual.', leyenda: false,
-          svg: lineasEspecies({ filas: D.filas, especies: D.sp, variable: 'n', xLabel: 'Marca de clase diamétrica (cm)', yLabel: 'Densidad (árb/ha)', fs: PDF_FS_680 }) },
-        { id: 'ge', titulo: '3b. Área basal por clase diamétrica y especie', sub: 'Línea continua = inicial; segmentada = residual.', leyenda: false,
-          svg: lineasEspecies({ filas: D.filas, especies: D.sp, variable: 'g', xLabel: 'Marca de clase diamétrica (cm)', yLabel: 'Área basal (m²/ha)', fs: PDF_FS_680 }) }
+        { id: 'ni', titulo: '3a. Densidad inicial por clase diamétrica y especie', sub: 'Antes de la intervención. Misma escala que el 3b.', leyenda: false,
+          svg: lineasEspecies({ filas: D.filas, especies: D.sp, variable: 'n', serie: 'ini', xLabel: 'Marca de clase diamétrica (cm)', yLabel: 'Densidad (árb/ha)', fs: PDF_FS_680 }) },
+        { id: 'nr', titulo: '3b. Densidad residual por clase diamétrica y especie', sub: 'Después de la intervención. Misma escala que el 3a.', leyenda: false,
+          svg: lineasEspecies({ filas: D.filas, especies: D.sp, variable: 'n', serie: 'res', xLabel: 'Marca de clase diamétrica (cm)', yLabel: 'Densidad (árb/ha)', fs: PDF_FS_680 }) }
       ];
       const hm = mapaCalor({ especies: D.sp, parcelas: D.parcelasId, valor: (e, p) => ((D.ps.find(x => x.parcela === p).cuenta || {})[e.key] || 0) * r.FE, valorRes: (e, p) => (D.cuentaRes[e.key + '|' + p] || 0) * r.FE, fs: fsMapa(D.sp.map(e => e.nombre), D.parcelasId.length) });
       figs.push({ id: 'esp', titulo: '4. Distribución espacial por especie (densidad inicial, árb/ha por parcela)', sub: 'Cada fila es una especie, con su propio color; cada celda es una parcela y la intensidad del tono indica la densidad de la especie en esa parcela, relativa a su máximo.', leyenda: false, ancho: 'completo', svg: hm.svg });

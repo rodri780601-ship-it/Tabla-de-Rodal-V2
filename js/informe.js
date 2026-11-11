@@ -66,22 +66,7 @@
       ${(() => { const e = window.APP_estratificado(); return e ? `<tr class="tot"><td>Conjunto (estratificado)</td><td class="n">${e.n}</td><td class="n">${fmt(e.t, 3)}</td><td class="n">${fmt(e.N.media, 0)}</td><td class="n">${fmt(e.G.media, 2)}</td><td>—</td><td>—</td><td class="n">${fmt(e.N.var, 2)}</td><td class="n">${fmt(e.G.var, 4)}</td><td>—</td><td>—</td><td class="n">${fmt(e.N.ePct, 1)}</td><td class="n">${fmt(e.G.ePct, 1)}</td></tr>` : ''; })()}
       </tbody></table>
     </section>`;
-    // ---------- Coordenadas UTM de las parcelas y parámetros parciales (pauta CONAF, 12.1.2) ----------
     const U = S.utm || { huso: '', parcelas: {} };
-    h += `<section class="pg">
-      <h2>Coordenadas UTM de las parcelas de muestreo</h2>
-      <p>Datum WGS 84 · Huso ${U.huso ? esc(U.huso) + ' S' : 'no informado'}</p>
-      <table class="it"><thead><tr><th>Rodal</th><th>Parcela</th><th>Árboles</th><th>N (árb/ha)</th><th>G (m²/ha)</th><th>Este (m)</th><th>Norte (m)</th></tr></thead><tbody>
-      ${rs.map(r => r.parcelas.map(p => { const c = U.parcelas[r.id + '|' + p.parcela] || {}; const co = (v) => v === '' || v == null ? '—' : fmt(Number(v), 0); return `<tr><td>${esc(r.id)}</td><td>${esc(p.parcela)}</td><td class="n">${p.arboles}</td><td class="n">${fmt(p.n, 0)}</td><td class="n">${fmt(p.g, 2)}</td><td class="n">${co(c.e)}</td><td class="n">${co(c.n)}</td></tr>`; }).join('')).join('')}
-      </tbody></table>
-      <p class="nota">Densidad y área basal por parcela, de carácter referencial, para apoyar el análisis de la homogeneidad del rodal.</p>
-    </section>`;
-    // ---------- Funciones de volumen utilizadas (a continuación de las coordenadas) ----------
-    const usadas = new Map(); rs.forEach(r => r.porEspecie.forEach(e => { if (e.fid) { const u = usadas.get(e.fid) || new Set(); u.add(e.nombre); usadas.set(e.fid, u); } }));
-    h += `<section class="pg"><h2>Funciones de volumen utilizadas</h2>
-      <table class="it"><thead><tr><th>N°</th><th>Especie</th><th>Región</th><th>Ecuación</th><th>Variable</th><th>Fuente</th></tr></thead><tbody>
-      ${[...usadas.keys()].sort(window.CALC.ordenFid).map(id => { const f = window.CALC.FN[id]; return `<tr><td>${f.usuario ? 'Usuario' : f.id}</td><td>${esc([...usadas.get(id)].join(', '))}</td><td>${esc(f.regiones.join(' - '))}</td><td class="eq">${esc(f.eq)}</td><td>${esc(f.variable)}</td><td>${esc(f.fuente)} (${esc(f.anio)})</td></tr>`; }).join('')}
-      </tbody></table></section>`;
 
     rs.forEach(r => {
       const { figs } = window.GRAFICOS.figurasRodal(r);
@@ -125,6 +110,21 @@
       <section class="pg">
         <h2 class="rodal">Rodal ${esc(r.id)} · Distribución espacial por especie y estado de desarrollo por parcela</h2>
         <div class="cols2">${figura(F.esp, true)}${figura(F.ep, true)}</div>
+      </section>`;
+      // ---------- Anexo del rodal: coordenadas UTM y funciones de volumen ----------
+      const usadas = new Map(); r.porEspecie.forEach(e => { if (e.fid) { const u = usadas.get(e.fid) || new Set(); u.add(e.nombre); usadas.set(e.fid, u); } });
+      h += `<section class="pg">
+        <h2 class="rodal">Rodal ${esc(r.id)} · Anexo</h2>
+        <h3>Coordenadas UTM de las parcelas de muestreo</h3>
+        <p>Datum WGS 84 · Huso ${U.huso ? esc(U.huso) + ' S' : 'no informado'}</p>
+        <table class="it"><thead><tr><th>Parcela</th><th>Árboles</th><th>N (árb/ha)</th><th>G (m²/ha)</th><th>Este (m)</th><th>Norte (m)</th></tr></thead><tbody>
+        ${r.parcelas.map(p => { const c = U.parcelas[r.id + '|' + p.parcela] || {}; const co = (v) => v === '' || v == null ? '—' : fmt(Number(v), 0); return `<tr><td>${esc(p.parcela)}</td><td class="n">${p.arboles}</td><td class="n">${fmt(p.n, 0)}</td><td class="n">${fmt(p.g, 2)}</td><td class="n">${co(c.e)}</td><td class="n">${co(c.n)}</td></tr>`; }).join('')}
+        </tbody></table>
+        <p class="nota">Densidad y área basal por parcela, de carácter referencial, para apoyar el análisis de la homogeneidad del rodal.</p>
+        <h3>Funciones de volumen utilizadas</h3>
+        <table class="it"><thead><tr><th>N°</th><th>Especie</th><th>Región</th><th>Ecuación</th><th>Variable</th><th>Fuente</th></tr></thead><tbody>
+        ${[...usadas.keys()].sort(window.CALC.ordenFid).map(id => { const f = window.CALC.FN[id]; return `<tr><td>${f.usuario ? 'Usuario' : f.id}</td><td>${esc([...usadas.get(id)].join(', '))}</td><td>${esc(f.regiones.join(' - '))}</td><td class="eq">${esc(f.eq)}</td><td>${esc(f.variable)}</td><td>${esc(f.fuente)} (${esc(f.anio)})</td></tr>`; }).join('')}
+        </tbody></table>
       </section>`;
     });
     h += `<section class="pg"><p class="nota">Los resultados son una ayuda para el profesional y deben revisarse antes de su presentación.</p></section>`;

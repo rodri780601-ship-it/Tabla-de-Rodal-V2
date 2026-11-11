@@ -856,7 +856,7 @@
         <tr><td>Volumen (m³/ha)</td><td class="num">${vol(t.ini)}</td><td class="num">${t.ext.v == null ? '—' : fmt(t.ext.v, 1)}</td><td class="num">${vol(t.res)}</td><td class="num">${t.ini.v && t.ext.v != null ? pct(t.ext.v, t.ini.v) : '—'}</td></tr>
         <tr><td>DMC (cm)</td><td class="num">${fmt(r.DMCini)}</td><td class="num">—</td><td class="num">${fmt(r.DMCres)}</td><td class="num">—</td></tr>
       </tbody></table></div>
-      <p class="muted" style="font-size:12px">Estado de desarrollo residual: ${esc(r.estadoRes.estado || '—')}. La verificación de requisitos de la actividad está en la sección 7 · Cumplimiento.</p>`;
+      <p class="muted" style="font-size:12px">Estado de desarrollo residual: ${esc(r.estadoRes.estado || '—')}. La verificación de requisitos de la actividad está en la sección 7 · Normativa.</p>`;
   }
   function renderInputsActividad() {
     const id = rodalActual, cfg = S.cfgRodal[id]; const act = N.ACTIVIDADES.find(a => a.id === cfg.actividad) || {};
@@ -1039,7 +1039,9 @@
   window.APP_recalcStats = recalcStats;
 
   /* ======================= 6. Cumplimiento ======================= */
-  const lblEstado = { si: ['ok', 'Cumple'], no: ['bad', 'No cumple'], obs: ['warn', 'Observación'], pend: ['info', 'Pendiente'] };
+  const lblEstado = { si: ['ok', 'Cumple'], no: ['bad', 'No cumple'], obs: ['warn', 'Observación'], pend: ['bad', 'Incompleto'] };
+  // Verificaciones agrupadas por resultado: no cumple, cumple, incompleto y observación
+  const ORDEN_VERIF = ['no', 'si', 'pend', 'obs'];
   function renderCumplimiento() {
     const rs = S.rodales.map(id => S.resultados[id]);
     $('#tblResumen').innerHTML = `<table class="data"><thead><tr><th>Rodal</th><th>Tipo forestal</th><th>Estado de desarrollo</th><th>Categoría (Ley 20.283)</th><th class="num">DMC ini/res (cm)</th><th class="num">N ini/res</th><th class="num">G ini/res</th><th class="num">V ini/res</th><th>Actividad inmediata</th></tr></thead><tbody>` +
@@ -1063,10 +1065,10 @@
       else cfg[el.dataset.scf] = el.value === '' ? '' : Number(el.value);
       recalcular();
     }));
-    $('#detalleCumplimiento').innerHTML = rs.map(r => `
+    $('#detalleCumplimiento').innerHTML = '<h2 class="titulo-verif">Verificación normativa</h2>' + rs.map(r => `
       <div class="card">
         <div class="card-head"><h2>Rodal ${esc(r.id)} · ${esc(r.bases.actividad ? r.bases.actividad.nombre : 'Sin actividad')}</h2><span class="tag ${r.bases.clase}">${esc(r.bases.resultado)}</span></div>
-        ${r.bases.checks.length ? `<ul class="checks">${r.bases.checks.map(c => `<li><span class="tag ${lblEstado[c.estado][0]}">${lblEstado[c.estado][1]}</span><div><b>${esc(c.item)}</b> · ${esc(c.detalle)} <span class="ref">${esc(c.ref)}</span></div></li>`).join('')}</ul>` : `<p class="muted">Seleccione la actividad inmediata a ejecutar en la pestaña 4 para verificar sus requisitos.</p>`}
+        ${r.bases.checks.length ? `<ul class="checks">${[...r.bases.checks].sort((x, y) => ORDEN_VERIF.indexOf(x.estado) - ORDEN_VERIF.indexOf(y.estado)).map(c => `<li>${c.estado === 'pend' && c.dest ? `<button type="button" class="tag bad tag-link" data-ir-tab="${esc(c.dest.tab)}" data-ir-sel="${esc(c.dest.sel)}" data-ir-rodal="${esc(r.id)}" title="Ir al dato que falta">${lblEstado[c.estado][1]} ›</button>` : `<span class="tag ${lblEstado[c.estado][0]}">${lblEstado[c.estado][1]}</span>`}<div><b>${esc(c.item)}</b> · ${esc(c.detalle)} <span class="ref">${esc(c.ref)}</span></div></li>`).join('')}</ul>` : `<p class="muted">Seleccione la actividad inmediata a ejecutar en la pestaña 4 para verificar sus requisitos.</p>`}
         <h3>Restricciones de los métodos de corta para el tipo ${esc(r.tipo.nombre)} (D.S. 259)</h3>
         ${r.metodos.especial ? `<div class="aviso bad">${esc(r.metodos.especial)}</div>` : ''}
         <div class="table-wrap"><table class="data"><thead><tr><th>Método</th><th>Aplicable</th><th>Requisitos de regeneración</th><th>Restricciones y observaciones</th></tr></thead><tbody>
@@ -1074,6 +1076,25 @@
         </tbody></table></div>
       </div>`).join('');
   }
+
+  // «Incompleto»: lleva a la sección donde se ingresa el dato que falta y lo resalta en rojo hasta que se modifique
+  $('#detalleCumplimiento').addEventListener('click', (ev) => {
+    const b = ev.target.closest('[data-ir-tab]'); if (!b) return;
+    const { irTab: tab, irSel: sel, irRodal: rod } = b.dataset;
+    rodalActual = rod;
+    if (seccionActual() !== tab) irA(tab);
+    setTimeout(() => {
+      const el = $(sel, $('#tab-' + tab)); if (!el) return;
+      const caja = el.closest('label') || el;
+      if (el.tagName === 'DETAILS') el.open = true;
+      $$('.campo-faltante').forEach(x => x.classList.remove('campo-faltante'));
+      caja.classList.add('campo-faltante');
+      caja.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      if (el.tagName !== 'DETAILS' && el.focus) el.focus({ preventScroll: true });
+      const quitar = () => caja.classList.remove('campo-faltante');
+      el.addEventListener('input', quitar, { once: true }); el.addEventListener('change', quitar, { once: true });
+    }, 60);
+  });
 
   /* ======================= Exportar ======================= */
   $('#btnExportar').addEventListener('click', async () => {

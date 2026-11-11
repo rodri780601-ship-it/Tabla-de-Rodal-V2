@@ -375,3 +375,10 @@ label.campo-ajustado select { border-color: var(--warn); font-weight: 600; }
 label .tag-ajustado { margin-left: 6px; vertical-align: 1px; }
 /* ---------- Sección 2: alturas por rodal y especie ---------- */
 #tblAlturas tr.sep-rodal td { border-top: 2px solid var(--line); }
+
+/* Datos incompletos de la sección Normativa: etiqueta que lleva al campo y campo resaltado */
+button.tag-link { border: 0; cursor: pointer; font: inherit; font-weight: 600; }
+button.tag-link:hover { filter: brightness(0.95); text-decoration: underline; }
+.campo-faltante { background: var(--bad-soft); box-shadow: inset 4px 0 0 var(--bad), 0 0 0 2px var(--bad); border-radius: 6px; padding: 6px 8px 8px 12px; }
+.campo-faltante input, .campo-faltante select { border-color: var(--bad); }
+.titulo-verif { margin: 18px 0 8px; }

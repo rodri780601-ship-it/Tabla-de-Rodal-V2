@@ -178,7 +178,7 @@
 
   function hojaCumplimiento(S) {
     const s = ST(); const rows = [[{ v: 'Verificación de requisitos de la actividad y restricciones de los métodos de corta (D.S. 259)', s: s.title }], []];
-    const map = { si: ['Cumple', s.ok], no: ['No cumple', s.bad], obs: ['Observación', s.warn], pend: ['Pendiente', s.warn] };
+    const map = { si: ['Cumple', s.ok], no: ['No cumple', s.bad], obs: ['Observación', s.warn], pend: ['Incompleto', s.bad] };
     S.rodales.forEach(id => {
       const r = S.resultados[id], b = r.bases;
       rows.push([{ v: `Rodal ${id} · ${b.actividad ? b.actividad.nombre : 'Sin actividad'} · Resultado: ${b.resultado}`, s: s.subtitle }]);

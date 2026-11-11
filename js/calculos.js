@@ -628,7 +628,7 @@
      Arts. 3, 4, 5, 12, 15 y 16: recordatorios que dependen de datos de terreno que el inventario no registra. */
   function evaluarRSAH(r, cfg, ctx) {
     const out = [];
-    const add = (item, estado, detalle, ref) => out.push({ item, estado, detalle, ref });
+    const add = (item, estado, detalle, ref, dest) => out.push({ item, estado, detalle, ref, dest });
     const rp = rangoPendiente(cfg.pendiente);
     const pend45 = rp === '45a60' || rp === 'ge60';
     const reg = ctx.region, australes = reg === 'XI' || reg === 'XII';
@@ -648,14 +648,14 @@
       }
     }
     const refCob = escPal ? 'D.S. 82 art. 7' : 'D.S. 82 art. 8';
-    if (min == null) add('Cobertura residual mínima', 'pend', 'Seleccione la pendiente predominante del rodal para determinar la cobertura arbórea y arbustiva mínima que debe quedar.', refCob);
-    else if (cob == null) add(`Cobertura residual mínima (${min} %)`, 'pend', `${regla}: debe quedar una cobertura arbórea y arbustiva de al menos ${min} %. Ingrese la cobertura residual estimada en la sección 4 (Intervención propuesta).`, refCob);
+    if (min == null) add('Cobertura residual mínima', 'pend', 'Seleccione la pendiente predominante del rodal para determinar la cobertura arbórea y arbustiva mínima que debe quedar.', refCob, { tab: 'rodales', sel: '[data-f="pendiente"]' });
+    else if (cob == null) add(`Cobertura residual mínima (${min} %)`, 'pend', `${regla}: debe quedar una cobertura arbórea y arbustiva de al menos ${min} %. Ingrese la cobertura residual estimada en la sección 4 (Intervención propuesta).`, refCob, { tab: 'intervencion', sel: '[data-f="coberturaRes"]' });
     else add(`Cobertura residual mínima (${min} %)`, cob >= min ? 'si' : 'no', `${regla}: cobertura arbórea y arbustiva residual estimada ${cob} % (mínimo ${min} %).`, refCob);
     add('Residuos leñosos', 'obs', 'Los residuos leñosos de diámetro inferior a 3 cm no pueden retirarse del área afecta.', refCob);
     // Profundidad de suelo (art. 9)
     const prof = cfg.profSuelo === '' || cfg.profSuelo == null ? null : Number(cfg.profSuelo);
     const lim = reg === 'XII' ? 10 : 20;
-    if (prof == null) add(`Profundidad del suelo (≥ ${lim} cm)`, 'pend', `Ingrese la profundidad del suelo en «Suelo y clima» (sección 7): se prohíbe la corta de bosque nativo en suelos de menos de ${lim} cm${reg === 'XII' ? ' (Región de Magallanes)' : ''}.`, 'D.S. 82 art. 9');
+    if (prof == null) add(`Profundidad del suelo (≥ ${lim} cm)`, 'pend', `Ingrese la profundidad del suelo en «Suelo y clima» (sección 7): se prohíbe la corta de bosque nativo en suelos de menos de ${lim} cm${reg === 'XII' ? ' (Región de Magallanes)' : ''}.`, 'D.S. 82 art. 9', { tab: 'cumplimiento', sel: `[data-sc="${r.id}"][data-scf="profSuelo"]` });
     else add(`Profundidad del suelo (≥ ${lim} cm)`, prof >= lim ? 'si' : 'no', `Profundidad del suelo ${prof} cm${prof < lim ? ': se prohíbe la corta de bosque nativo' : ''}.`, 'D.S. 82 art. 9');
     if (reg === 'XII' && (r.tipo.id === 'LEN' || r.tipo.id === 'CM') && r.hProm != null && r.hProm <= 8) {
       const adulto = ['Fustal joven', 'Fustal', 'Sobremaduro'].includes(r.estado.estado);
@@ -674,7 +674,7 @@
     let act = N.ACTIVIDADES.find(a => a.id === (cfg.actividad || 'NINGUNA'));
     const checks = [];
     // las referencias citan sólo la normativa (Ley 20.283, D.S. 259, D.S. 82); no se citan las Bases Técnicas
-    const add = (item, estado, detalle, ref) => checks.push({ item, estado, detalle, ref: String(ref || '').replace(/Bases[^;]*(;\s*|$)/g, '').trim() });
+    const add = (item, estado, detalle, ref, dest) => checks.push({ item, estado, detalle, ref: String(ref || '').replace(/Bases[^;]*(;\s*|$)/g, '').trim(), dest });
     const f1 = (x, d = 1) => x == null ? '—' : x.toLocaleString('es-CL', { minimumFractionDigits: d, maximumFractionDigits: d });
     if (!act || act.id === 'NINGUNA') return { actividad: act, checks, resultado: 'Sin actividad seleccionada', clase: 'neutral' };
     // la corta sanitaria se ofrece una sola vez: en bosques de preservación se evalúa como literal a)
@@ -684,7 +684,7 @@
     if (act.regla === 'OTRA') {
       const txt = String(cfg.otraActividad || '').trim();
       act.nombre = txt ? 'Otra actividad: ' + txt : 'Otra actividad (sin describir)';
-      if (!txt) add('Descripción de la actividad', 'pend', 'Indique cuál es la otra actividad inmediata a ejecutar.', '');
+      if (!txt) add('Descripción de la actividad', 'pend', 'Indique cuál es la otra actividad inmediata a ejecutar.', '', { tab: 'intervencion', sel: '[data-f="otraActividad"]' });
       else add('Otra actividad', 'obs', `${txt}. La aplicación no verifica los requisitos de esta actividad: deben justificarse en el estudio técnico.`, '');
       if (r.tot.ext.n > 0.0001 && r.rsah) r.rsah.forEach(c => checks.push(c));
       const hayPendO = checks.some(c => c.estado === 'pend'), hayNoO = checks.some(c => c.estado === 'no');
@@ -722,7 +722,7 @@
     } else if (act.estados) {
       const e = r.estado.estado;
       if (r.estado.noAplica) add('Estado de desarrollo', 'obs', `No aplica. ${r.estado.criterio}. La actividad se define por estados de desarrollo (${act.estados.join(', ')}): verifique que corresponda al rodal.`, 'Bases 2.5 y ' + act.ref);
-      else if (!e) add('Estado de desarrollo', 'pend', r.estado.criterio, 'Bases 2.5');
+      else if (!e) add('Estado de desarrollo', 'pend', r.estado.criterio, 'Bases 2.5', { tab: 'rodales', sel: '[data-f="estadoManual"]' });
       else if (act.estados.includes(e)) {
         if (act.excepcional && act.excepcional.includes(e)) add('Estado de desarrollo', 'obs', `${e}: aplicable sólo excepcionalmente; debe justificarse.`, 'Bases ' + act.ref);
         else add('Estado de desarrollo', 'si', `${e} (${r.estado.criterio}).`, 'Bases 2.5 y ' + act.ref);
@@ -762,7 +762,7 @@
         if (interes.length) {
           const extI = r.porEspecie.filter(e => interes.includes(e.key) && e.ext.n > 0.0001);
           add('Especies cortadas distintas a las de interés', extI.length ? 'no' : 'si', extI.length ? 'Se cortan individuos de especies de interés: ' + extI.map(e => e.nombre).join(', ') : 'Sólo se cortan especies distintas a las de interés.', 'Bases ' + act.ref);
-        } else add('Especies de interés', 'pend', 'Indique las especies de interés para verificar que la corta recae sobre especies distintas.', 'Bases ' + act.ref);
+        } else add('Especies de interés', 'pend', 'Indique las especies de interés para verificar que la corta recae sobre especies distintas.', 'Bases ' + act.ref, { tab: 'intervencion', sel: '#boxInputs details' });
         break;
       }
       case 'RALEO':
@@ -774,31 +774,31 @@
         break;
       case 'PODA_FITO': {
         const nd = Number(inp.nDanados), np = Number(inp.nPodar);
-        if (!(np > 0) || !(nd >= 0) || inp.nDanados === '' || inp.nDanados == null) add('Árboles a podar', 'pend', 'Ingrese los árboles dañados/ha y los árboles a podar/ha.', 'Bases ' + act.ref);
+        if (!(np > 0) || !(nd >= 0) || inp.nDanados === '' || inp.nDanados == null) add('Árboles a podar', 'pend', 'Ingrese los árboles dañados/ha y los árboles a podar/ha.', 'Bases ' + act.ref, { tab: 'intervencion', sel: inp.nDanados === '' || inp.nDanados == null ? '[data-in="nDanados"]' : '[data-in="nPodar"]' });
         else add('Árboles a podar', np >= 0.5 * nd && np >= 50 ? 'si' : 'no', `A podar: ${f1(np)} árb/ha; mínimo 50 % de ${f1(nd)} dañados/ha y no menos de 50 árb/ha.`, 'Bases ' + act.ref);
         break;
       }
       case 'PODA_NM': {
         const ni = inp.nInteres === '' || inp.nInteres == null ? r.tot.ini.n : Number(inp.nInteres), np = Number(inp.nPodar);
-        if (!(np > 0)) add('Árboles a podar', 'pend', 'Ingrese los árboles a podar/ha.', 'Bases ' + act.ref);
+        if (!(np > 0)) add('Árboles a podar', 'pend', 'Ingrese los árboles a podar/ha.', 'Bases ' + act.ref, { tab: 'intervencion', sel: '[data-in="nPodar"]' });
         else add('Árboles a podar', np >= 0.5 * ni && np >= 50 ? 'si' : 'no', `A podar: ${f1(np)} árb/ha; mínimo 50 % de ${f1(ni)} individuos de interés/ha y no menos de 50 árb/ha.`, 'Bases ' + act.ref);
         break;
       }
       case 'PODA_LA': case 'PODA_LB': {
         const min = act.regla === 'PODA_LA' ? 200 : 400, np = Number(inp.nPodar);
-        if (!(np > 0)) add('Árboles a podar', 'pend', `Ingrese los árboles a podar/ha (mínimo ${min}).`, 'Bases ' + act.ref);
+        if (!(np > 0)) add('Árboles a podar', 'pend', `Ingrese los árboles a podar/ha (mínimo ${min}).`, 'Bases ' + act.ref, { tab: 'intervencion', sel: '[data-in="nPodar"]' });
         else add(`Árboles a podar (≥ ${min} árb/ha)`, np >= min && np <= r.tot.ini.n + 1e-6 ? 'si' : 'no', `A podar: ${f1(np)} árb/ha; existencia: ${f1(r.tot.ini.n)} árb/ha.`, 'Bases ' + act.ref);
         break;
       }
       case 'RECUPERACION': {
         const pd = Number(inp.pctDanados);
-        if (inp.pctDanados === '' || inp.pctDanados == null) add('Individuos dañados por incendio', 'pend', 'Ingrese el porcentaje de individuos arbóreos dañados (mínimo 40 %).', 'Bases ' + act.ref);
+        if (inp.pctDanados === '' || inp.pctDanados == null) add('Individuos dañados por incendio', 'pend', 'Ingrese el porcentaje de individuos arbóreos dañados (mínimo 40 %).', 'Bases ' + act.ref, { tab: 'intervencion', sel: '[data-in="pctDanados"]' });
         else add('Individuos dañados por incendio (≥ 40 %)', pd >= 40 ? 'si' : 'no', `Individuos dañados: ${f1(pd)} %.`, 'Bases ' + act.ref);
         break;
       }
       case 'REGENERACION': {
         const m = r.metodos.metodos.find(x => x.id === cfg.metodoRegen);
-        if (!m) add('Método de corta (D.S. 259)', 'pend', 'Seleccione el método de corta de regeneración (tala rasa, árbol semillero, protección o selectiva).', 'Bases 3.3.2 a; D.S. 259 art. 18');
+        if (!m) add('Método de corta (D.S. 259)', 'pend', 'Seleccione el método de corta de regeneración (tala rasa, árbol semillero, protección o selectiva).', 'Bases 3.3.2 a; D.S. 259 art. 18', { tab: 'intervencion', sel: '[data-f="metodoRegen"]' });
         else {
           add('Método de corta (D.S. 259)', m.aplica === false ? 'no' : (m.aplica == null ? 'pend' : 'si'), `${m.nombre}: ${m.aplica === false ? m.obs.join(' ') : 'aplicable al tipo forestal ' + r.tipo.nombre + '.'}`, 'D.S. 259 art. ' + m.art);
           if (m.aplica !== false && m.obs.length) add('Restricción por pendiente', 'obs', m.obs.join(' '), 'D.S. 259 art. 18');

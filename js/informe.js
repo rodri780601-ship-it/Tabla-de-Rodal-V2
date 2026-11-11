@@ -7,7 +7,7 @@
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const fmt = (x, d = 1) => (x == null || !isFinite(x)) ? '—' : Number(x).toLocaleString('es-CL', { minimumFractionDigits: d, maximumFractionDigits: d });
   const MUESTREO = { aleatorio: 'Aleatorio simple', sistematico: 'Sistemático', estratificado: 'Estratificado (cada rodal es un estrato)', conglomerados: 'Por conglomerados', dirigido: 'Dirigido o selectivo (no probabilístico)' };
-  const EST = { si: 'Cumple', no: 'No cumple', obs: 'Observación', pend: 'Pendiente' };
+  const EST = { si: 'Cumple', no: 'No cumple', obs: 'Observación', pend: 'Incompleto' };
 
   // Tabla de rodal con la estructura de la plantilla (3 especies + Otras + Total), densidad entera
   function tablaRodal(r, c2, titulo2, d2) {
@@ -194,9 +194,9 @@
 #informe .cols2 figure table.it th { white-space: normal; text-align: center; }
 #informe .ley { display: flex; gap: 10pt; font-size: 8pt; color: #444; margin: 2pt 0; }
 #informe .ley i { display: inline-block; width: 8pt; height: 8pt; border-radius: 2pt; margin-right: 3pt; vertical-align: -1pt; }
-#informe .st-no, #informe .res-bad { color: #b42318; font-weight: bold; }
+#informe .st-no, #informe .st-pend, #informe .res-bad { color: #b42318; font-weight: bold; }
 #informe .st-si, #informe .res-ok { color: #1e6b35; font-weight: bold; }
-#informe .st-obs, #informe .st-pend, #informe .res-warn { color: #9a6700; font-weight: bold; }
+#informe .st-obs, #informe .res-warn { color: #9a6700; font-weight: bold; }
 #informe ul.fuentes { padding-left: 14pt; }
 #informe .hoja { background: #fff; overflow: hidden; position: relative; box-sizing: border-box; }
 #informe .hoja > section { margin: 0; }

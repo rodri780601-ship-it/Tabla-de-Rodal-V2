@@ -277,12 +277,20 @@
   /* ---------- columnas agrupadas por parcela: estado de desarrollo inicial y residual ----------
      Eje Y ordinal con los estados del Cuadro 2 (Repoblado abajo, Sobremaduro arriba): cada columna llega hasta el
      estado de la parcela. Las parcelas sin estado (Indeterminado o sin árboles) se marcan con «s/e» sobre la base. */
-  function columnasEstados({ filas, estados, xLabel = 'Parcela', fs = 1, anchoTotal, escalaAttr = 1 }) {
+  function columnasEstados({ filas, estados, xLabel = 'Parcela', fs = 1, anchoTotal, escalaAttr = 1, escler = false }) {
     const f = (v) => +(v * fs).toFixed(1), P = paleta();
     const tv = f(ROT.val), tt = f(ROT.tit), colIni = P.ramp[1], colRes = P.res, nE = estados.length;
     const W = anchoTotal || 680, nivelH = f(30);
     const m = { l: Math.ceil(anchoMax(estados, tv) + 14), r: 12, t: Math.ceil(tv + 18 + tv * 0.5), b: Math.ceil(14 + tv + tt) };
-    const iw = W - m.l - m.r, ih = nE * nivelH, H = m.t + ih + m.b, n = Math.max(1, filas.length);
+    // nota bajo el eje X: rangos de DMC (cm) y de altura de cada estado de desarrollo (Bases 2.5, Cuadro 2)
+    const tn = f(11), items = escler
+      ? ['DMC (cm): Latizal bajo 8–15', 'Latizal alto >15–25', 'Fustal joven >25–35', 'Fustal >35–50', 'Sobremaduro >50', 'DMC <8 según altura (m): Repoblado ≤0,8', 'Monte bravo bajo 0,8–1,5', 'Monte bravo alto >1,5']
+      : ['DMC (cm): Latizal bajo 10–20', 'Latizal alto >20–30', 'Fustal joven >30–50', 'Fustal >50–70', 'Sobremaduro >70', 'DMC <10 según altura (m): Repoblado <1', 'Monte bravo bajo 1–3', 'Monte bravo alto >3'];
+    const lineas = []; let cur = '';
+    items.forEach((it, i) => { const t = cur ? cur + ' · ' + it : it; if (cur && (anchoTexto(t, tn) > W - 8 || i === 5)) { lineas.push(cur); cur = it; } else cur = t; });
+    if (cur) lineas.push(cur);
+    const hNota = Math.ceil(lineas.length * tn * 1.35 + 6);
+    const iw = W - m.l - m.r, ih = nE * nivelH, H = m.t + ih + m.b + hNota, n = Math.max(1, filas.length);
     const y = (k) => m.t + ih - k / nE * ih, nivel = (e) => estados.indexOf(e) + 1; // 0 = sin estado
     const gw = iw / n, bw = Math.min(f(26), gw * 0.36), gap = Math.min(f(3), gw * 0.04);
     let s = `<svg viewBox="0 0 ${W} ${H}" width="${+(W * escalaAttr).toFixed(1)}" height="${+(H * escalaAttr).toFixed(1)}" role="img" class="chart" xmlns="http://www.w3.org/2000/svg" font-family="${FUENTE}">`;
@@ -304,7 +312,8 @@
       if (j % cada === 0) s += `<text x="${cx}" y="${+(y(0) + 6 + tv * 0.8).toFixed(1)}" text-anchor="middle" font-size="${tv}" fill="${P.muted}">${esc(fp.parcela)}</text>`;
       s += `<rect x="${m.l + j * gw}" y="${m.t}" width="${gw}" height="${ih}" fill="transparent" data-tip="${esc(`Parcela ${fp.parcela}|Inicial: ${fp.ini}|Residual: ${fp.res}`)}"/>`;
     });
-    s += `<text x="${m.l + iw / 2}" y="${+(H - 4 - tt * 0.22).toFixed(1)}" text-anchor="middle" font-size="${tt}" fill="${P.ink2}">${esc(xLabel)}</text>`;
+    s += `<text x="${m.l + iw / 2}" y="${+(H - hNota - 4 - tt * 0.22).toFixed(1)}" text-anchor="middle" font-size="${tt}" fill="${P.ink2}">${esc(xLabel)}</text>`;
+    lineas.forEach((l, i) => { s += `<text x="4" y="${+(H - hNota + 6 + tn + i * tn * 1.35).toFixed(1)}" font-size="${tn}" fill="${P.muted}" pointer-events="none">${esc(l)}</text>`; });
     return s + '</svg>';
   }
 
@@ -413,8 +422,7 @@
       const hm = mapaCalor({ especies: D.sp, parcelas: D.parcelasId, valor: (e, p) => ((D.ps.find(x => x.parcela === p).cuenta || {})[e.key] || 0) * r.FE, valorRes: (e, p) => (D.cuentaRes[e.key + '|' + p] || 0) * r.FE, fs: PDF_FS_680, anchoTotal: 680, escalaAttr: ESCALA_ATTR_MEDIA });
       const ep = estadosParcelas(r);
       const epFig = { id: 'ep', titulo: '5b. Estado de desarrollo por parcela, antes y después de la intervención', leyenda: false,
-        sub: 'Estado de cada parcela según su DMC y altura promedio (Bases 2.5, Cuadro 2).' + (ep.filas.some(x => !ep.estados.includes(x.ini) || !ep.estados.includes(x.res)) ? ' s/e = sin estado (falta la altura para un DMC bajo, o la parcela queda sin árboles).' : '') + (r.estructura === 'irregular' ? ' El rodal es de estructura irregular, por lo que su estado de desarrollo no aplica: los estados por parcela son sólo referenciales.' : ''),
-        svg: columnasEstados({ filas: ep.filas, estados: ep.estados, fs: PDF_FS_680, anchoTotal: 680, escalaAttr: ESCALA_ATTR_MEDIA }) };
+        svg: columnasEstados({ filas: ep.filas, estados: ep.estados, fs: PDF_FS_680, anchoTotal: 680, escalaAttr: ESCALA_ATTR_MEDIA, escler: !!(r.tipo && r.tipo.id === 'ESC') }) };
       figs.push({ id: 'esp', titulo: '5a. Distribución espacial por especie', sub: 'Fila = especie; columna = parcela; celda = árb/ha; el tono indica la densidad relativa a su máximo.', leyenda: false, svg: hm.svg });
       figs.push(epFig);
       // ejes en negrita: valores y títulos de los ejes, rótulos de clase o parcela e intensidad de extracción

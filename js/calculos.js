@@ -813,7 +813,6 @@
     }
     // 7. Reglamento de Suelos, Aguas y Humedales (D.S. 82/2010)
     if (act.corta && r.rsah) r.rsah.forEach(c => checks.push(c));
-    if (act.corta && (act.regla !== 'SANITARIA')) add('Marcación', 'obs', 'Revise la obligación de marcación de individuos cuando la definición de la actividad lo exige.', 'Bases 2.4');
     if (r.metodos.especial) add('Tipos Alerce y Araucaria', 'no', r.metodos.especial, 'D.S. 259 art. 30');
 
     const hayNo = checks.some(c => c.estado === 'no'), hayPend = checks.some(c => c.estado === 'pend'), hayObs = checks.some(c => c.estado === 'obs');

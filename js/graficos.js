@@ -449,13 +449,13 @@
     const fmtC = (x) => fmt(x, x % 1 ? 1 : 0);
     const g1 = barrasApiladas({
       cats: filas.map(f => fmtC(f.clase.mc)), res: filas.map(f => f.tot.res.n), ext: filas.map(f => f.tot.ini.n - f.tot.res.n),
-      yLabel: 'Densidad (árb/ha)', xLabel: 'Marca de clase diamétrica (cm)', dec: 0, ancho: 900,
+      yLabel: 'Densidad (árb/ha)', xLabel: 'Marca de clase diamétrica (cm)', intensidad: true, dec: 0, ancho: 900,
       tipCat: (c) => { const f = filas.find(x => fmtC(x.clase.mc) === c); return `Clase ${fmtC(f.clase.li)} – ${fmtC(f.clase.ls)} cm`; }
     });
     // 2. densidad y área basal por parcela
     const ps = r.parcelas;
-    const g2a = barrasApiladas({ cats: ps.map(p => p.parcela), res: ps.map(p => p.nRes || 0), ext: ps.map(p => p.n - (p.nRes || 0)), yLabel: 'Densidad (árb/ha)', xLabel: 'Parcela', dec: 0, tipCat: c => 'Parcela ' + c });
-    const g2b = barrasApiladas({ cats: ps.map(p => p.parcela), res: ps.map(p => p.gRes || 0), ext: ps.map(p => p.g - (p.gRes || 0)), yLabel: 'Área basal (m²/ha)', xLabel: 'Parcela', dec: 2, tipCat: c => 'Parcela ' + c });
+    const g2a = barrasApiladas({ cats: ps.map(p => p.parcela), res: ps.map(p => p.nRes || 0), ext: ps.map(p => p.n - (p.nRes || 0)), yLabel: 'Densidad (árb/ha)', xLabel: 'Parcela', intensidad: true, dec: 0, tipCat: c => 'Parcela ' + c });
+    const g2b = barrasApiladas({ cats: ps.map(p => p.parcela), res: ps.map(p => p.gRes || 0), ext: ps.map(p => p.g - (p.gRes || 0)), yLabel: 'Área basal (m²/ha)', xLabel: 'Parcela', intensidad: true, dec: 2, tipCat: c => 'Parcela ' + c });
     // 3. estructura por especie
     const sp = r.porEspecie.filter(e => e.ini.n > 0);
     const g3a = lineasEspecies({ filas, especies: sp, variable: 'n', xLabel: 'Marca de clase diamétrica (cm)', yLabel: 'Densidad (árb/ha)' });

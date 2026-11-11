@@ -1046,12 +1046,17 @@
       rs.map(r => { const aj = ajustesRodal(r); return `<tr><td><b>${esc(r.id)}</b></td>${celdaAjuste(r.tipo.nombre, aj.tipo)}${celdaAjuste(r.estado.estado || '—', aj.estado)}${celdaAjuste(r.categoria.cat, aj.categoria)}<td class="num">${fmt(r.DMCini)} / ${fmt(r.DMCres)}</td><td class="num">${fmt(r.tot.ini.n, 0)} / ${fmt(r.tot.res.n, 0)}</td><td class="num">${fmt(r.tot.ini.g, 2)} / ${fmt(r.tot.res.g, 2)}</td><td class="num">${r.tot.ini.v == null ? '—' : fmt(r.tot.ini.v, 1) + ' / ' + fmt(r.tot.res.v, 1)}</td><td>${esc(r.bases.actividad ? r.bases.actividad.nombre : '—')}</td></tr>`; }).join('') + '</tbody></table>' +
       (rs.some(r => Object.values(ajustesRodal(r)).some(Boolean)) ? `<p class="nota-ajuste"><span class="marca-ajuste"></span> Valor ajustado manualmente por el profesional en la sección 3 (difiere del calculado a partir del inventario); debe justificarse en el estudio técnico.</p>` : '');
     // Suelo y clima por rodal (D.S. 82): se edita aquí y recalcula la verificación de cada rodal
-    $('#tblSueloClima').innerHTML = `<table class="data"><thead><tr><th>Rodal</th><th>Profundidad del suelo (cm)</th><th>Suelo granítico</th><th>Precipitación media anual sobre 1.500 mm</th></tr></thead><tbody>` +
+    // Sólo se despliega lo que depende de la región del predio: suelo granítico (esclerófilo y palma chilena, propios de la zona
+    // central: IV a VIII, RM y Ñuble) y precipitación sobre 1.500 mm (no se aplica en Aysén ni Magallanes). La profundidad del suelo rige en todo el país.
+    const regSC = S.config.region;
+    const verGran = ['IV', 'V', 'RM', 'VI', 'VII', 'VIII', 'XVI'].includes(regSC) || rs.some(r => r.tipo.id === 'ESC' || r.tipo.id === 'PAL');
+    const verPrecip = !(regSC === 'XI' || regSC === 'XII');
+    $('#tblSueloClima').innerHTML = `<table class="data"><thead><tr><th>Rodal</th><th>Profundidad del suelo (cm)</th>${verGran ? '<th>Suelo granítico</th>' : ''}${verPrecip ? '<th>Precipitación media anual sobre 1.500 mm</th>' : ''}</tr></thead><tbody>` +
       rs.map(r => { const c = r.cfg; return `<tr><td><b>${esc(r.id)}</b></td>
         <td><input type="number" step="any" min="0" data-sc="${esc(r.id)}" data-scf="profSuelo" value="${esc(c.profSuelo == null ? '' : c.profSuelo)}" style="width:110px"></td>
-        <td><label class="chk"><input type="checkbox" data-sc="${esc(r.id)}" data-scb="sueloGranitico" ${c.sueloGranitico ? 'checked' : ''}> Sí</label></td>
-        <td><label class="chk"><input type="checkbox" data-sc="${esc(r.id)}" data-scb="precipAlta" ${c.precipAlta ? 'checked' : ''}> Sí</label></td></tr>`; }).join('') + '</tbody></table>' +
-      `<p class="muted" style="font-size:12px;margin:8px 0 0">Suelo granítico: en esclerófilo y palma chilena con pendiente ≥ 45 %, la cobertura mínima residual es 60 % (art. 7). Precipitación sobre 1.500 mm: en los demás tipos forestales con pendiente ≥ 45 %, fuera de Aysén y Magallanes, la cobertura mínima residual es 60 % (art. 8).</p>`;
+        ${verGran ? `<td><label class="chk"><input type="checkbox" data-sc="${esc(r.id)}" data-scb="sueloGranitico" ${c.sueloGranitico ? 'checked' : ''}> Sí</label></td>` : ''}
+        ${verPrecip ? `<td><label class="chk"><input type="checkbox" data-sc="${esc(r.id)}" data-scb="precipAlta" ${c.precipAlta ? 'checked' : ''}> Sí</label></td>` : ''}</tr>`; }).join('') + '</tbody></table>' +
+      (verGran || verPrecip ? `<p class="muted" style="font-size:12px;margin:8px 0 0">${verGran ? 'Suelo granítico: en esclerófilo y palma chilena con pendiente ≥ 45 %, la cobertura mínima residual es 60 % (art. 7). ' : ''}${verPrecip ? 'Precipitación sobre 1.500 mm: en los demás tipos forestales con pendiente ≥ 45 %, la cobertura mínima residual es 60 % (art. 8).' : ''}</p>` : '');
     $$('[data-sc]', $('#tblSueloClima')).forEach(el => el.addEventListener('change', () => {
       const cfg = S.cfgRodal[el.dataset.sc];
       if (el.dataset.scb) cfg[el.dataset.scb] = el.checked;

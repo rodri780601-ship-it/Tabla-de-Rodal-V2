@@ -112,23 +112,24 @@
         <h2 class="rodal">${cap}.4 Rodal ${esc(r.id)} · Distribución espacial por especie y estado de desarrollo por parcela</h2>
         <div class="cols2">${figura(F.esp, true)}${figura(F.ep, true)}</div>
       </section>`;
-      // ---------- Anexo del rodal: coordenadas UTM y funciones de volumen ----------
-      const usadas = new Map(); r.porEspecie.forEach(e => { if (e.fid) { const u = usadas.get(e.fid) || new Set(); u.add(e.nombre); usadas.set(e.fid, u); } });
-      h += `<section class="pg">
-        <h2 class="rodal">${cap}.5 Rodal ${esc(r.id)} · Anexo</h2>
-        <h3>${cap}.5.1 Coordenadas UTM de las parcelas de muestreo</h3>
-        <p>Datum WGS 84 · Huso ${U.huso ? esc(U.huso) + ' S' : 'no informado'}</p>
-        <table class="it"><thead><tr><th>Parcela</th><th>Árboles</th><th>N (árb/ha)</th><th>G (m²/ha)</th><th>Este (m)</th><th>Norte (m)</th></tr></thead><tbody>
-        ${r.parcelas.map(p => { const c = U.parcelas[r.id + '|' + p.parcela] || {}; const co = (v) => v === '' || v == null ? '—' : fmt(Number(v), 0); return `<tr><td>${esc(p.parcela)}</td><td class="n">${p.arboles}</td><td class="n">${fmt(p.n, 0)}</td><td class="n">${fmt(p.g, 2)}</td><td class="n">${co(c.e)}</td><td class="n">${co(c.n)}</td></tr>`; }).join('')}
-        </tbody></table>
-        <p class="nota">Densidad y área basal por parcela, de carácter referencial, para apoyar el análisis de la homogeneidad del rodal.</p>
-        <h3>${cap}.5.2 Funciones de volumen utilizadas</h3>
-        <table class="it"><thead><tr><th>N°</th><th>Especie</th><th>Región</th><th>Ecuación</th><th>Variable</th><th>Fuente</th></tr></thead><tbody>
-        ${[...usadas.keys()].sort(window.CALC.ordenFid).map(id => { const f = window.CALC.FN[id]; return `<tr><td>${f.usuario ? 'Usuario' : f.id}</td><td>${esc([...usadas.get(id)].join(', '))}</td><td>${esc(f.regiones.join(' - '))}</td><td class="eq">${esc(f.eq)}</td><td>${esc(f.variable)}</td><td>${esc(f.fuente)} (${esc(f.anio)})</td></tr>`; }).join('')}
-        </tbody></table>
-      </section>`;
     });
-    h += `<section class="pg"><p class="nota">Los resultados son una ayuda para el profesional y deben revisarse antes de su presentación.</p></section>`;
+    // ---------- Anexo (al final del documento): coordenadas UTM por rodal y funciones de volumen de todas las especies ----------
+    const usadas = new Map(); rs.forEach(r => r.porEspecie.forEach(e => { if (e.fid) { const u = usadas.get(e.fid) || new Set(); u.add(e.nombre); usadas.set(e.fid, u); } }));
+    const co = (v) => v === '' || v == null ? '—' : fmt(Number(v), 0);
+    h += `<section class="pg">
+      <h2>Anexo</h2>
+      <h3>A.1 Coordenadas UTM de las parcelas de muestreo</h3>
+      <p>Datum WGS 84 · Huso ${U.huso ? esc(U.huso) + ' S' : 'no informado'}</p>
+      ${rs.map(r => `<div class="bloque"><h3>Rodal ${esc(r.id)}</h3>
+      <table class="it"><thead><tr><th>Parcela</th><th>Árboles</th><th>N (árb/ha)</th><th>G (m²/ha)</th><th>Este (m)</th><th>Norte (m)</th></tr></thead><tbody>
+      ${r.parcelas.map(p => { const c = U.parcelas[r.id + '|' + p.parcela] || {}; return `<tr><td>${esc(p.parcela)}</td><td class="n">${p.arboles}</td><td class="n">${fmt(p.n, 0)}</td><td class="n">${fmt(p.g, 2)}</td><td class="n">${co(c.e)}</td><td class="n">${co(c.n)}</td></tr>`; }).join('')}
+      </tbody></table></div>`).join('')}
+      <p class="nota">Densidad y área basal por parcela, de carácter referencial, para apoyar el análisis de la homogeneidad del rodal.</p>
+      <h3>A.2 Funciones de volumen utilizadas</h3>
+      <table class="it"><thead><tr><th>N°</th><th>Especie</th><th>Región</th><th>Ecuación</th><th>Variable</th><th>Fuente</th></tr></thead><tbody>
+      ${[...usadas.keys()].sort(window.CALC.ordenFid).map(id => { const f = window.CALC.FN[id]; return `<tr><td>${f.usuario ? 'Usuario' : f.id}</td><td>${esc([...usadas.get(id)].join(', '))}</td><td>${esc(f.regiones.join(' - '))}</td><td class="eq">${esc(f.eq)}</td><td>${esc(f.variable)}</td><td>${esc(f.fuente)} (${esc(f.anio)})</td></tr>`; }).join('')}
+      </tbody></table>
+    </section>`;
     return h;
   }
 
@@ -239,7 +240,8 @@
         if (!desborda()) { if (nodo.nodeType === 1 || nodo.textContent.trim()) colocados++; return; }
         cont.removeChild(nodo);
         // tabla: se divide por filas repitiendo el encabezado
-        if (nodo.tagName === 'TABLE' && nodo.tBodies.length && nodo.tBodies[0].rows.length > 1) return dividirTabla(nodo);
+        // (sólo si no cabe ni en una hoja nueva: si cabe, pasa entera a la hoja siguiente)
+        if (nodo.tagName === 'TABLE' && nodo.tBodies.length && nodo.tBodies[0].rows.length > 1 && !(colocados > 0 && cabe(nodo))) return dividirTabla(nodo);
         // contenedor con varios hijos: se reparte su contenido
         if (nodo.nodeType === 1 && !/^(FIGURE|SVG|svg|TR|IMG)$/.test(nodo.tagName) && !nodo.classList.contains('par') && nodo.childNodes.length > 1 && !(colocados > 0 && cabe(nodo))) {
           const shell = nodo.cloneNode(false); cont.appendChild(shell); cont = shell;
@@ -281,9 +283,9 @@
         colocados++;
       }
       // salto de página sólo al cambiar de orientación (o en la primera sección)
-      // tampoco se empieza una sección al pie de una hoja (con menos de 1/5 de hoja libre): se pasa a la siguiente
+      // tampoco se empieza una sección al pie de una hoja (con menos de 12 % de hoja libre): se pasa a la siguiente
       const usado = () => { const u = hoja && hoja.lastElementChild; return u ? u.getBoundingClientRect().bottom - hoja.getBoundingClientRect().top : 0; };
-      const seguir = hoja && fmtPrev === fmtKey && H - usado() >= H * 0.2;
+      const seguir = hoja && fmtPrev === fmtKey && H - usado() >= H * 0.12;
       fmtPrev = fmtKey;
       if (!seguir) nueva([]);
       const casco = sec.cloneNode(false); hoja.appendChild(casco); cont = casco;

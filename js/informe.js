@@ -52,14 +52,14 @@
       <header class="ihead"><h1>Tabla de rodal y diagnóstico del bosque</h1>
       <p>Inventario: predio <b>${esc((S.antecedentes || {}).predio || '—')}</b>, comuna de <b>${esc((S.antecedentes || {}).comuna || '—')}</b>, región de <b>${esc(reg || '—')}</b> · ${S.rodales.length} rodal(es) · ${S.arboles.length.toLocaleString('es-CL')} árboles</p>
       <p>Tipo de muestreo: <b>${esc(MUESTREO[S.config.muestreo] || '')}</b>${S.config.fecha ? ` · Fecha de muestreo: <b>${esc(S.config.fecha.split('-').reverse().join('-'))}</b>` : ''} · Parcela ${esc(S.config.forma)} de ${fmt(S.config.area, 2)} m² (${esc(window.APP_descDims())}) · Factor de expansión ${fmt(10000 / S.config.area, 2)}</p></header>
-      <h2>Resumen por rodal</h2>
+      <h2>1. Resumen por rodal</h2>
       <table class="it resumen"><thead><tr><th rowspan="2">Rodal</th><th rowspan="2">Sup. (ha)</th><th rowspan="2">Tipo forestal</th><th rowspan="2">Estado de desa­rrollo</th><th rowspan="2">Categoría de bosque</th><th colspan="2">DMC (cm)</th><th colspan="3">N (árb/ha)</th><th colspan="3">G (m²/ha)</th><th colspan="3">V (m³/ha)</th><th rowspan="2">Actividad inmediata</th></tr><tr><th>Ini.</th><th>Res.</th><th>Ini.</th><th>Ext.</th><th>Res.</th><th>Ini.</th><th>Ext.</th><th>Res.</th><th>Ini.</th><th>Ext.</th><th>Res.</th></tr></thead><tbody>
       ${rs.map(r => { const aj = window.APP_ajustesRodal ? window.APP_ajustesRodal(r) : {}; const c = (v, calc) => calc == null ? `<td>${esc(v)}</td>` : `<td class="ajuste">${esc(v)}<div class="calc">Calculado: ${esc(calc)}</div></td>`;
         return `<tr><td>${esc(r.id)}</td><td class="n">${r.cfg.superficie === '' ? '—' : fmt(Number(r.cfg.superficie), 2)}</td>${c(r.tipo.nombre, aj.tipo)}${c(r.estado.estado || '—', aj.estado)}${c(r.categoria.cat, aj.categoria)}<td class="n">${fmt(r.DMCini)}</td><td class="n">${fmt(r.DMCres)}</td><td class="n">${fmt(r.tot.ini.n, 0)}</td><td class="n">${fmt(r.tot.ext.n, 0)}</td><td class="n">${fmt(r.tot.res.n, 0)}</td><td class="n">${fmt(r.tot.ini.g, 2)}</td><td class="n">${fmt(r.tot.ext.g, 2)}</td><td class="n">${fmt(r.tot.res.g, 2)}</td><td class="n">${r.tot.ini.v == null ? '—' : fmt(r.tot.ini.v, 1)}</td><td class="n">${r.tot.ext.v == null ? '—' : fmt(r.tot.ext.v, 1)}</td><td class="n">${r.tot.res.v == null ? '—' : fmt(r.tot.res.v, 1)}</td><td>${esc(r.bases.actividad ? r.bases.actividad.nombre : '—')}</td></tr>`; }).join('')}
       </tbody></table>
       <p class="nota">Ini. = inicial · Ext. = extracción · Res. = residual.</p>
       ${window.APP_ajustesRodal && rs.some(r => Object.values(window.APP_ajustesRodal(r)).some(Boolean)) ? '<p class="nota"><span class="marca-ajuste"></span> Valor ajustado manualmente por el profesional (difiere del calculado a partir del inventario); debe justificarse en el estudio técnico.</p>' : ''}
-      <h2>Estadísticos del muestreo</h2>
+      <h2>2. Estadísticos del muestreo</h2>
       <table class="it"><thead><tr><th rowspan="2">Rodal</th><th rowspan="2">Parcelas</th><th rowspan="2">t de Student (95 %)</th><th colspan="2">Media</th><th colspan="2">Desviación estándar</th><th colspan="2">Varianza</th><th colspan="2">Coeficiente de variación</th><th colspan="2">Error de muestreo</th></tr>
       <tr><th>N (árb/ha)</th><th>G (m²/ha)</th><th>N (árb/ha)</th><th>G (m²/ha)</th><th>N (árb/ha)²</th><th>G (m²/ha)²</th><th>N (%)</th><th>G (%)</th><th>N (%)</th><th>G (%)</th></tr></thead><tbody>
       ${rs.map(r => { const s = window.APP_recalcStats(r); return `<tr><td>${esc(r.id)}</td><td class="n">${s.n}</td><td class="n">${fmt(s.t, 3)}</td><td class="n">${fmt(s.N.media, 0)}</td><td class="n">${fmt(s.G.media, 2)}</td><td class="n">${fmt(s.N.s, 1)}</td><td class="n">${fmt(s.G.s, 2)}</td><td class="n">${fmt(s.N.var, 1)}</td><td class="n">${fmt(s.G.var, 3)}</td><td class="n">${fmt(s.N.cv, 1)}</td><td class="n">${fmt(s.G.cv, 1)}</td><td class="n">${fmt(s.N.ePct, 1)}</td><td class="n">${fmt(s.G.ePct, 1)}</td></tr>`; }).join('')}
@@ -68,12 +68,13 @@
     </section>`;
     const U = S.utm || { huso: '', parcelas: {} };
 
-    rs.forEach(r => {
+    rs.forEach((r, ri) => {
+      const cap = ri + 3; // capítulos 1 y 2: resumen y estadísticos; un capítulo por rodal
       const { figs } = window.GRAFICOS.figurasRodal(r);
       const F = Object.fromEntries(figs.map(f => [f.id, f]));
       // ---------- Diagnóstico (vertical) ----------
       h += `<section class="pg">
-        <h2 class="rodal">Rodal ${esc(r.id)} · Diagnóstico</h2>
+        <h2 class="rodal">${cap}.1 Rodal ${esc(r.id)} · Diagnóstico</h2>
         <table class="kv"><tbody>${(() => { const aj = window.APP_ajustesRodal ? window.APP_ajustesRodal(r) : {}; const m = (x) => x != null ? ' <span class="aj-manual">(ajuste manual del consultor)</span>' : ''; const estAj = r.cfg.estructura && r.cfg.estructura !== 'auto'; return `
           <tr><th>Tipo forestal (D.S. 259)</th><td><b>${esc(r.tipo.nombre)}</b>${m(aj.tipo)}</td></tr>
           <tr><th>Estado de desarrollo</th><td><b>${esc(r.estado.estado || 'Indeterminado')}</b>${m(aj.estado)} · Estado residual: ${esc(r.estadoRes.estado || '—')}</td></tr>
@@ -82,7 +83,7 @@
           <tr><th>Superficie / pendiente</th><td>${r.cfg.superficie === '' ? '—' : fmt(Number(r.cfg.superficie), 2) + ' ha'} · ${window.CALC.rangoPendiente(r.cfg.pendiente) ? 'pendiente predominante ' + window.CALC.PENDIENTES[window.CALC.rangoPendiente(r.cfg.pendiente)] : 'pendiente predominante no informada'}</td></tr>
           <tr><th>Existencias inicial → residual</th><td>N ${fmt(r.tot.ini.n, 0)} → ${fmt(r.tot.res.n, 0)} árb/ha · G ${fmt(r.tot.ini.g, 2)} → ${fmt(r.tot.res.g, 2)} m²/ha · V ${r.tot.ini.v == null ? '—' : fmt(r.tot.ini.v, 1) + ' → ' + fmt(r.tot.res.v, 1) + ' m³/ha'} · DMC ${fmt(r.DMCini)} → ${fmt(r.DMCres)} cm</td></tr>`; })()}
         </tbody></table>
-        <h3>Parámetros por especie</h3>
+        <h3>${cap}.1.1 Parámetros por especie</h3>
         ${(() => { const dmc = (e, res) => { let s = 0, q = 0; r.arboles.filter(a => a.key === e.key).forEach(a => { const w = res ? a.res : 1, d = res ? a.dapRes : a.dap; s += w * d * d; q += w; }); return q > 0 ? Math.sqrt(s / q) : null; };
           // como en la tabla de rodal: una columna inicial y una residual (sombreada) por cada parámetro
           const par = (ini, res) => `<td class="n">${ini}</td><td class="n res">${res}</td>`;
@@ -93,9 +94,9 @@
       // ---------- Tablas de rodal (oficio horizontal) ----------
       // (hoja vertical, igual que el resto: las tablas caben a lo ancho y se evita el salto por cambio de orientación)
       h += `<section class="pg">
-        <h2 class="rodal">Rodal ${esc(r.id)} · 12.3.9 Tabla de rodal inicial y residual, después de la intervención inmediata</h2>
+        <h2 class="rodal">${cap}.2 Rodal ${esc(r.id)} · 12.3.9 Tabla de rodal inicial y residual, después de la intervención inmediata</h2>
         <div class="bloque">${tablaRodal(r, 'g', 'G (m²/ha)', 2)}</div>
-        <h3>Volumen inicial y residual por clase diamétrica (funciones del compendio${r.porEspecie.some(e => (window.CALC.FN[e.fid] || {}).usuario) ? ' y definidas por el usuario' : ''})</h3>
+        <h3>${cap}.2.1 Volumen inicial y residual por clase diamétrica (funciones del compendio${r.porEspecie.some(e => (window.CALC.FN[e.fid] || {}).usuario) ? ' y definidas por el usuario' : ''})</h3>
         <div class="bloque">${tablaRodal(r, 'v', 'V (m³/ha)', 2)}</div>
         <p class="nota">${r.simpodico ? 'Bosque simpódico: N = individuos (cepas)/ha; G y V incluyen todos los vástagos; clase según diámetro equivalente √(Σ d²). ' : ''}Densidad en árboles enteros por hectárea: en cada especie los valores por clase se redondean de modo que sumen el total de la especie redondeado. Columnas Res. = residual.${r.tot.ini.vCompleto ? '' : ' Hay especies sin función de volumen o sin altura: volumen parcial.'}</p>
       </section>`;
@@ -103,25 +104,25 @@
       // Gráficos en una sola grilla de dos columnas, por pares: 1 y 2 (distribución diamétrica y composición por
       // especie), 3a y 3b (por parcela) y 4a y 4b (densidad inicial y residual por clase y especie).
       h += `<section class="pg">
-        <h2 class="rodal">Rodal ${esc(r.id)} · Efectos de la intervención y sobre la estructura por especie</h2>
+        <h2 class="rodal">${cap}.3 Rodal ${esc(r.id)} · Efectos de la intervención y sobre la estructura por especie</h2>
         <div class="cols2">${figura(F.dd, true)}${figura(F.tc, true)}${figura(F.np, true)}${figura(F.gp, true)}${figura(F.ni, true)}${figura(F.nr, true)}
         </div>
       </section>
       <section class="pg">
-        <h2 class="rodal">Rodal ${esc(r.id)} · Distribución espacial por especie y estado de desarrollo por parcela</h2>
+        <h2 class="rodal">${cap}.4 Rodal ${esc(r.id)} · Distribución espacial por especie y estado de desarrollo por parcela</h2>
         <div class="cols2">${figura(F.esp, true)}${figura(F.ep, true)}</div>
       </section>`;
       // ---------- Anexo del rodal: coordenadas UTM y funciones de volumen ----------
       const usadas = new Map(); r.porEspecie.forEach(e => { if (e.fid) { const u = usadas.get(e.fid) || new Set(); u.add(e.nombre); usadas.set(e.fid, u); } });
       h += `<section class="pg">
-        <h2 class="rodal">Rodal ${esc(r.id)} · Anexo</h2>
-        <h3>Coordenadas UTM de las parcelas de muestreo</h3>
+        <h2 class="rodal">${cap}.5 Rodal ${esc(r.id)} · Anexo</h2>
+        <h3>${cap}.5.1 Coordenadas UTM de las parcelas de muestreo</h3>
         <p>Datum WGS 84 · Huso ${U.huso ? esc(U.huso) + ' S' : 'no informado'}</p>
         <table class="it"><thead><tr><th>Parcela</th><th>Árboles</th><th>N (árb/ha)</th><th>G (m²/ha)</th><th>Este (m)</th><th>Norte (m)</th></tr></thead><tbody>
         ${r.parcelas.map(p => { const c = U.parcelas[r.id + '|' + p.parcela] || {}; const co = (v) => v === '' || v == null ? '—' : fmt(Number(v), 0); return `<tr><td>${esc(p.parcela)}</td><td class="n">${p.arboles}</td><td class="n">${fmt(p.n, 0)}</td><td class="n">${fmt(p.g, 2)}</td><td class="n">${co(c.e)}</td><td class="n">${co(c.n)}</td></tr>`; }).join('')}
         </tbody></table>
         <p class="nota">Densidad y área basal por parcela, de carácter referencial, para apoyar el análisis de la homogeneidad del rodal.</p>
-        <h3>Funciones de volumen utilizadas</h3>
+        <h3>${cap}.5.2 Funciones de volumen utilizadas</h3>
         <table class="it"><thead><tr><th>N°</th><th>Especie</th><th>Región</th><th>Ecuación</th><th>Variable</th><th>Fuente</th></tr></thead><tbody>
         ${[...usadas.keys()].sort(window.CALC.ordenFid).map(id => { const f = window.CALC.FN[id]; return `<tr><td>${f.usuario ? 'Usuario' : f.id}</td><td>${esc([...usadas.get(id)].join(', '))}</td><td>${esc(f.regiones.join(' - '))}</td><td class="eq">${esc(f.eq)}</td><td>${esc(f.variable)}</td><td>${esc(f.fuente)} (${esc(f.anio)})</td></tr>`; }).join('')}
         </tbody></table>

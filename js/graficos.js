@@ -415,7 +415,7 @@
       const epFig = { id: 'ep', titulo: '5b. Estado de desarrollo por parcela, antes y después de la intervención', leyenda: false,
         sub: 'Estado de cada parcela según su DMC y altura promedio (Bases 2.5, Cuadro 2).' + (ep.filas.some(x => !ep.estados.includes(x.ini) || !ep.estados.includes(x.res)) ? ' s/e = sin estado (falta la altura para un DMC bajo, o la parcela queda sin árboles).' : '') + (r.estructura === 'irregular' ? ' El rodal es de estructura irregular, por lo que su estado de desarrollo no aplica: los estados por parcela son sólo referenciales.' : ''),
         svg: columnasEstados({ filas: ep.filas, estados: ep.estados, fs: PDF_FS_680, anchoTotal: 680, escalaAttr: ESCALA_ATTR_MEDIA }) };
-      figs.push({ id: 'esp', titulo: '5a. Distribución espacial por especie (densidad inicial, árb/ha por parcela)', sub: 'Cada fila es una especie, con su propio color; cada celda es una parcela y la intensidad del tono indica la densidad de la especie en esa parcela, relativa a su máximo. El inventario no registra coordenadas: se muestra la distribución de los individuos entre las parcelas.', leyenda: false, svg: hm.svg });
+      figs.push({ id: 'esp', titulo: '5a. Distribución espacial por especie', sub: 'Fila = especie; columna = parcela; celda = árb/ha; el tono indica la densidad relativa a su máximo.', leyenda: false, svg: hm.svg });
       figs.push(epFig);
       // ejes en negrita: valores y títulos de los ejes, rótulos de clase o parcela e intensidad de extracción
       // (textos en los colores de eje; no se cambian las leyendas de especies ni los números de las celdas del mapa)

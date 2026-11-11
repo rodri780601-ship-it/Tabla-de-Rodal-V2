@@ -382,3 +382,8 @@ button.tag-link:hover { filter: brightness(0.95); text-decoration: underline; }
 .campo-faltante { background: var(--bad-soft); box-shadow: inset 4px 0 0 var(--bad), 0 0 0 2px var(--bad); border-radius: 6px; padding: 6px 8px 8px 12px; }
 .campo-faltante input, .campo-faltante select { border-color: var(--bad); }
 .titulo-verif { margin: 18px 0 8px; }
+.subtabs { display: flex; flex-wrap: wrap; gap: 4px; margin: 0 0 10px; border-bottom: 2px solid var(--line); }
+.subtab { border: 0; background: transparent; padding: 8px 14px; font: inherit; font-weight: 600; color: var(--muted); cursor: pointer; border-radius: 6px 6px 0 0; margin-bottom: -2px; border-bottom: 2px solid transparent; }
+.subtab:hover { background: rgba(0, 0, 0, .05); }
+.subtab.active { color: var(--ink, inherit); border-bottom-color: var(--rojo); }
+.card[hidden] { display: none; }
